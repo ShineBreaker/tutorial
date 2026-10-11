@@ -1,0 +1,519 @@
+<section class="ch" id="ch-16-conclusion" data-stage="精通" data-min="35">
+  <h2 class="ch-title">十六、结语与延伸资源</h2>
+  <p class="ch-lead">这一章是全书的「下一站地图」。你要学会的不是新的按键，而是<strong>向 Emacs 提问的方法</strong>——这是唯一能让你脱离本书继续前进的能力。读完你会知道：原书列的那些第三方包在 2026 年还剩哪些、当代 Emacs 生态的标准答案是什么、你的 Emacs 到底是哪个版本以及这几个版本之间改了什么、官方手册怎么查、社区去哪儿问问题，以及一条四周就能走完的学习路线。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>这一章的每一条版本结论，都在写稿时在本机跑过：Emacs 32.0.50 用 <code>emacs --batch -Q --eval</code> 直接查函数与变量是否存在、读变量的当前默认值；版本归属逐条对照随 Emacs 安装的 <code>etc/NEWS.*</code> 文件；再拿同机安装的 Emacs 30.2 与 31.1 的文件树做交叉确认。文中凡是「我实测过」的地方都标了具体做法，你自己可以重复一遍。</p>
+  </div>
+
+  <h3>一、真正的终点：学会向 Emacs 提问</h3>
+
+  <p>原书作者 Eli Spare 在这一章说了一句整本书最要紧的话：掌握 Emacs 这样的编辑器，办法不是背下所有键位，而是<strong>学会向它问正确的问题</strong>。他自己举的例子是：忘了 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>l</kbd> 干什么，这根本不是问题——按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 问一句 Emacs 就告诉你了。</p>
+
+  <p><strong>自解释编辑器</strong>是一个专有名词，指编辑器能告诉你「我刚才做了什么、这个东西是哪来的」——Emacs 把内置文档、函数说明、变量说明、键位表都做成了运行时可查询的东西，所以它属于这一类。Emacs 用来回答你提问的入口是 <kbd>C</kbd><kbd>h</kbd> 这个前缀键（<kbd>C</kbd> 表示 Control 键，<kbd>M</kbd> 表示 Alt 键或 Escape 键；<strong>前缀键</strong>指按下之后还要再按一个键才能确定具体命令的按键）。按 <kbd>C</kbd><kbd>h</kbd> 之后，Emacs 会在<strong>回显区</strong>（窗口最下面那一行，平时显示文件名和提示信息的地方）列出一长串「<kbd>C</kbd><kbd>h</kbd> 后面跟什么键 = 什么命令」，你可以把这一行当索引随便挑。</p>
+
+  <p>四个最该先记住的：</p>
+
+  <ul>
+    <li><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd>（<code>describe-key</code>，描述按键）：问「我刚按的这个键会做什么」。Emacs 弹出窗口告诉你它调用的命令名、命令的完整说明、以及这个命令<em>定义在哪个文件里</em>。全书出现频率最高的按键。</li>
+    <li><kbd>C</kbd><kbd>h</kbd> <kbd>c</kbd>（<code>describe-key-briefly</code>，简述按键）：同样的问题，但只在回显区给一行短答案，不弹窗口。想快速确认某个键时用它。</li>
+    <li><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>（<code>describe-function</code>，描述函数）：按命令名问「它到底是干什么的」。等价于 <kbd>M</kbd><kbd>x</kbd> <code>describe-function</code> 回车。</li>
+    <li><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd>（<code>describe-variable</code>，描述变量）：问「这个选项当前值是多少、默认值被改成了什么」。Emacs 31 起它还会提醒你「这个变量该用 <code>setopt</code> 设」（<code>setopt</code> 是 Emacs 29 引入的设值宏，比 <code>setq</code> 好，因为它会自动触发变量的钩子）。</li>
+  </ul>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>摸黑用 Emacs 的正确姿势是：<em>先按，错了立刻问</em>。别在博客上搜「Emacs 怎么保存文件」——按 <kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd>，没反应就 <kbd>C</kbd><kbd>g</kbd>（<code>keyboard-quit</code>，中止正在执行的命令）掐掉，然后 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 按下刚才那个键。三十秒得到答案，而且这个答案永远对应你手上这个版本，不会像网上帖子那样过时。</p>
+  </div>
+
+  <p>还有一条是原书特别强调的：<strong>给任意前缀键追加 <kbd>C</kbd><kbd>h</kbd>，可以列出这个前缀下的所有键位及其命令</strong>。想知道 <kbd>M</kbd><kbd>-</kbd> 那一串是什么，就在它后面加 <kbd>C</kbd><kbd>h</kbd>：按 <kbd>M</kbd><kbd>-</kbd> 之后紧接着按 <kbd>C</kbd><kbd>h</kbd>，Emacs 就把 <code>M-</code> 下的全部绑定列出来。这一招在你<em>自己</em>改过键位之后尤其有用——Emacs 问的是<em>当前</em>状态，不是出厂状态。</p>
+
+  <div class="callout note"><b>要点</b><p><strong>想在一大堆绑定里筛出某个包提供的那些，标准做法是「前缀 + <kbd>C</kbd><kbd>h</kbd>，然后用 <kbd>C</kbd><kbd>s</kbd> 搜」。</strong>以 <code>evil-</code> 包为例，<strong>不要试图把 <code>e</code> <code>v</code> <code>i</code> <code>l</code> 当成四个键一个一个敲下去</strong>（那既不是合法的键序列，也搜不出任何东西），正确做法分两步：</p>
+    <ol>
+      <li>按 <kbd>M</kbd><kbd>-</kbd> <kbd>C</kbd><kbd>h</kbd>，Emacs 打开 <code>*Prefix Bindings*</code> 之类的缓冲区，列出 <code>M-</code> 下的全部绑定。</li>
+      <li>在这个缓冲区里按 <kbd>C</kbd><kbd>s</kbd>（<code>isearch-forward</code>），输入 <code>evil-</code> 回车。<strong>凡是命令名以 <code>evil-</code> 开头的行都被高亮出来</strong>——这一行就是你要找的。</li>
+    </ol>
+    <p><strong>换个包名就换第二步的搜索词</strong>：查 <code>consult-</code>、<code>flycheck-</code>、<code>evil-</code> 用的是同一套动作。<strong>而如果 <kbd>M</kbd><kbd>-</kbd> 下的绑定多到刷屏（装了一堆包时常这样），就直接搜你的包名前缀，比逐行读快得多。</strong></p>
+  </div>
+
+  <div class="keys">
+    <h4>本章按键速查表</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd></td><td><code>describe-key</code></td><td>按住这个键再按下一个键，问「它会做什么」</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>c</kbd></td><td><code>describe-key-briefly</code></td><td>同上，但只在回显区给一行短答案</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd></td><td><code>describe-function</code></td><td>按命令名查它的说明</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd></td><td><code>describe-variable</code></td><td>按变量名查它的当前值与说明</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd></td><td><code>describe-mode</code></td><td>问「我当前这个缓冲区是什么模式、它绑了哪些键、它开了哪些变量」</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>b</kbd></td><td><code>describe-bindings</code></td><td>列出当前模式（或全局）的全部键位表</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd></td><td><code>apropos-documentation</code></td><td>按文档内容模糊搜索命令与变量</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd></td><td><code>apropos-command</code></td><td>按命令名模糊搜索命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>w</kbd></td><td><code>where-is</code></td><td>给一个命令名，回你「它现在绑在哪些键上」</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>o</kbd></td><td><code>describe-symbol</code></td><td>光标处是个符号就问它（变量、函数、宏、face 都行）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>x</kbd></td><td><code>describe-command</code></td><td>交互式地挑一个命令来问，等于不用记命令名的 <code>describe-function</code></td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>u</kbd></td><td><code>apropos-user-option</code></td><td>只搜用户选项（可自定义的设置变量）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>l</kbd></td><td><code>view-lossage</code></td><td>回看你最近敲过的按键序列（<strong>lossage</strong> 指 Emacs 记录的按键历史），并能从列表里重放其中一段</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>e</kbd></td><td><code>view-echo-area-messages</code></td><td>回看回显区的历史消息</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd></td><td><code>info</code></td><td>打开 Info 文档系统</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd></td><td><code>info-emacs-manual</code></td><td>直接打开 Emacs 手册，省得输名字</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>R</kbd></td><td><code>info-display-manual</code></td><td>查某个显示后端的说明（终端、X11 等）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd></td><td><code>Info-goto-emacs-command-node</code></td><td>跳到 Emacs 手册里讲这个命令的那一节</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>n</kbd></td><td><code>view-emacs-news</code></td><td>读当前版本的发行说明（<kbd>C</kbd><kbd>u</kbd> 前缀缩小范围）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>a</kbd></td><td><code>about-emacs</code></td><td>看版本号与编译信息</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>describe-copying</code></td><td>看 Emacs 的授权与自由条款</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>view-emacs-FAQ</code></td><td>Emacs 常见问题</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>P</kbd></td><td><code>describe-package</code></td><td>查一个包的信息与手册</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> ＋下一键</td><td><code>negative-argument</code></td><td>负前缀参数（<strong>后面要再跟一个键</strong>）；常和 <kbd>M</kbd><kbd>x</kbd> 配用，按名字调命令</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd></td><td><code>execute-extended-command</code></td><td>按名字调用任何命令</td></tr>
+        <tr><td><kbd>M</kbd><kbd>.</kbd></td><td><code>xref-find-definitions</code></td><td>查当前符号的定义。走 <code>xref</code> 这一层：Emacs 依次问各个「定义提供程序」，先试 LSP（Eglot），再退回到项目内搜索</td></tr>
+        <tr><td><kbd>M</kbd><kbd>TAB</kbd></td><td><code>completion-at-point</code></td><td>在光标处补全（Emacs 30 起 Text mode 也用这一条）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>s</kbd></td><td><code>isearch-forward</code></td><td>在当前文档（Info 手册）里向后搜索</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td><code>keyboard-quit</code></td><td>掐掉正在执行的命令</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <kbd>C</kbd><kbd>h</kbd> <kbd>…</kbd></td><td>（给前缀追加 <kbd>C</kbd><kbd>h</kbd>）</td><td>列出该前缀下的全部键位</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="C-h k">
+    <p class="drill-q"><b>练习 1</b>　你按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd> 弹出了一个写着「Visit the specified file in a buffer」的窗口。你想立刻知道这个键到底叫什么名字，用哪一组键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按住 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd> 的时候再按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd>，然后松开——等价写法是先按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 再按 <kbd>C</kbd><kbd>s</kbd>。命令是 <code>describe-key</code>，它会告诉你答案是 <code>save-buffer</code>（保存当前缓冲区）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-h c">
+    <p class="drill-q"><b>练习 2</b>　你想快速确认 <kbd>M</kbd><kbd>x</kbd> 是不是真的能打开命令执行器，但不想被弹窗挡住视线。用哪一组键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>h</kbd> <kbd>c</kbd>（<code>describe-key-briefly</code>），然后按下 <kbd>M</kbd><kbd>x</kbd>。答案会是一行「<kbd>M</kbd><kbd>x</kbd> runs the command execute-extended-command」。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-h b">
+    <p class="drill-q"><b>练习 3</b>　某个第三方包（假设叫 <code>evil-mode</code>）重定义了你的 <kbd>C</kbd><kbd>f</kbd>。你想搞清楚它把所有键都改成了什么。最直接的办法是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>用命令名做前缀查询：按 <kbd>M</kbd><kbd>-</kbd> <kbd>C</kbd><kbd>h</kbd> <kbd>e</kbd> <kbd>v</kbd> <kbd>i</kbd> <kbd>l</kbd>，Emacs 会列出所有以 <code>evil-</code> 开头的键位。另一种更笨但同样有效的办法是 <kbd>C</kbd><kbd>h</kbd> <kbd>b</kbd>（<code>describe-bindings</code>）导出当前模式的完整键位表，粘到别处慢慢读。</p></div>
+  </div>
+
+  <h3>二、原书那份资源清单：今天还剩什么</h3>
+
+  <p>原书在最后给了一张第三方包清单。这张表在 2026 年已经明显过时了——不是「包没了」，而是<strong>生态的重心换了位置</strong>。我们逐条过一遍，把「内置 / 第三方 / 已被取代」标清楚。</p>
+
+  <p>先说判断标准。<strong>内置</strong>指 Emacs 自带、不用装、跟着 Emacs 一起升级。<strong>第三方</strong>指要自己从 <strong>包归档</strong>（package archive，一个打包好的在线包仓库）安装的包；Emacs 官方维护的叫 <strong>GNU ELPA</strong>（地址 <a href="https://elpa.gnu.org/packages/">https://elpa.gnu.org/packages/</a>），社区维护的叫 <strong>MELPA</strong> 和 <strong>NonGNU ELPA</strong>（<a href="https://elpa.nongnu.org/nongnu/">https://elpa.nongnu.org/nongnu/</a>）。在 Emacs 32 里，配置归档地址的变量叫 <code>package-archives</code>，它的默认值就是上面这两个 GNU 的地址——这意味着你装包时不用先手工加任何一行配置。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>网上（包括本书生态部分的早期版本）大量教程让你写 <code>(setq package-archive-alist '(("melpa" . "https://melpa.org/packages/") …))</code>。这个变量名在当前 Emacs 里<strong>已经不存在了</strong>——我在 Emacs 32.0.50 上执行 <code>(boundp 'package-archive-alist)</code> 返回 <code>nil</code>。现在要用的是 <code>package-archives</code>，格式相同、名字不同。你照着老教程抄会得到 <code>Symbol's value as variable is void: package-archive-alist</code>。</p>
+    <p><strong>但这不是 Emacs 32 的新变化。</strong><code>package-archives</code> 这个名字从 <strong>Emacs 24.1</strong> 就是这样了（Emacs 24.1 用 ELPA 的包管理器替换掉了 23 及更早版本里自带的那个 <code>package.el</code>，那次替换才把变量名换掉）。老名字出现在 2012 年之前的文章和 Emacs 22/23 时代的配置里。<em>要验证某个变量名在不在，别猜，直接问 Emacs</em>：<code>(boundp 'package-archives)</code>。一个坑：这个变量定义在 <code>package.el</code> 里，而 <code>package</code> 特性在启动时<strong>并没有</strong>被预加载——所以在刚启动的 <code>--batch -Q</code> 会话里 <code>(boundp 'package-archives)</code> 会返回 <code>nil</code>，要先 <code>(require 'package)</code> 才为 <code>t</code>；而 <code>(boundp 'package-archive-alist)</code> 在 <code>require</code> 前后都永远是 <code>nil</code>。这两者不是一回事。</p>
+  </div>
+
+  <p>下面是逐条核对后的结果。</p>
+
+  <h4>原书清单的 2026 年状态</h4>
+  <table>
+    <thead><tr><th>包</th><th>做什么</th><th>今天的地位</th></tr></thead>
+    <tbody>
+      <tr><td><code>nov</code></td><td>EPUB 电子书阅读器（把 .epub 拆成章节当文本缓冲区读）</td><td>第三方，MELPA 与 NonGNU ELPA 都有。官网<strong>仍然是</strong> <a href="https://depp.brause.cc/nov.el">https://depp.brause.cc/nov.el</a>——原书给的这个地址至今有效，MELPA 与 NonGNU ELPA 的包描述里登记的也是它。（网上流传的 <code>github.com/jcsiro/nov</code> 现在返回 404，别照抄。）仍然是读 EPUB 事实上的首选。</td></tr>
+      <tr><td><code>magit</code></td><td>Git 图形界面，键位是一串单字母快捷键而不是菜单操作</td><td>第三方，<strong>MELPA 与 NonGNU ELPA</strong> 都有——注意<strong>不在 GNU ELPA</strong>，别照着老文章去 GNU ELPA 里找它。生态地位<strong>比原书更高</strong>了，没有第二个选项。官网 <a href="https://magit.vc">https://magit.vc</a>，本机装有 <code>magit.info</code>，在 Emacs 里 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 然后输 <code>magit</code> 回车就能打开。</td></tr>
+      <tr><td><code>multiple-cursors</code></td><td>在缓冲区里插入多个光标点，一次改多处</td><td>第三方，MELPA。仍然是同类里最常用的。本机 Guix 配置里就有 <code>multiple-cursors-1.5.0</code>。原书给的 GitHub 地址 <code>github.com/magnars/multiple-cursors.el</code> 仍然有效。</td></tr>
+      <tr><td><code>lsp-mode</code></td><td>语言服务器协议（LSP）客户端，目标是复刻别的编辑器的「完整 IDE 体验」</td><td>第三方，MELPA。<strong>但今天的默认答案已经变成内置的 Eglot</strong>（Emacs 29 起内置），原因见下一节。</td></tr>
+      <tr><td><code>helm</code></td><td>万能的弹出式补全/搜索框架</td><td>第三方，MELPA。<strong>基本被 <code>consult</code> 取代</strong>。Helm 仍然能用，但你 2026 年新写配置时几乎不会选它。</td></tr>
+      <tr><td><code>flycheck</code></td><td>通用 lint 与语法检查框架，内置几十种工具的检查器</td><td>第三方，MELPA。<strong>内置 <code>flymake</code> 已覆盖大部分场景</strong>；用了 LSP 的语言则用 Eglot 自带的诊断。原书那句「用 Eglot 就用内置的 Flymake」在今天是完全正确的建议。经验性说法（我无法联网核实维护方的最新公告）：flycheck 近年的维护明显放缓，新配置不建议再上它。</td></tr>
+      <tr><td><code>org</code></td><td>笔记、日程、文档、文学编程（把文档和代码写在一起）</td><td><strong>内置</strong>，而且是 Emacs 自带包里最大的一块。原书说「一定要去官网读手册」——今天这句依然成立，因为 Info 手册（<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 然后输 <code>org</code>）只是完整手册的一部分。Emacs 30.1 自带 Org 9.7，Emacs 31.1 自带 Org 9.8（分别在 <code>etc/NEWS.30</code> 与 <code>etc/NEWS.31</code> 里查得到）。</td></tr>
+      <tr><td><code>hyperbole</code></td><td>超文本大纲 / 效率工具箱，能和 Org 并存</td><td>第三方，GNU ELPA。仍然是 Org 之外最成体系的「个人知识管理」方案，但对初学者门槛偏高。</td></tr>
+      <tr><td><code>yasnippet</code></td><td>文本片段展开（打一个缩写展开成一大段模板）</td><td>第三方，MELPA。仍然可用。生态里出现了一个更轻的替代品 <code>tempel</code>（走 Emacs 内置的 <code>templates</code> 机制，本机有 <code>tempel.info</code>），按需选。</td></tr>
+      <tr><td><code>hydra</code></td><td>为一批键位生成一个可停留的弹出面板</td><td>第三方，MELPA。<strong>已被内置的 <code>transient</code> 取代</strong>——Transient 是 Magit 菜单的实现库，<strong>Emacs 28.1 起就进了核心</strong>（不是 30；我核对过 Emacs 28.1 标签下的 <code>lisp/transient.el</code>，其头部写着 <code>;; Package-Version: 0.3.7</code>、作者 Jonas Bernoulli，并确认 Emacs 27.1 里还没有这个文件。Emacs 30.2 与 31.1 同样自带 <code>transient.el</code> 与 <code>transient.info</code>）。新配置请用 transient。</td></tr>
+      <tr><td><code>dumb-jump</code></td><td>光标下的符号跳到定义处，自动猜项目类型和要搜的文件</td><td>第三方，MELPA。<strong>内置 <code>project</code> + <code>xref</code> 已能覆盖</strong>；跳不动时再上 <code>smart-jump</code>（它会去问 LSP 服务器）兜底。</td></tr>
+      <tr><td><code>ripgrep</code></td><td>极快的全文搜索工具（外部程序，不是 Emacs 包）</td><td>仍在，地位更高了。<strong>Emacs 核心并没有 <code>M-x rg</code> 这个内置前端</strong>——我实测 Emacs 32.0.50 上 <code>(fboundp 'rg)</code> 返回 <code>nil</code>，在本机 Emacs 30.2 / 31.1 的 <code>lisp/progmodes/</code> 与 Emacs 32.0.50 整棵 <code>lisp/</code> 树里都搜不到 <code>rg.el</code>，Emacs 各版 NEWS 也从未提及它（唯一提到 ripgrep 的是 Emacs 28 新增的选项 <code>xref-search-program</code>，它让 <code>xref</code> 可以改用 ripgrep 做项目内搜索）。要用 ripgrep 接进 Emacs，走 <code>consult</code> 生态的 <code>consult-rg</code>（MELPA / GNU ELPA）或 <code>dumb-jump</code>。ripgrep 默认就支持 Org 文件的搜索。</td></tr>
+      <tr><td><code>ido</code> / <code>Eshell</code></td><td>原书在正文提到，站点上有更细的文章</td><td><strong>IDO 内置</strong>；<strong>Eshell 内置</strong>（Emacs 自带 <code>eshell.info</code>）。两者今天都还是合理选择，但 IDO 在长路径上不如内置的 <code>completing-read</code> 系列顺手，Eshell 对非 Bash 用户的学习成本高于 <code>M-x shell</code>。</td></tr>
+    </tbody>
+  </table>
+
+  <p>原书还提了一句「Emacs 本身是关于 Emacs 的最权威信息源」。这句话在 2026 年依然成立，而且比原书说的更有分量：Emacs 的 <strong>NEWS</strong>（发行说明）现在会随 Emacs 一起安装，你可以在 Emacs 里直接读——<kbd>C</kbd><kbd>h</kbd> <kbd>n</kbd>（<code>view-emacs-news</code>，它的定义在 <code>lisp/help.el</code> 里，文档字符串写的是 “With argument, display info only for the selected version”）默认打开当前版本的发行说明；给它一个<strong>数字前缀参数</strong>就能只看某一版，比如 <kbd>C</kbd><kbd>u</kbd> <kbd>3</kbd><kbd>1</kbd> <kbd>C</kbd><kbd>h</kbd> <kbd>n</kbd> 只显示 Emacs 31 的发行说明。想知道「我这个版本多了什么新命令」，这是最快最准的地方，比搜索引擎可靠得多。</p>
+
+  <div class="drill" data-answer="C-h P">
+    <p class="drill-q"><b>练习 4</b>　你装了一个第三方包，想知道它有没有官方的 Info 手册、有没有被官方认可为过时。用哪一组键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>h</kbd> <kbd>P</kbd>（<code>describe-package</code>），然后输入包名。Emacs 会列出这个包的版本号、来源归档、简短说明、<strong>以及它随包附带的 Info 手册节点名</strong>。有手册节点就说明作者写了正式文档；这一项现在是判断第三方包是否「有人认真维护」最快的信号之一。</p></div>
+  </div>
+
+  <div class="drill" data-answer="package-archives">
+    <p class="drill-q"><b>练习 5</b>　你在网上抄到一行 <code>(setq package-archive-alist '(("melpa" . "https://melpa.org/packages/")))</code> 粘进配置后 Emacs 报错。用当前的 Emacs 应该把变量名改成什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>改成 <code>package-archives</code>。实测：<code>(require 'package)</code> 之后 <code>(boundp 'package-archives)</code> 是 <code>t</code>、默认值是 <code>(("gnu" . "https://elpa.gnu.org/packages/") ("nongnu" . "https://elpa.nongnu.org/nongnu/"))</code>；而 <code>(boundp 'package-archive-alist)</code> 在 <code>require</code> 前后都是 <code>nil</code>。顺带记住这条：这次改名发生在 <strong>Emacs 24.1</strong>（包管理器换成了 ELPA 的实现），不是 32。</p></div>
+  </div>
+
+  <h3>三、当代生态的标准答案（2026 版）</h3>
+
+  <p>原书写的是 Emacs 26 到 30 的过渡期，那个时期生态的默认选择是 Helm、IDO、Flycheck、LSP mode。这四样在今天都有更好的答案。下面按「你在做什么」组织，而不是按包名。</p>
+
+  <h4>3.1 补全：内置的 <code>*Completions*</code> 缓冲 vs Corfu + Vertico + Consult</h4>
+
+  <p><strong>补全</strong>（completion）指 Emacs 猜你想输入什么、然后替你补上。Emacs 内置的补全体系在 Emacs 29 和 30 做过一轮大改，先把事实说清楚，因为这直接决定了你的配置该写什么。</p>
+
+  <ul>
+    <li>命令是 <code>completion-at-point</code>（在光标处补全），默认键是 <kbd>M</kbd><kbd>TAB</kbd>。Emacs 30 起，<strong>Text mode 也把 <kbd>M</kbd><kbd>TAB</kbd> 交给了 <code>completion-at-point</code></strong>，不再默认绑给 <code>ispell-complete-word</code>；想换回去就定制新选项 <code>text-mode-ispell-word-completion</code>（这个选项在 Emacs 32 上的默认值实测就是 <code>completion-at-point</code>）。</li>
+    <li>补全的匹配规则由变量 <code>completion-styles</code>（补全风格列表）决定，Emacs 32 上的默认值是 <code>(basic partial-completion emacs22)</code>（我用 <code>emacs --batch -Q --eval</code> 读出来的）。还有一个概念叫 <strong>capf</strong>（<code>completion-at-point-functions</code>，补全函数列表）——它是一串函数，Emacs 挨个问它们「你能补全什么」，谁有答案就用谁的。凡是想接管补全的库——内置的 <code>eglot</code>、GNU ELPA 上的 <code>corfu</code> 与 <code>company</code>——都是通过往这个列表里塞函数来做的。</li>
+    <li>Emacs 29 给 minibuffer 补全加了大量操作：<kbd>M</kbd><kbd>↑</kbd> / <kbd>M</kbd><kbd>↓</kbd> 在 <code>*Completions*</code> 缓冲里上下移动候选，<kbd>M</kbd><kbd>RET</kbd>（<code>minibuffer-choose-completion</code>）选中当前高亮的候选，新选项 <code>completion-auto-select</code> 控制 <kbd>TAB</kbd> 是否自动切到第一个候选。Emacs 30 又补了 <code>minibuffer-visible-completions</code>（候选在 minibuffer 里就地显示而不是弹 <code>*Completions*</code> 窗口）、<code>completions-sort</code> 的 <code>historical</code> 值（按使用频率排序）等。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>另一个常见的误会是 <strong>Company</strong>。很多人以为 <code>company-mode</code> 是 Emacs 自带的（它确实很「像」内置的），其实<strong>不是</strong>：我在 Emacs 32.0.50 的整棵 <code>lisp/</code> 树里找不到 <code>company.el</code>，<code>etc/NEWS.29</code> 到 <code>etc/NEWS</code>（32 的）里对 “Company” 的命中数是 0，Emacs 手册 <code>emacs.info</code> 里也一次都没提到它。它是 GNU ELPA / MELPA 上的第三方包（本机 Guix 配置里装的是 <code>company-1.0.2</code>）。要判断某个功能是不是内置的，办法永远是 <code>(locate-library "名字")</code>：返回 <code>nil</code> 或者返回一个来自 <code>site-lisp</code> 的路径，就说明它不在核心里。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>很多中文资料（包括一些 Emacs 29 时期的文章）会说「Emacs 29 引入了 <code>use-completion</code> 这个新选项，打开它就能用新式补全」。<strong>这个变量在当前 Emacs 里不存在。</strong>我在 Emacs 32.0.50 上实测 <code>(boundp 'use-completion)</code> 和 <code>(fboundp 'use-completion)</code> 都返回 <code>nil</code>；在 <code>NEWS.29</code>、<code>NEWS.30</code>、<code>NEWS.31</code>、<code>NEWS</code>（32 的）里 grep <code>use-completion</code> 全部是零命中，在随 Emacs 安装的 <code>emacs.info</code> 手册里也搜不到。至于名字相近的 <code>use-completion-under-point</code>：实测 <code>(fboundp 'use-completion-under-point)</code> 在 Emacs 32.0.50 上也是 <code>nil</code>，别拿它当挡箭牌。写配置时<strong>不要加 <code>(setq use-completion t)</code></strong>，它只会给你一个 void-variable 报错。</p>
+  </div>
+
+  <p>那今天该怎么配？两条路，先想清楚你要不要跨过这条线。</p>
+
+  <ol>
+    <li><strong>什么都不装。</strong>只用内置补全。要做的是挑好 <code>completion-styles</code>。最常用的一条是把 <code>flex</code>（模糊匹配）加进去：输入 <code>mlm</code> 就能补出 <code>message-log-mode</code>。<code>flex</code> 是 <strong>Emacs 27.1</strong> 起内置的（不是 29——<code>etc/NEWS.27</code> 里有 “New 'flex' completion style.” 这一条；<code>etc/NEWS.29</code> 只是又提到了它）。手册的 “Completion Styles” 一节确实把 <code>substring</code>、<code>flex</code>、<code>initials</code> 列成「额外提供、想用就加进 <code>completion-styles</code>」的风格。这一条路不用装任何包。</li>
+    <li><strong>装三个包，换一套完全不同的补全体验。</strong><code>corfu</code>（补全引擎，<strong>GNU ELPA</strong>，官网 <a href="https://github.com/minad/corfu">https://github.com/minad/corfu</a>）+ <code>vertico</code>（垂直排列候选，<strong>GNU ELPA 与 MELPA 都有</strong>）+ <code>consult</code>（把 switch-to-buffer、find-file 这些「搜点什么」的操作统一成同一个弹出界面，<strong>GNU ELPA 与 MELPA 都有</strong>）。这三样是 2026 年最常见的新配置。装法：<kbd>M</kbd><kbd>x</kbd> <kbd>package-install</kbd>，依次输入 <code>corfu</code>、<code>vertico</code>、<code>consult</code>，然后在配置里 <code>(global-corfu-mode 1)</code>。</li>
+  </ol>
+
+  <p>为什么这一章要专门花笔墨说这件事？因为初学者最大的困惑恰恰是「这功能到底是自带的还是要装包」。<strong>Corfu 不是 Emacs 内置的</strong>——Emacs 31.1 的 NEWS 里在讲子窗口时用的是「GNU ELPA packages Corfu」这个说法，本身就说明它是 ELPA 包而不是核心代码。</p>
+
+  <h4>3.2 Git：没有替代品，只有 Magit</h4>
+
+  <p>Magit（<a href="https://magit.vc">https://magit.vc</a>，MELPA 与 NonGNU ELPA 都有）是原书那份清单里今天地位最高的一个。它把 Git 的状态、暂存区、分支、提交历史都做成一个可以在 Emacs 缓冲区里操作的面板。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原书写于 Magit 3.x 时代，那时默认键位是一套 <kbd>g</kbd> 前缀的「和弦键」。<strong>Magit 4 改成了单字母键</strong>：我读了本机 Magit 4.7.0 的 <code>lisp/magit-mode.el</code>，<code>magit-mode-map</code> 里 <code>"s"</code> 绑 <code>magit-stage-files</code>、<code>"u"</code> 绑 <code>magit-unstage-files</code>、<code>"c"</code> 绑 <code>magit-commit</code>、<code>"l"</code> 绑 <code>magit-log</code>、<code>"b"</code> 绑 <code>magit-branch</code>、<code>"d"</code> 绑 <code>magit-diff</code>、<code>"f"</code> 绑 <code>magit-fetch</code>、<code>"F"</code> 绑 <code>magit-pull</code>、<code>"P"</code> 绑 <code>magit-push</code>、<code>"q"</code> 绑 <code>magit-mode-bury-buffer</code>、<code>"g"</code> 绑 <code>magit-refresh</code>；打开状态面板的键是 <kbd>j</kbd>（<code>magit-status-quick</code>）。整个包里没有 <code>g g</code>、<code>g s</code>、<code>g k</code> 这类绑定——<strong>根本没有 <code>k</code> 键</strong>，取消暂存是 <code>u</code>。按老文章敲 <kbd>g</kbd> <kbd>g</kbd>，在 Magit 4 上什么也不会发生。</p>
+  </div>
+
+  <p>Magit 4 也有子前缀（比如 <kbd>l</kbd> <kbd>l</kbd> 是 <code>magit-log-current</code>），所以「和弦」这个说法只在子前缀这一层还成立。想学的人从它自己的 Info 手册入手最快，本机装了 <code>magit.info</code>，在 Emacs 里 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 然后输 <code>magit</code> 回车就能打开。</p>
+
+  <p>Magit 依赖的 Transient 库<strong>从 Emacs 28.1 起就是内置的</strong>（早于本书成书年代，也不是 30），所以现在装 Magit 不需要单独处理这条依赖。Magit 本身也是大量其他包（<code>forge</code>、<code>git-grep</code>、<code>org-modern</code> 等）的基础设施，值得优先学。</p>
+
+  <h4>3.3 语言服务：Eglot（内置）而不是 LSP mode</h4>
+
+  <p><strong>LSP</strong>（Language Server Protocol，语言服务器协议）是一套让编辑器把「跳转定义、查引用、重命名、诊断」外包给独立进程的标准。Emacs 29 起把 <strong>Eglot</strong>（<a href="https://github.com/jojojoe777/eglot">https://github.com/jojojoe777/eglot</a>）收进了核心，Emacs 自带 <code>eglot.info</code>。我在 Emacs 32.0.50 上实测 <code>(fboundp 'eglot-ensure)</code> 返回 <code>t</code>，不用装包就能用。</p>
+
+  <p>原书说 LSP mode「试图复刻别的编辑器里那种完整 IDE 体验」。这话今天仍然描述了它与 Eglot 的分工：<strong>lsp-mode</strong>（<a href="https://github.com/emacs-lsp/lsp-mode">https://github.com/emacs-lsp/lsp-mode</a>）功能更激进、生态更老；<strong>Eglot</strong> 更薄、更可预测、跟着 Emacs 走。多数新配置选 Eglot，理由是：只有一个 LSP 客户端要操心，遇到 bug 时去 Emacs 的 bug 追踪比去第三方仓库更容易得到响应。</p>
+
+  <p>Eglot 之外的诊断用内置的 <strong>flymake</strong>（Emacs 自带 <code>flymake.info</code>；<code>(fboundp 'flymake-diagnostics)</code> 实测为 <code>t</code>）。它和 Flycheck 的关系就像 Eglot 和 LSP mode：更薄、够用、跟着 Emacs 走。</p>
+
+  <details class="deep">
+    <summary>进阶：capf 是什么，以及它为什么决定你能不能换补全前端</summary>
+    <p><code>completion-at-point-functions</code>（简称 <strong>capf</strong>，中文常译「补全函数表」）是一个变量，值是一串函数的列表。Emacs 每次触发补全时，会按顺序挨个调用这些函数，每个函数要么返回 <code>nil</code>（我提供不了候选），要么返回一个「补全表」数据结构。</p>
+    <p>关键点在于：<strong>capf 是一个标准接口，不是某一个包的私有接口</strong>。Eglot 会往里塞自己的函数，<code>company</code> 模式会往里塞自己的函数，Corfu 也会往里塞自己的函数。所以换补全前端和换语言服务器这两件事是<em>正交</em>的——你可以用 Corfu 呈现 Eglot 提供的补全候选。</p>
+    <p>Emacs 29.1 的 NEWS 里专门记了一条：新增 <code>dabbrev-capf</code> 函数专门用来往 capf 里提供「数据缩写」候选。这是 Emacs 自己在用这个接口扩展补全源（定义在 <code>lisp/dabbrev.el</code>）。</p>
+    <p>想看当前有哪些 capf 在生效：<kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输入 <code>completion-at-point-functions</code>，Emacs 会显示整个列表以及每个元素是谁加进去的。</p>
+  </details>
+
+  <h4>3.4 跳转、搜索、片段：大纲</h4>
+
+  <ul>
+    <li><strong>项目内跳转</strong>：内置的 <code>project</code>（项目管理库，<code>(fboundp 'project-current)</code> 实测为 <code>t</code>）加 <code>xref</code>（定义/引用查询）。对纯文本项目配 ripgrep，对有 LSP 的语言用 Eglot。dumb-jump 只在「没有任何索引、又没有 LSP」的场景还有价值。</li>
+    <li><strong>搜索</strong>：外部程序 ripgrep（命令行 <code>rg</code>）仍然是最好的搜索工具，但<strong>要记住 Emacs 核心没有 <code>M-x rg</code> 这个内置前端</strong>（<code>(fboundp 'rg)</code> 实测为 <code>nil</code>）。Emacs 内置的接法是 Emacs 28 引入的选项 <code>xref-search-program</code>，它让 <code>xref</code> / <code>project-</code> 系列命令可以用 ripgrep 而不是 <code>grep</code>。想要弹出式的搜索界面，用 <code>consult</code> 生态的 <code>consult-rg</code>。</li>
+    <li><strong>片段展开</strong>：yasnippet 仍是主力；不想背 yasnippet 的 <code>$</code> 语法可以试内置 <code>templates</code> 加 <code>tempel</code>。</li>
+    <li><strong>弹出面板</strong>：用内置的 <code>transient</code>，不要再新装 <code>hydra</code>。Magit 已经是 transient 的大用户，跟着它学最快。</li>
+    <li><strong>大纲与结构化编辑</strong>：Org（内置）仍然是首选，原书对它的评价今天完全成立。</li>
+  </ul>
+
+  <div class="drill" data-answer="corfu + vertico + consult">
+    <p class="drill-q"><b>练习 6</b>　你想换成目前最流行的补全体验（候选竖排 + 统一弹出界面）。需要装哪几个包？它们分别能在哪些官方归档里找到？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>三个：<code>corfu</code>（补全引擎）、<code>vertico</code>（候选竖排）、<code>consult</code>（统一弹出界面）。<strong>这三个现在 GNU ELPA 和 MELPA 上都有</strong>——常见的老文章只说 corfu 在 GNU ELPA、另两个在 MELPA，那已经过时了。装完在配置里写 <code>(global-corfu-mode 1)</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x eglot-ensure">
+    <p class="drill-q"><b>练习 7</b>　你在 Emacs 29 或更新的版本里，想用 LSP 跳转到一个符号的定义，但不想装任何包。用哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>x</kbd> <code>eglot-ensure</code>。Eglot 从 Emacs 29 起是内置的，需要对应语言的 <code>eglot-server-programs</code> 配置好（<code>(fboundp 'eglot-ensure)</code> 在 Emacs 32.0.50 上实测为 <code>t</code>）。</p></div>
+  </div>
+
+  <h3>四、Emacs 26 到 32：原书没写的版本变化</h3>
+
+  <p>这一节是这一章最有价值的部分。读者现在手上的 Emacs 很可能和原书写这本书时的版本差了好几个大版本，如果不先对齐事实，后面所有的配置抄来抄去都会踩空。</p>
+
+  <p>先给一张时间表。这些日期来自 Emacs 源码树里的 <code>HISTORY</code> 文件（我直接读的本机 Emacs 32.0.50 随附的 <code>etc/HISTORY</code>）：</p>
+
+  <ul>
+    <li>Emacs 26.1 — 2018-05-28</li>
+    <li>Emacs 27.1 — 2020-08-10</li>
+    <li>Emacs 28.1 — 2022-04-04</li>
+    <li>Emacs 29.1 — 2023-07-30（29.4 — 2024-06-22）</li>
+    <li>Emacs 30.1 — 2025-02-23，30.2 — 2025-08-14</li>
+    <li><strong>Emacs 31.1 — 2026-08-24（截至你读这一章时的最新正式版）</strong></li>
+    <li>Emacs 32 —— 开发中（你如果用发行版滚动源或 Git 快照，可能已经拿到 32.0.50 之类的开发版）</li>
+  </ul>
+
+  <p>然后是逐条变化。写这一节时我反复使用两个手段：一是读 Emacs 源码树里自带的 <code>etc/NEWS.26</code> 到 <code>etc/NEWS</code>（32 的那一份），二是直接在 Emacs 32.0.50 上用 <code>emacs --batch -Q --eval</code> 读变量的实际值。凡是下面写了「实测」的，都是第二种方式跑出来的。</p>
+
+  <h4>4.1 行号：<code>display-line-numbers</code> 是 Emacs 26.1 引入的，不是 28</h4>
+
+  <p>网上（包括很多 Emacs 27/28 时期的教程）说行号功能 <code>display-line-numbers</code> 是「Emacs 28 引入的」。这个说法是错的。<strong>它出现在 Emacs 26.1 的 NEWS 里</strong>——我在本机的 <code>etc/NEWS.26</code> 第 576 行读到：<em>buffer-local variable 'display-line-numbers' to activate this optional display</em>，紧接着是 <code>display-line-numbers-mode</code> 和 <code>global-display-line-numbers-mode</code>。Emacs 27.1 只是给它补了 <code>display-line-numbers-major-tick</code>、<code>display-line-numbers-minor-tick</code>、<code>display-line-numbers-offset</code> 这些选项，Emacs 28 那一版的 NEWS 里关于行号的唯一改动是 <code>mode-line-position-column-format</code>。</p>
+
+  <p>它在 Emacs 32.0.50 上的默认<strong>是关闭的</strong>（实测 <code>(boundp 'display-line-numbers)</code> 为 <code>t</code>、值为 <code>nil</code>），<code>column-number-mode</code>（在模式行显示光标列号）也是关闭的。想要行号，在配置里加一行：</p>
+
+  <pre class="el"><code>;; 显示行号（display-line-numbers 是 Emacs 26.1 引入的缓冲区局部变量，
+;; global-display-line-numbers-mode 是它的全局次模式开关）
+(global-display-line-numbers-mode 1)
+
+;; 让光标所在行的行号更醒目
+(setq display-line-numbers-major-tick 1)</code></pre>
+
+  <p>如果你在较老的资料里看到 <code>(linum-mode 1)</code>，那是 Emacs 26 之前的做法，已经被内置的 <code>display-line-numbers</code> 取代了，新配置不要用。</p>
+
+  <h4>4.2 补全：Emacs 29 做了什么，Emacs 30 又做了什么</h4>
+
+  <p>上面 3.1 已经讲了命令和风格层面的变化，这里补版本归属：</p>
+
+  <ul>
+    <li><strong>Emacs 29.1</strong>（2023-07-30）：minibuffer 补全大改。新增 <kbd>M</kbd><kbd>↑</kbd> / <kbd>M</kbd><kbd>↓</kbd> 在候选间移动、<kbd>M</kbd><kbd>RET</kbd> 选择当前候选；新选项 <code>completion-auto-select</code>、<code>completion-auto-wrap</code>、<code>completions-sort</code>、<code>completions-max-height</code>、<code>completions-header-format</code>、<code>completions-highlight-face</code>。内置 <code>eglot</code> 也是这一版进来的。这一版的 NEWS 里<strong>没有</strong> <code>use-completion</code> 这个条目。</li>
+    <li><strong>Emacs 30.1</strong>（2025-02-23）：<code>completion-auto-help</code> 现在也管 <code>icomplete-in-buffer</code>；<code>*Completions*</code> 缓冲改为总是伴随 <code>icomplete-in-buffer</code> 出现；新增 <code>minibuffer-visible-completions</code>（候选就地显示）、<code>completions-sort</code> 的 <code>historical</code> 值、<code>completion-auto-deselect</code>、<code>previous-line-completion</code> / <code>next-line-completion</code>。<strong>Text mode 把 <kbd>M</kbd><kbd>TAB</kbd> 让给了 <code>completion-at-point</code></strong>。这一版 NEWS 里同样没有 <code>use-completion</code>。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>所以「Emacs 29 引入 <code>use-completion</code> 新式补全体系」这句话，在当前 Emacs 上没有任何可对应的实物。真实的故事是：Emacs 29 改了 minibuffer 补全的交互，Emacs 30 继续补，并且彻底换掉的是「文本终端上 <kbd>TAB</kbd> 补全会乱跳」这个老毛病。如果你读到了这句话的来源，它大概率来自一篇把某个社区包或者某个提案的变量名记混了的文章。</p>
+  </div>
+
+  <h4>4.3 Emacs 30：原生编译、Android、Modus 家族补齐变体</h4>
+
+  <p>Emacs 30 最重要的一批变化（全部来自 <code>etc/NEWS.30</code>）：</p>
+
+  <ul>
+    <li><strong>原生编译默认开启</strong>：只要系统有 <code>libgccjit</code>，Emacs 编译时就默认用 Elisp 原生编译器（<strong>native compilation</strong>，把 Elisp 编成机器码以加快执行）。要关掉得在 configure 时加 <code>--with-native-compilation=no</code>。这是「Emacs 30 启动比 29 快」的来源之一。</li>
+    <li><strong>移植到 Android</strong>：Emacs 30 有了官方的 Android 端口（需要交叉编译）。Emacs 手册从这一版起多了一整章附录 “Emacs and Android”（<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 然后输 <code>Android</code>），讲的是在 Android 设备上<em>跑</em> Emacs 的那些特殊之处：文件系统、应用间文件获取、窗口系统、字体、以及 Termux / BusyBox 之类怎么补上缺失的命令行工具。不是讲用 <code>emacsclient</code> 去连手机。</li>
+      <li><strong>Modus 家族补齐成 8 个变体（这一条才是 Emacs 30 的）。</strong>NEWS.30 原文是「The highly accessible Modus themes collection has eight items」，本书作者在 32.0.50 自带的 <code>etc/NEWS.30</code> 第 1968 行查到，并逐条核对了它列出的 <code>modus-operandi-tinted</code>、<code>modus-vivendi-tinted</code>、<code>modus-operandi-deuteranopia</code>、<code>modus-vivendi-deuteranopia</code> 等。<strong>但要注意</strong>：<code>modus-operandi</code> 和 <code>modus-vivendi</code> <strong>这两个主题本身是 Emacs 28.1 就进核心的</strong>（<code>etc/NEWS.28</code> 第 2843 行 “New themes ‘modus-vivendi’ and ‘modus-operandi’”，归属 28.1 小节）。看到「Emacs 30 内置 Modus」这种说法，只能理解成「30 把变体补齐了」，不能理解成「30 才有 Modus」。</li>
+    <li><strong>Transient 不是这一版才进来的</strong>（这条放进来是为了纠偏）：Transient（Magit 弹出菜单的实现库）<strong>Emacs 28.1 就进了核心</strong>，Emacs 30.2 的 <code>lisp/</code> 目录里有 <code>transient.el</code>、也自带 <code>transient.info</code> 手册——但这不是 30 的新变化。任何说「Emacs 30 才内置 transient」的说法都搞错了两个版本。</li>
+    <li><strong>Tree-sitter 模式**</strong>：Emacs 30 开始自带一批基于 Tree-sitter 语法树的模式（NEWS 32 里还有「New major modes based on the tree-sitter library」这一条，说明这条线在 32 仍在推进）。</li>
+    <li><strong>安全相关</strong>：修掉 <code>man.el</code> 的 shell 注入漏洞（CVE-2025-1244），新增用户选项 <code>trusted-content</code> 允许你手动放开某些危险功能。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>关于「10 色调色板」：我在 Emacs 32.0.50 的整个 <code>lisp/</code> 源码树里 grep <code>palette</code>，作为变量或函数定义的只有 macOS 上的 <code>ns-do-show-character-palette</code>（那个字符查看器，跟主题无关）；Emacs 30/31/32 的 NEWS 里也没有「10 色」相关的条目。<strong>Emacs 核心并没有一个「10 色调色板」的主题机制。</strong></p>
+    <p>你可能想说的是 <strong>Modus 主题自己的调色板</strong>——这个确实存在，而且是 Modus 成为内置主题后最值得学的部分。它的 “Palette overrides” 一节写得很清楚：每个 Modus 主题都声明一个调色板，里面是一串 <code>(名字 . "#rrggbb")</code> 的具名颜色；你可以用 <code>modus-themes-common-palette-overrides</code> 做跨主题的共享覆盖，也可以用 <code>modus-operandi-palette-overrides</code> 这种「主题名 + <code>-palette-overrides</code>」的形式做单个主题的覆盖（主题专属的优先级更高）。想只取调色板里的一个颜色值，用 <code>modus-themes-get-color-value</code>。<strong>版本提醒</strong>：随 Emacs 30.2 附带的是 modus-themes 4.4.0，31.1 升到 5.2.0，32.0.50 已经是 5.3.0；从 <strong>Modus 5.0.0 起</strong>（也就是 Emacs 31.1 之后）调色板常量改了名，旧的 <code>modus-operandi-palette</code> 现在只是 <code>modus-themes-operandi-palette</code> 的过时别名（源码里有一行 <code>(define-obsolete-variable-alias 'modus-operandi-palette 'modus-themes-operandi-palette "5.0.0")</code>）。新配置请写新名字，跨版本的配置里加个版本判断。</p>
+  </div>
+
+  <h4>4.4 Emacs 31：更安静的破坏性变化</h4>
+
+  <p>Emacs 31.1（2026-08-24）里有几条会让老配置突然不工作的改动，值得单独列出来（来自 <code>etc/NEWS.31</code>）：</p>
+
+  <ul>
+    <li><strong>老的 <code>ctags</code> 不再随 Emacs 安装</strong>。Emacs 31 起请用 Universal Ctags（<a href="https://ctags.io/">https://ctags.io/</a>）；要临时获得旧行为可以跑 <code>etags --ctags</code>，或者放一个叫 <code>ctags</code> 的 shell 脚本包一层。这条会打到任何依赖 <code>ctags</code> 的第三方包（比如各种语义跳转插件），是 Emacs 31 最容易踩的坑。</li>
+    <li><strong>unexec dumper 被移除</strong>（它从 Emacs 27 起就弃用了）。<strong>portable dumper</strong> 是唯一剩下的启动加速方式，Emacs 启动脚本里 <code>--dump</code> 那一套在 31 上要重新检查。</li>
+    <li><strong><code>site-start.el</code> 现在在你的 early init 之前加载</strong>。你如果在 site-start.el 和个人配置里都设了同一个东西，加载顺序变了，<em>后者</em>现在赢。</li>
+    <li><strong><code>describe-variable</code> 会主动告诉你「这个变量该用 <code>setopt</code> 设」</strong>。这条对本书读者最有用——你再也不用猜某个变量用 <code>setq</code> 设会不会不生效了，按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 一问便知。</li>
+    <li><strong>主题机制终于改好了</strong>：对已启用的主题调用 <code>custom-theme-set-faces</code> 或 <code>custom-theme-set-variables</code>，改动会<em>立刻</em>生效，不必重新加载整个主题（Emacs 30 及以前需要重载）。新增命令 <code>copy-theme-options</code>，可以把一个主题里的选项设置复制出来。</li>
+    <li><strong>新增内置主题 <code>newcomers-presets</code></strong>：它<em>不改变外观</em>，只是把一批「新手友好」的<strong>用户选项</strong>设成另一套默认值（NEWS 原文：“configures user options and minor modes that might interest new users, but would otherwise be too invasive to enable by default. It is basically a set of alternative defaults.”）。官方手册专门用一个 “Newcomers Theme” 节点讲它，并提醒两件事：这个主题启用的功能集合<strong>每个 Emacs 版本都会变</strong>；用顺手了以后应该用 <kbd>M</kbd><kbd>x</kbd> <code>copy-theme-options</code> 把设置搬进自己的配置，然后关掉这个主题。</li>
+    <li><strong>自带 Org v9.8</strong>（Emacs 30.1 自带的是 9.7）。</li>
+    <li>兼容终端里 <strong><code>xterm-mouse-mode</code> 默认开启</strong>（NEWS 提醒：鼠标拖选会改写 Emacs 的复制/粘贴按键，想保持旧行为把 <code>xterm-mouse-mode</code> 定制为 <code>nil</code>）；新增次模式 <code>delete-selection-local-mode</code>（把 <code>delete-selection-mode</code> 按缓冲区局部地开关——注意它是<strong>新加的次模式</strong>，不是给谁改的新名字）；新增选项 <code>kill-region-dwim</code>（没有选区时 <kbd>C-w</kbd> 不再报错，而是删掉最后一个词）；<code>IDLWAVE</code>（IDL 的 IDE）搬到了 GNU ELPA。</li>
+  </ul>
+
+  <h4>4.5 Emacs 32：正在开发中</h4>
+
+  <p>如果你拿到的是 32.0.50 这类开发快照（我本机就是），随它安装的 <code>etc/NEWS</code> 开头写的是 “This file is about changes in Emacs version 32.”，条目还很少。目前能看到的有：Kmscon 终端类型、新的 <code>tty-cursor-movement-use-TAB</code> 选项、<code>query-replace-show-preview</code>（查询替换时显示预览）、更多基于 Tree-sitter 的主模式、canvas 图像对象支持，以及<strong>Package-vc 可以从已有的 tarball 安装里复制本地改动</strong>。</p>
+
+  <p>顺便澄清一个容易被误传的消息：<strong><code>package-archives</code> 不是 Emacs 32 才改的名</strong>。它是 <strong>Emacs 24.1</strong> 就有的名字（那次 ELPA 换了包管理器实现）；<code>package-archive-alist</code> 属于 Emacs 23 及更早。所以「升级到 32 所以包归档配置报 void-variable」这种说法是假的——真正会在 32 上炸的，是别的原因。</p>
+
+  <h4>版本相关的快速自查</h4>
+  <table>
+    <thead><tr><th>想确认的事</th><th>怎么做</th></tr></thead>
+    <tbody>
+      <tr><td>我用的是哪个版本</td><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>a</kbd>（<code>about-emacs</code>），或者 <kbd>M</kbd><kbd>x</kbd> <code>version-everything</code></td></tr>
+      <tr><td>这个版本多了什么</td><td><kbd>C</kbd><kbd>h</kbd> <kbd>n</kbd>（<code>view-emacs-news</code>）；给它数字前缀就能只看某一版，例如 <kbd>C</kbd><kbd>u</kbd> <kbd>3</kbd><kbd>1</kbd> <kbd>C</kbd><kbd>h</kbd> <kbd>n</kbd></td></tr>
+      <tr><td>这个变量是什么</td><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输入变量名（Emacs 31 起还会提示是否该用 <code>setopt</code>）</td></tr>
+      <tr><td>这个包有没有正式文档</td><td><kbd>C</kbd><kbd>h</kbd> <kbd>P</kbd> 然后输入包名（<code>describe-package</code>）</td></tr>
+      <tr><td>某个变量在不在</td><td><kbd>M</kbd><kbd>-</kbd> <kbd>(boundp '</kbd> <kbd>变量名</kbd> <kbd>)</kbd> <kbd>RET</kbd>，回显 <code>t</code> 表示存在</td></tr>
+      <tr><td>这个库是内置还是装的</td><td><kbd>M</kbd><kbd>-</kbd> <kbd>(locate-library "</kbd> <kbd>库名</kbd> <kbd>)</kbd> <kbd>RET</kbd>：返回 <code>nil</code> 或路径里有 <code>site-lisp</code>，说明它不在核心里</td></tr>
+    </tbody>
+  </table>
+
+  <div class="drill" data-answer="Emacs 26.1">
+    <p class="drill-q"><b>练习 8</b>　行号选项 <code>display-line-numbers</code> 是在哪个 Emacs 大版本引入的？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>Emacs 26.1</strong>（2018-05-28）。证据在 <code>etc/NEWS.26</code>：<em>buffer-local variable 'display-line-numbers' to activate this optional display</em>。Emacs 28 的 NEWS 里关于行号的唯一改动是 <code>mode-line-position-column-format</code>，跟这个功能无关。它在 Emacs 32.0.50 上的默认值是关闭（<code>nil</code>）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="它不存在">
+    <p class="drill-q"><b>练习 9</b>　某篇文章说「Emacs 29 引入了 <code>use-completion</code> 选项，打开它就能用新式补全」。你在 Emacs 32 的配置里写了 <code>(setq use-completion t)</code>。会发生什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>报错：<code>Symbol's value as variable is void: use-completion</code>。这个变量在 Emacs 32.0.50 上 <code>(boundp 'use-completion)</code> 返回 <code>nil</code>，在 <code>NEWS.29</code>、<code>NEWS.30</code>、<code>NEWS.31</code>、<code>NEWS</code>（32）里都搜不到，在 Emacs 30.2 与 31.0.91 的 <code>emacs.info</code> 里也搜不到。Emacs 29 真正引入的是 minibuffer 补全的交互改进（<kbd>M</kbd><kbd>↑</kbd>/<kbd>M</kbd><kbd>↓</kbd> 选候选、<code>completion-auto-select</code> 等）和内置 Eglot。</p></div>
+  </div>
+
+  <div class="drill" data-answer="Universal Ctags">
+    <p class="drill-q"><b>练习 10</b>　你升级到 Emacs 31.1 后，发现某个依赖 <code>ctags</code> 的跳转包不工作了。NEWS 说 Emacs 不再自带旧的 <code>ctags</code> 程序。该怎么办？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>装 <strong>Universal Ctags</strong>（<a href="https://ctags.io/">https://ctags.io/</a>）。按 Emacs 31.1 的 NEWS，Emacs 自带的旧 <code>ctags</code> 不再被编译和安装；想临时保留旧行为可以跑 <code>etags --ctags</code>，或者在 <code>PATH</code> 前面放一个名为 <code>ctags</code> 的 shell 脚本包一层。</p></div>
+  </div>
+
+  <h3>五、官方手册怎么用：<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 实战</h3>
+
+  <p>原书反复说「Emacs 手册是最权威的信息源」，但没细说怎么用。这一节把它讲透。</p>
+
+  <p><kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 调起的是 <strong>Info</strong> 阅读器——Emacs 内置的、超链接风格的在线文档系统。Emacs 自己、以及几乎所有装了的包，文档都以 Info 节点的形式装在你的电脑上。它和网页最大的不同是：<strong>断网也能用</strong>，而且可以用 <kbd>C</kbd><kbd>s</kbd> 在整本手册里搜。</p>
+
+  <p>按 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 之后，Emacs 会先问你输一个手册名，直接回车就进主目录页。主目录页列出了你这个 Emacs 上所有可读的文档。<strong>常用操作：</strong></p>
+
+  <ul>
+    <li><kbd>n</kbd>（<code>Info-next</code>）进到下一个节点；<kbd>Tab</kbd>（<code>Info-next-reference</code>）把光标移到下一个<em>交叉引用</em>（正文里形如 <code>*note Foo::</code> 的那种跳转标记），<kbd>M</kbd><kbd>Tab</kbd>（<code>Info-prev-reference</code>）往回移一个。移到哪一行都按 <kbd>RET</kbd>（<code>Info-follow-nearest-node</code>）跟过去。</li>
+    <li><kbd>g</kbd> 后面跟节点名回车（<code>Info-goto-node</code>）直接跳到那个节点，例如 <kbd>g</kbd> <kbd>r</kbd><kbd>e</kbd><kbd>f</kbd><kbd>r</kbd><kbd>u</kbd><kbd>g</kbd><kbd>e</kbd><kbd>-&gt;</kbd> 是本手册的章回列表、<kbd>g</kbd> <kbd>(</kbd><kbd>e</kbd><kbd>m</kbd><kbd>a</kbd><kbd>c</kbd><kbd>s</kbd><kbd>)</kbd> 回 Emacs 手册首页；<kbd>f</kbd> 后面跟交叉引用名（<code>Info-follow-reference</code>）则是专门跟正文里的 <code>*note</code> 引用。<strong>注意：在 Info 缓冲里 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 仍然是全局的 <code>find-file</code>（打开文件），不是 Info 的跳转命令</strong>——这一点很容易记错。</li>
+    <li><kbd>t</kbd>（<code>Info-top-node</code>）回到这本手册的目录页；<kbd>l</kbd>（<code>Info-history-back</code>）回到上一个节点，<kbd>L</kbd>（<code>Info-history</code>）再前进。</li>
+    <li><kbd>C</kbd><kbd>s</kbd>（<code>isearch-forward</code>）向后增量搜索，<kbd>C</kbd><kbd>r</kbd>（<code>isearch-backward</code>）向前搜；<kbd>s</kbd>（<code>Info-search</code>）则是 Info 自己的跨整本文件搜索。<strong><kbd>M</kbd><kbd>s</kbd> 从 Emacs 29 起不再是「向前搜」</strong>：它变成了一个前缀键，按下后再按 <kbd>w</kbd> / <kbd>_</kbd> / <kbd>.</kbd> 才是按词、按符号、按光标处的词搜。</li>
+    <li>节点名后面带 <code>:</code> 是跳转指令（<strong>node predicate</strong>，节点谓词），不带 <code>:</code> 是普通链接。</li>
+  </ul>
+
+  <p>Emacs 手册的顶层节点（下面这张表我是从本机 Emacs 32.0.50 的 <code>emacs.info</code> 目录页逐条核对过的）里，有几个是你从头到尾都会反复用的：</p>
+
+  <h4>Emacs 手册里最该先知道的几个节点</h4>
+  <table>
+    <thead><tr><th>怎么到</th><th>讲什么</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd></td><td>直接打开 Emacs 手册（<code>info-emacs-manual</code>），省得输名字</td></tr>
+      <tr><td>节点 <code>Help</code></td><td>「向 Emacs 提问」这一整节，也就是本节讲的 <kbd>C</kbd><kbd>h</kbd> 家族</td></tr>
+      <tr><td>节点 <code>Keys</code></td><td>按键序列到底是什么、<code>C-</code> <code>M-</code> <code>S-</code> <code>C-M-</code> 这些修饰符记号的含义</td></tr>
+      <tr><td>节点 <code>M-x</code></td><td>用 <kbd>M</kbd><kbd>x</kbd> 按名字调命令——Emacs 有 1000 多个命令，全靠这一条访问</td></tr>
+      <tr><td>节点 <code>Customization</code></td><td>定制选项的两种方式：<code>M-x customize</code>（图形化）和 <code>M-x customize-set-variable</code></td></tr>
+      <tr><td>节点 <code>Packages</code></td><td>装第三方包。配置包归档地址的变量 <code>package-archives</code> 也在这一节（它从 Emacs 24.1 起就叫这个名字）</td></tr>
+      <tr><td>节点 <code>Glossary</code></td><td>术语表。本书里我们反复强调的「遇到术语就地解释」，官方也有这份表</td></tr>
+      <tr><td>节点 <code>Lossage</code></td><td>Emacs 卡住了、跑飞了怎么办（这一章不展开，但每个 Emacs 用户都该扫一眼）</td></tr>
+      <tr><td>节点 <code>Key Index</code> / <code>Command Index</code> / <code>Variable Index</code></td><td>三个索引。想系统找「有没有一个命令是做某事的」，比 Google 快</td></tr>
+      <tr><td>节点 <code>Android</code></td><td>Emacs 30 起新增的一整章附录「Emacs and Android」，讲在 Android 上跑 Emacs 的注意事项</td></tr>
+    </tbody>
+  </table>
+
+  <p>除了 <code>emacs</code> 这一本，<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 还能读到成套的<strong>ref 系列手册</strong>。这些是以 <code>ref</code> 开头的「参考手册」系列，命名规则是取 Emacs 社区的技术委员会缩写，格式是「REF 是什么」——读法是把缩写当首字母缩写来念。这些手册不是 API 文档，而是<strong>规范与规范解释</strong>，适合解决「Emacs 到底约定什么」的问题：</p>
+
+  <ul>
+    <li><code>refcard</code> — 速查卡，一页纸的 Emacs 快捷键总表</li>
+    <li><code>refuge</code> — 键位绑定（<strong>key binding</strong>，把某个键序列接到某个命令上）和<strong>keymap</strong>（按键到命令的查找表）的规范</li>
+    <li><code>refract</code> — <strong>正则表达式</strong>（regular expression，一种描述字符串模式的记法）的规范。Emacs 里的正则和别的语言不一样，这一本解释为什么</li>
+    <li><code>refface</code> — <strong>face</strong>（外观属性，比如字体、粗体、前景色、背景色的集合）的规范。理解 face 是理解主题的前提</li>
+    <li><code>refcard</code> / <code>reftex</code> — <code>reftex</code> 是 TeX 的引用管理工具，和 Emacs 主题无关，只是名字撞车</li>
+  </ul>
+
+  <p>Emacs 之外最重要的两本是 <code>elisp</code>（<strong>Emacs Lisp 手册</strong>，学写 Elisp 的官方教材，在 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 里输 <code>elisp</code>）和 <code>org</code>（Org 手册）。写 Elisp 的时候 <code>elisp</code> 手册是唯一该反复翻的东西——它有完整的节点结构：<code>Introduction</code>（概览）、<code>Evaluation</code>（求值）、<code>Functions</code>、<code>Data Types</code>、<code>Sequences</code>、<code>Hash Tables</code>、<code>Customization</code>、<code>Major Modes</code>、<code>Text</code>、<code>Processes</code>、<code>Nonlocal Exits</code>、<code>Error Handling</code>。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>读 Info 手册的最好方式不是在手册里从第一页读到最后，而是<strong>把它当字典用</strong>：遇到一个不懂的命令就 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>，或者直接 <kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd>（<code>Info-goto-emacs-command-node</code>）一键跳到手册里讲这个命令的那一节。<kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 是比 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 更省事的一招——它把「查命令」和「跳到手册」合成了一步。</p>
+  </div>
+
+  <div class="drill" data-answer="C-h r">
+    <p class="drill-q"><b>练习 11</b>　你想打开 Emacs 手册的主页而不必在 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 的提示符里打 <code>emacs</code>。用哪一组键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd>（<code>info-emacs-manual</code>）。另外 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 然后直接回车进的是 Info 的总目录页，两者不完全一样：<code>C-h r</code> 直接落在 Emacs 手册的首页。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-h F">
+    <p class="drill-q"><b>练习 12</b>　你在写 Elisp，用到一个不认识的函数，想直接跳到 Emacs 手册里讲它的那一节。用哪一组键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd>（<code>Info-goto-emacs-command-node</code>），然后输入函数名。它会直接在 Info 里定位到对应的节点，而不是只弹一个描述窗口。</p></div>
+  </div>
+
+  <h3>六、社区：去哪儿问、去哪儿读</h3>
+
+  <p>原书列的社区清单大部分还活着，但重心变了。下面按「我想问一个问题」和「我想读点东西」分开。</p>
+
+  <h4>6.1 提问的地方</h4>
+
+  <ul>
+    <li><strong>Emacs StackExchange</strong> — <a href="https://emacs.stackexchange.com/">https://emacs.stackexchange.com/</a>。提问质量最高的地方，规矩是「问之前先自己查过」，答案通常带可运行的配置片段。想让别人认真回答你的配置问题，这里是首选。</li>
+    <li><strong>Reddit r/emacs</strong> — <code>r/emacs</code>。日常讨论、发包链接、问「你们怎么配的」。氛围比 StackExchange 松，答案质量方差大，但翻历史能挖到很多东西。还有细分版块，比如 <code>r/orgmode</code>。</li>
+    <li><strong>Emacs IRC / Matrix</strong> — 官方的 <code>#emacs</code> 频道（IRC 和 Matrix 都有）。适合问「这个问题该怎么问」这种元问题，以及被卡住时的实时救助。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>提一个好问题的模板几乎总是这三行：<strong>(1) 你的 Emacs 版本</strong>（<kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>a</kbd> 抄）；<strong>(2) 你的最小复现配置</strong>（从 <code>init.el</code> 里把相关的几行贴出来，隐去个人信息）；<strong>(3) 你期望什么、实际发生什么</strong>，最好有报错原文。少了版本号，对方给的答案有一半概率对你的 Emacs 不成立——这是 Emacs 社区问题里最常见的失败原因，也正是本书反复强调版本差异的原因。</p>
+  </div>
+
+  <h4>6.2 读的地方</h4>
+
+  <ul>
+    <li><strong>Emacs Wiki</strong> — <a href="https://www.emacswiki.org/">https://www.emacswiki.org/</a>。这是 Emacs 世界的维基，任何人可编辑。它的强项是「怎么用某项内置功能」的实用配方，弱项是没有版本标注（一个 2015 年的配方在 2026 年可能已经不成立），所以读的时候要交叉验证。</li>
+    <li><strong>Planet Emacs</strong> — <a href="https://planet.emacslife.com/">https://planet.emacslife.com/</a>。Emacs 博客的 RSS 聚合器，一页看完社区所有活跃博客。原书推荐的几个博客大多能从这里读到。</li>
+    <li><strong>原书作者的博客</strong> — <a href="https://www.masteringemacs.org/">https://www.masteringemacs.org/</a>。Eli Spare 写的深度文章，IDDO 和 Eshell 那两块在书里只提了一句，细节在那儿。</li>
+    <li><strong>包的官方文档</strong>：任何第三方包，先 <kbd>C</kbd><kbd>h</kbd> <kbd>P</kbd> 看它有没有随包附带的 Info 手册。有手册的包和没手册的包，可靠程度差一个量级。</li>
+  </ul>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>读 Emacs 博客和社区帖子时养成一个习惯：<strong>看一眼这条内容的日期，以及它说的 Emacs 版本</strong>。Emacs 的社区内容衰减得比一般技术博客快得多——2020 年写「配置 vertico 和 consult」的帖子在 2026 年基本还成立（因为这些包还活着），但 2020 年写「配置 ido」或者「用 <code>package-archive-alist</code>」的帖子会直接把你带进沟里。这本书能做的最好的防护，就是在每个技术断言旁边标清版本。</p>
+  </div>
+
+  <div class="drill" data-answer="Emacs 版本 + 最小复现配置 + 期望与实际">
+    <p class="drill-q"><b>练习 13</b>　你在 StackExchange 上贴了一个配置片段求帮助，结果没人回。三条最该补充的信息是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>(1) 你的 Emacs 版本</strong>（<kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>a</kbd> 抄，注意要写 30.2 还是 31.1 这种小版本）；<strong>(2) 最小复现配置</strong>——把你 <code>init.el</code> 里跟问题相关的几行原样贴出来，隐去路径、邮箱、token；<strong>(3) 期望行为与实际行为的对照</strong>，有报错就把原文贴上。Emacs 的答案对版本极其敏感，缺了第一条，对面回的方案有一半可能在你这儿跑不通。</p></div>
+  </div>
+
+  <h3>七、一条具体的四周学习路线</h3>
+
+  <p>「读完这本书之后干什么」是个真问题。这里给一条能立刻执行的路线，每周一个主题，每周末有明确的验收标准。默认你已经有了一个能启动的 Emacs 和一份能用的 <code>init.el</code>（这是本书第 13 章的内容）。</p>
+
+  <h4>第 1 周：把「问 Emacs」变成肌肉记忆</h4>
+
+  <ol>
+    <li>把 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd>、<kbd>C</kbd><kbd>h</kbd> <kbd>c</kbd>、<kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>、<kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd>、<kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd>、<kbd>C</kbd><kbd>h</kbd> <kbd>b</kbd> 这六个键打印出来贴在显示器边上。</li>
+    <li>每天用 Emacs 写任何东西时，遇到一个不认识的键就立刻问，问完在纸上记一笔——一条笔记只需要三行：<em>我按了什么 / 它跑了什么命令 / 这个命令干什么用</em>。</li>
+    <li>周末验收：笔记满 30 条，而且你现在能不查任何资料说出 <kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd>、<kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd>、<kbd>C</kbd><kbd>g</kbd>、<kbd>M</kbd><kbd>-</kbd> 各自干什么。</li>
+  </ol>
+
+  <h4>第 2 周：把官方手册变成日常工具</h4>
+
+  <ol>
+    <li>用 <kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd> 打开 Emacs 手册，从目录页跳进 <code>Help</code>、<code>Keys</code>、<code>M-x</code> 三个节点，各读十分钟。</li>
+    <li>养成一个动作：任何时候 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 看完描述之后，追加按一次 <kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 跳到手册对应节点。多这一步，你会从「知道有这个命令」升级到「知道这个命令在什么场景下用、和哪些命令搭配」。</li>
+    <li>用 <kbd>C</kbd><kbd>h</kbd> <kbd>n</kbd> 读一遍你当前版本的 NEWS。重点看「Incompatible Changes」那一节——这一节列的就是会打破你现有配置的变化。</li>
+    <li>周末验收：能说出你当前版本相对上一个版本，有哪三条对你有影响。</li>
+  </ol>
+
+  <h4>第 3 周：补上生态的三个缺口</h4>
+
+  <ol>
+    <li><strong>先补 Git。</strong>装 Magit（<kbd>M</kbd><kbd>x</kbd> <code>package-install RET magit RET</code>，装完<strong>重启 Emacs</strong>），在一个<strong>已经是 git 仓库</strong>的目录里按 <kbd>M</kbd><kbd>x</kbd> <code>magit-status RET</code> 打开状态面板（等价写法就三个字母 <code>magit</code>）。<strong>然后花一个小时只学这十个单字母键</strong>——注意<strong>全部是单字母、没有和弦</strong>，3.2 节那个易错框解释了为什么：</p>
+      <ul>
+        <li><kbd>?</kbd>（<code>magit-dispatch</code>）——<strong>先学这一个。</strong>它是 Magit 的命令速查菜单，<strong>忘了别的键就按它，然后搜命令名</strong>。有了它，其余九个键就变成「慢慢记」而不是「必须背」。</li>
+        <li><kbd>g</kbd>（<code>magit-refresh</code>）—— 刷新面板（在编辑器里改了文件之后必按）。</li>
+        <li><kbd>s</kbd>（<code>magit-stage-files</code>）—— 把当前改动<strong>暂存</strong>（对应 Git 的 <code>git add</code>）。</li>
+        <li><kbd>u</kbd>（<code>magit-unstage-files</code>）—— <strong>取消</strong>暂存。<strong>取消暂存是 <kbd>u</kbd>，不是 <kbd>k</kbd></strong>——老文章里那个 <kbd>g</kbd> <kbd>k</kbd> 在 Magit 4 上压根不存在。</li>
+        <li><kbd>c</kbd>（<code>magit-commit</code>）—— 提交。</li>
+        <li><kbd>l</kbd>（<code>magit-log</code>）—— 看提交历史（<strong>连按两下 <kbd>l</kbd></strong> 是 <code>magit-log-current</code>，只看当前分支）。</li>
+        <li><kbd>b</kbd>（<code>magit-branch</code>）—— 分支操作（切分支、建分支都在这儿）。</li>
+        <li><kbd>d</kbd>（<code>magit-diff</code>）—— 看当前改动。</li>
+        <li><kbd>p</kbd>（<code>magit-push</code>）—— 推送。</li>
+        <li><kbd>q</kbd>（<code>magit-mode-bury-buffer</code>）—— 收起面板，回到编辑。</li>
+      </ul>
+      <p><strong>这十个键加上 <kbd>?</kbd>，覆盖日常绝大多数 Git 操作。</strong>只有一种情况才需要 <kbd>M</kbd><kbd>x</kbd> <code>magit-init RET</code>：<strong>你正处在一个还没 <code>git init</code> 的新目录里</strong>。它的文档字符串是 “Initialize a Git repository, then show its status.”——<strong>「建仓库」，不是「装 Magit」，也不是「初始化 Magit」</strong>，这是三件不同的事，别混。</p>
+    </li>
+    <li><strong>再补语言服务。</strong>如果你写代码，配好 <code>eglot-server-programs</code>，然后用 <kbd>M</kbd><kbd>.</kbd> 跳一次定义、用一次自动补全、故意打一个语法错误看诊断。</li>
+    <li><strong>最后补弹出面。</strong>Magit 本身就是 transient 面板的最佳教材。Magit 熟了之后，你已经会用 transient 了；Magit 自己的 Info 手册（<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd>  <kbd>m</kbd> <kbd>a</kbd> <kbd>g</kbd> <kbd>i</kbd> <kbd>t</kbd>）就是最好的教材。</li>
+    <li>周末验收：在一个真实项目里，完成「改代码 → 看诊断 → 跳定义 → git add → git commit」全程不离开 Emacs。</li>
+  </ol>
+
+  <h4>第 4 周：写你的第一段 Elisp</h4>
+
+  <ol>
+    <li>做一件小事：<strong>把一个你已经问过三次 Emacs 的问题，固化成一条配置</strong>。比如「我总是想在保存时自动删掉行尾空格」，就写：<code>(setq-default show-trailing-whitespace t)</code> 加一个 <code>after-save-hook</code>。或者「我总觉得光标太细」，就定制 <code>cursor-type</code>。</li>
+    <li>用 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 打开 <code>elisp</code> 手册，只读 <code>Introduction</code> 和 <code>Evaluation</code> 两个节点。</li>
+    <li>学会检查自己写的 Elisp：<kbd>M</kbd><kbd>-</kbd> <kbd>checkdoc-</kbd> 后面补全，选 <code>checkdoc-current-buffer</code>。它会检查文档字符串格式、参数顺序、文件尾换行这些风格问题——这些是 Emacs 社区评审 Elisp 的硬性要求。</li>
+    <li>周末验收：你写的那段配置，<code>checkdoc</code> 不报错，并且你能用一句话向别人解释它为什么这么写。</li>
+  </ol>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>四周之后不要停。最好的下一步是：<strong>去读一个你正在用的第三方包的源码</strong>——不用全读，就读它的 <code>;;; Commentary:</code> 段落和文件末尾的 <code>;;;###autoload</code> 标记。看完你会发现，这些包的源码写得和 Emacs 官方代码一个风格，那份风格就是 Emacs 社区对 Elisp 的规范。写出符合规范的 Elisp，比写出「能跑」的 Elisp 重要得多，因为前者别人愿意读、愿意合并进你的配置。</p>
+  </div>
+
+  <div class="drill" data-answer="C-h n / M-x magit-status（等价 magit）/ checkdoc-current-buffer">
+    <p class="drill-q"><b>练习 14</b>　下面三个动作分别对应这条路线里的哪一周？（A）读一遍当前版本的 NEWS 的「Incompatible Changes」；（B）花一小时只学 Magit 的十个单字母键；（C）用 <code>checkdoc-current-buffer</code> 检查自己写的第一段 Elisp。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>(A) 属于第 2 周</strong>（用 <kbd>C</kbd><kbd>h</kbd> <kbd>n</kbd>，前缀 <kbd>C</kbd><kbd>u</kbd> 可以缩小到某个版本）；<strong>(B) 属于第 3 周</strong>，装好 Magit 后在一个 git 仓库目录里用 <kbd>M</kbd><kbd>x</kbd> <code>magit-status</code>（或三个字母的 <code>magit</code>）打开状态面板；<strong>(C) 属于第 4 周</strong>，用 <kbd>M</kbd><kbd>-</kbd>  <kbd>checkdoc-</kbd> <kbd>RET</kbd> 调到 <code>checkdoc-current-buffer</code>。</p></div>
+  </div>
+
+  <h3>结语</h3>
+
+  <p>回到本章开头那个被引用的话：Emacs 是地面，我们在上面做各种事。这句话的准确含义是——<strong>你永远不会走到「已经学完了」那个点</strong>，因为地面本身一直在长。本书写的是截至原书出版时地面上的样子；今天你手上的 Emacs 30.2 或 31.1、Magit 4.x、Consult 3.x、Corfu、VertiCo，比原书那时候又长出了一大片。</p>
+
+  <p>但这恰恰是原书那句话最值得反复读的地方。地面在长，<strong>问路的方式没变</strong>。<kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 在 Emacs 26 上是什么答案，今天在 Emacs 32 上还是什么答案——甚至更完整，因为 Emacs 31 会在 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 的时候额外提醒你该用 <code>setopt</code>。二十多年过去，Emacs 唯一没变的是它对自己完全透明。</p>
+
+  <p>这就是本书真正的结尾：<strong>不是「你现在会 200 个按键了」，而是「你现在知道怎么让 Emacs 告诉你它会什么」。</strong>后者永远不会过期。</p>
+</section>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>21 天精通 Emacs · 互动教程</title>
+<meta name="description" content="从零开始 21 天掌握 Emacs —— 一个面向初学者的可互动教学网站。" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%237c5cff'/%3E%3Ctext x='50' y='66' font-size='58' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3Eλ%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+<!-- =================== 顶栏 =================== -->
+<header class="topbar">
+  <div class="topbar__left">
+    <button class="hamburger" id="hamburger" aria-label="打开侧栏">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <a class="brand" href="#day-1">
+      <span class="brand__logo">λ</span>
+      <span class="brand__text">Master Emacs in <em>21 Days</em></span>
+    </a>
+  </div>
+
+  <div class="topbar__center">
+    <div class="search">
+      <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="searchInput" type="text" placeholder="搜索章节或关键字 (Ctrl + K)" autocomplete="off" />
+      <kbd class="kbd">Ctrl K</kbd>
+      <div id="searchResults" class="search__results"></div>
+    </div>
+  </div>
+
+  <div class="topbar__right">
+    <div class="progress-pill" title="整体完成进度">
+      <span id="progressText">0 / 21</span>
+      <div class="progress-pill__bar"><div id="progressBar"></div></div>
+    </div>
+    <button class="icon-btn" id="glossaryBtn" title="术语表 (G)">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 4h12a4 4 0 014 4v12H8a4 4 0 01-4-4V4z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <button class="icon-btn" id="themeBtn" title="切换主题 (T)">
+      <svg id="iconSun" viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <svg id="iconMoon" viewBox="0 0 24 24" width="20" height="20" style="display:none"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- =================== 侧栏 =================== -->
+<aside class="sidebar" id="sidebar">
+  <nav class="nav" id="dayNav">
+    <!-- 由 JS 注入 -->
+  </nav>
+  <div class="sidebar__foot">
+    <small>© 2024 · Master Emacs in 21 Days</small><br/>
+    <small>基于 zilongshanren 教程改编</small>
+  </div>
+</aside>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+<!-- =================== 主体 =================== -->
+<main class="main" id="main">
+  <!-- 由 JS 注入 21 天内容 -->
+</main>
+
+<!-- =================== 浮动词典 tooltip =================== -->
+<div id="tooltip" class="tooltip" role="tooltip"></div>
+
+<!-- =================== 术语表面板 =================== -->
+<div class="glossary-panel" id="glossaryPanel" aria-hidden="true">
+  <div class="glossary-panel__inner">
+    <header>
+      <h2>📖 Emacs 术语表</h2>
+      <button class="icon-btn" id="glossaryClose" aria-label="关闭">✕</button>
+    </header>
+    <input id="glossarySearch" class="glossary-search" placeholder="搜索术语…" />
+    <div class="glossary-list" id="glossaryList"></div>
+    <footer>
+      <small>术语按字母顺序排列 · 点击任意术语可在文中高亮跳转</small>
+    </footer>
+  </div>
+</div>
+
+<!-- =================== 互动弹层（REPL 等） =================== -->
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="modal__inner" id="modalInner">
+    <header><h3 id="modalTitle"></h3><button class="icon-btn" id="modalClose">✕</button></header>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- 提示 toast -->
+<div id="toast" class="toast" role="status"></div>
+
+<script src="data/glossary.js"></script>
+<script src="data/content.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/glossary.js"></script>
+<script src="js/components.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

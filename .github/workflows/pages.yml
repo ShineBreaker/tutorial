@@ -1,0 +1,55 @@
+# GitHub Pages 发布流水线：单文件双 job —— build 组装站点并上传产物，deploy 发布到 Pages。
+name: pages
+
+# 触发条件：推送到 main 分支、所有 Pull Request、以及手动触发
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+# 顶层权限：读取仓库内容、写入 Pages、使用 OIDC 令牌（deploy-pages 依赖）
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 并发控制：按 ref 分组（main 部署与 PR 校验互不取消），同 ref 新运行取消旧的进行中运行
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 构建 job：所有触发方式都会执行
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 检出仓库源码
+      - name: 检出仓库
+        uses: actions/checkout@v4
+      # 组装站点，输出到 _site 目录
+      - name: 组装站点
+        run: python3 scripts/assemble.py
+      # 校验站点链接，失败则终止流水线
+      - name: 链接检查
+        run: python3 scripts/check_links.py
+      # 将 _site 目录上传为 Pages 部署产物
+      - name: 上传 Pages 产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  # 部署 job：仅 main 分支的非 Pull Request 事件（push / workflow_dispatch）会执行
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # 发布产物到 GitHub Pages，并把站点地址写入 page_url 输出
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

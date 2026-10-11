@@ -1,0 +1,491 @@
+<section class="ch" id="ch-06-editing-a" data-stage="进阶" data-min="30">
+  <h2 class="ch-title">六、编辑理论（一）：杀死与粘贴、转置、填充</h2>
+  <p class="ch-lead">这一章讲 Emacs 里最有代表性的三组编辑动作。<strong>kill</strong>（杀死）与 <strong>yank</strong>（取回）解释了一个反直觉的事实：Emacs 几乎没有真正会「丢数据」的删除键，所以你可以放心大胆地按。<strong>转置</strong>（transpose，一键交换两个语法单位）解决「顺序写反了」这个每天都会犯的错。<strong>填充</strong>（fill）与<strong>注释</strong>（comment）让长段落自动折行、让代码注释自动对齐。</p>
+
+  <p>读完你应该能：说清 Emacs 的删除为什么是安全的；把 kill ring 当成随手可取文本的仓库；用一次按键修好写反的参数和打错的字；让注释和长段落自动排版。本章覆盖原书第 190–208 页（<em>Killing and Yanking</em>、<em>Transposing Text</em>、<em>Filling and Commenting</em>）。原书写于 Emacs 26–30 之间，凡是键位、默认值、命令名与今天（Emacs 30/31/32）不一致的地方，正文都单独标出「今天的做法」。</p>
+
+  <h3>一、kill 与 yank：Emacs 的删除为什么让你不怕手抖</h3>
+
+  <h4>1.1 心智模型：一个可以往回翻的文本仓库</h4>
+
+  <p>其他编辑器里你按下剪切，文本就进了系统剪贴板，而剪贴板里只有那一样东西。Emacs 不一样：它维护一个叫 <strong>kill ring</strong>（杀死环）的东西——一串「文本块」的列表，每按一次删除类命令就往最前面塞一块，旧的留在后面。默认最多存 120 块（变量 <code>kill-ring-max</code>，Emacs 29 开始从 60 提高到 120；本节写作时本机 Emacs 32.0.50 实测为 120）。</p>
+
+  <p>三个词必须分清楚，后文全靠它：<strong>kill</strong>（杀死）把文本从缓冲区拿走并放进 kill ring，词源来自 Emacs 诞生之前的行编辑器 <code>ed</code>，比图形界面早几十年，听起来很凶；<strong>yank</strong>（取回）把 kill ring 里的某一块插回缓冲区，Emacs 的日常说法里它就是「粘贴」；<strong>delete</strong>（删除）是真的删掉，不进 kill ring，没有第二次机会，Emacs 里只有极少数命令这样干。</p>
+
+  <div class="callout note"><b>要点</b><p>kill ring 是<strong>全局</strong>的，所有缓冲区共用一个。你在 A 缓冲区 kill 出来的代码，可以直接在 B 缓冲区 <kbd>C</kbd><kbd>y</kbd> 出来。这是 Emacs 里移动文本最省事的方式，也是它敢把「删除」做得如此随便的底气。</p></div>
+
+  <h4>1.2 哪些是 kill，哪些是 delete</h4>
+
+  <div class="keys">
+    <h4>kill 命令（文本存进 kill ring）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>w</kbd></td><td><code>kill-region</code></td><td>杀死当前选区（区域）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>w</kbd></td><td><code>kill-ring-save</code></td><td>把选区复制进 kill ring，缓冲区里不动</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>w</kbd></td><td><code>append-next-kill</code></td><td>让下一个 kill 追加到上一块上（见 1.8）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>d</kbd></td><td><code>kill-word</code></td><td>向前杀死一个词</td></tr>
+        <tr><td><kbd>M</kbd><kbd>&lt;DEL&gt;</kbd> / <kbd>C</kbd><kbd>&lt;backspace&gt;</kbd></td><td><code>backward-kill-word</code></td><td>向后杀死一个词（两个键位等价）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>k</kbd></td><td><code>kill-line</code></td><td>杀死到行尾（细节见 1.7）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>k</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>&lt;DEL&gt;</kbd></td><td><code>kill-sentence</code> / <code>backward-kill-sentence</code></td><td>杀一句（前 / 后）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>k</kbd></td><td><code>kill-sexp</code></td><td>杀死后面的一个平衡表达式（s-expression，Lisp 里的括号结构；别的语言里相当于一段配对的括号或代码块）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>S</kbd><kbd>&lt;backspace&gt;</kbd></td><td><code>kill-whole-line</code></td><td>干掉当前整行（多数终端发不出这个组合）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>z</kbd>，然后在 minibuffer 里输入一个字符</td><td><code>zap-to-char</code></td><td><strong>从光标处一直杀到指定字符为止（那个字符本身也一起杀掉）</strong>。<strong>Emacs 27 起</strong>Emacs 会在 minibuffer 里提示 <code>Zap to char:</code> 让你<strong>输入</strong>一个字符、回车执行，而不是「按一个键」——<strong>所以这只有一个键位</strong>，不存在写成 <code>M-z C-h a</code> 这样的三键序列（第 8 章有这一族的完整对照表）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="keys">
+    <h4>delete 命令（不进 kill ring）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>d</kbd></td><td><code>delete-char</code></td><td>删掉光标后一个字符</td></tr>
+        <tr><td><kbd>C</kbd><kbd>H</kbd> / <kbd>&lt;DEL&gt;</kbd></td><td><code>delete-backward-char</code></td><td>删掉光标前一个字符</td></tr>
+        <tr><td>键盘上的 <kbd>Delete</kbd> 键</td><td><code>delete-forward-char</code></td><td>同 <code>delete-char</code>，但会先看有没有选区</td></tr>
+        <tr><td><kbd>M</kbd><kbd>\</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>o</kbd> / <kbd>M</kbd><kbd>^</kbd></td><td><code>delete-horizontal-space</code> / <code>delete-blank-lines</code> / <code>delete-indentation</code></td><td>删光标前后空格 / 删空行 / 删换行并把本行并到上一行</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Emacs 手册对这条界限的总结很干净，原文是：「能擦掉大量有意义数据的命令，一般都会去做一次 kill。」——<strong>Emacs 不信任你会小心，所以它替你留了后路。</strong>想找本章没列全的 kill 命令，用 <kbd>M</kbd><kbd>x</kbd> <code>apropos-kill</code>（apropos = 「关于……的」，按名字片段搜索所有命令和函数）。</p>
+
+  <h4>1.3 数字前缀与负数前缀：修饰键要对齐</h4>
+
+  <p>kill 命令和移动命令共享同一套「语法单位」概念：<kbd>M</kbd><kbd>d</kbd> 杀一个词，<kbd>M</kbd> <kbd>3</kbd> <kbd>M</kbd><kbd>d</kbd> 就杀三个词——<strong>数字必须加在同一个修饰键上</strong>。要杀三个 s-expression，就敲 <kbd>C</kbd><kbd>M</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>M</kbd> <kbd>k</kbd>，不是 <kbd>M</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>M</kbd> <kbd>k</kbd>。这个「修饰键对称」是 Emacs 键位设计的核心思路之一，记住一次就到处能用。负数前缀把方向反过来：<kbd>C</kbd><kbd>u</kbd> <kbd>-</kbd> <kbd>C</kbd><kbd>M</kbd> <kbd>k</kbd> 向后杀一个表达式。</p>
+
+  <p>原书在这里举的例子很能说明问题——你刚敲完 <code>s = make_upper_case("hello, world!")</code>，光标在右括号前，忽然发现这个字符串参数其实该删掉：</p>
+
+  <pre class="term"><code>s = make_upper_case("hello, world!"█)   █ 表示光标
+
+按 C-u - C-M-k 之后：
+s = make_upper_case(█)
+</code></pre>
+
+  <p>「我只是想把它挪到别处」还是「我只想删掉它」，用同一个键就够：想留就 <kbd>C</kbd><kbd>y</kbd>，不想留就继续敲别的。</p>
+
+  <h4>1.4 关键机制：给 delete 加一个前缀参数，它就变成 kill</h4>
+
+  <p>这是本章最值得记住的一条，很多教程不讲。<kbd>C</kbd><kbd>d</kbd> 是唯一一个「不带前缀参数时真删、带前缀参数时进 kill ring」的删除键。我在这台机器的 Emacs 32.0.50 上实测过：缓冲区内容是 <code>abcdef</code>，光标停在 <code>b</code> 前面，kill ring 是空的。</p>
+
+  <div class="keys">
+    <h4>实测：<kbd>C</kbd><kbd>d</kbd> 加不加前缀参数，行为完全不同</h4>
+    <table>
+      <thead><tr><th>按键</th><th>缓冲区剩下</th><th>kill ring 顶部</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>d</kbd></td><td><code>acdef</code></td><td>（空，真的丢了）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>d</kbd></td><td><code>af</code></td><td><code>"bcde"</code></td></tr>
+        <tr><td><kbd>M</kbd> <kbd>5</kbd> <kbd>C</kbd><kbd>d</kbd></td><td><code>a</code></td><td><code>"bcdef"</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>原因在源码里写得很清楚。<code>delete-char</code> 的交互规格是 <code>(interactive "p\nP")</code>：第一个 <code>p</code> 读「数字前缀」当删除个数，第二个 <code>P</code> 读「原始前缀参数」。它的文档字符串写着：<em>“If called interactively, a numeric prefix argument specifies N, and KILLFLAG is also set if a prefix argument is used.”</em>（交互调用时数字前缀决定删几个；<strong>只要你给了任何前缀参数，KILLFLAG 就为真，命令就变成 kill</strong>。）</p>
+
+  <div class="callout warn"><b>易错</b><p>这意味着 <kbd>M</kbd> <kbd>5</kbd> <kbd>C</kbd><kbd>d</kbd> 不是「删 5 个字符」，而是「<strong>kill</strong> 5 个字符进 kill ring」。Emacs 32 的手册在「Deletion」一节只写了「带数字参数时删除指定数量的字符」，没提这个 kill 副作用，但源码文档字符串和实际行为都是 kill。习惯上你几乎不会用数字 <kbd>C</kbd><kbd>d</kbd>，所以平时碰不到；一旦要，就当它是 kill 用。同一条规则适用于 <code>delete-forward-char</code> 和 <code>delete-backward-char</code>（键盘上的 <kbd>Delete</kbd> 键和 <kbd>Backspace</kbd>），它们还多了两项能力：有激活的选区时删的是整个选区（由变量 <code>delete-active-region</code> 控制，默认 <code>t</code>），以及尊重 <code>overwrite-mode</code>（覆写模式）。Emacs 32 的 <code>delete-char</code> 文档字符串也正因如此才说「交互使用请优先选 <code>delete-forward-char</code>」。</p></div>
+
+  <h4>1.5 五条规则：把 kill ring 用对</h4>
+
+  <ol>
+    <li><strong>连续 kill 会追加成一块。</strong>只有当上一个命令也是 kill 命令时，新的 kill 才接到顶部那块上。敲三次 <kbd>M</kbd><kbd>d</kbd> 连续杀三个词，kill ring 里是<strong>一整块</strong> <code>"one two three"</code>，下一次 <kbd>C</kbd><kbd>y</kbd> 一次全贴出来。</li>
+    <li><strong>中间插了别的命令，就另起一块。</strong>同样是 <kbd>M</kbd><kbd>d</kbd> 三次，中间按一个 <kbd>C</kbd><kbd>n</kbd> 换行，再三次，kill ring 里是新的一块，上一块还在下面——随时 <kbd>M</kbd><kbd>y</kbd> 退回去拿。</li>
+    <li><strong>容量有限但很大，而且是全局的。</strong>由 <code>kill-ring-max</code> 决定（默认 120），满了才挤掉最旧的，跨文件都能取。想看里面堆了什么，按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输入 <code>kill-ring</code>。</li>
+    <li><strong>kill 就是删除，所以别把 kill ring 当宝贝。</strong>你杀掉的垃圾文本、试错的片段全在里面。它是临时仓库，不是保险箱。</li>
+    <li><strong>大部分时候不需要 mark。</strong>敲三次 <kbd>M</kbd><kbd>d</kbd> 杀三个词，比先用 <kbd>M</kbd><kbd>@</kbd> 打标记再 <kbd>C</kbd><kbd>w</kbd> 杀快得多。</li>
+  </ol>
+
+  <p>第 1 条的实现：<code>kill-region</code> 执行完会把 <code>this-command</code> 统一设成 <code>kill-region</code>；下一次 kill 时检查 <code>last-command</code> 是不是它，是就合并（<code>kill-append</code>），否则新开一块（<code>kill-new</code>）。向前杀的追加到尾部，向后杀的插到头部，所以「前前后后」交替着杀也不会把顺序搞乱——手册的例子：<code>This is a line ★of sample text.</code> 反复敲 <kbd>M</kbd><kbd>d</kbd> <kbd>M</kbd><kbd>&lt;DEL&gt;</kbd> <kbd>M</kbd><kbd>d</kbd> <kbd>M</kbd><kbd>&lt;DEL&gt;</kbd>，kill ring 里会得到完整有序的一整块 <code>a line of sample</code>。</p>
+
+  <p>第 5 条只有两种例外：你只是想<strong>复制</strong>（<kbd>M</kbd><kbd>w</kbd>）的时候——kill 有副作用，复制必须先划范围；以及你要处理的区域<strong>形状不规则</strong>、凑不出整数个语法单位的时候。还有一条容易忽略的补充：先用 <kbd>M</kbd><kbd>w</kbd> 复制了一段，紧接着的 kill 命令<strong>不会</strong>追加到它后面，想追加得用下一节的 <kbd>C</kbd><kbd>M</kbd><kbd>w</kbd>。</p>
+
+  <h4>1.6 整行删除：<kbd>C</kbd><kbd>k</kbd> 的三种脾气</h4>
+
+  <p><kbd>C</kbd><kbd>k</kbd> 是最常用的 kill 命令，但它的行为分三种，全部来自 Emacs 手册原文：</p>
+
+  <ul>
+    <li>光标在<strong>行尾</strong>（最后一个非空白字符之后）：<kbd>C</kbd><kbd>k</kbd> 杀掉<strong>换行符</strong>，把下一行并上来，一整行空行就这样被删掉。</li>
+    <li>光标在<strong>行中</strong>：杀掉从光标到行尾的内容；如果你原来在行首，敲完这行就空了。</li>
+    <li>想一次干掉一整行非空行：<strong>去行首，敲两次 <kbd>C</kbd><kbd>k</kbd></strong>。第一次清空行内容，第二次吃掉换行。</li>
+  </ul>
+
+  <p>「<kbd>C</kbd><kbd>k</kbd> 不吃换行符」是特性不是 bug。原书的解释很到位：你把文本贴到别处时通常不需要那个换行；如果 kill ring 里凭空多一个换行，缓冲区里就少了一个。判定只看「光标是否在最后一个非空白字符之后」，行尾的空格和制表符不算数。数字前缀一次可以杀多行，规则和移动命令一致：<kbd>M</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>k</kbd> 杀本行剩下部分加后面两行和它们的换行；<kbd>M</kbd> <kbd>-</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>k</kbd> 往前杀三行；<kbd>C</kbd><kbd>u</kbd> <kbd>0</kbd> <kbd>C</kbd><kbd>k</kbd>（等价于 <kbd>M</kbd> <kbd>0</kbd> <kbd>C</kbd><kbd>k</kbd>）只杀光标<strong>之前</strong>的本行内容。</p>
+
+  <div class="callout tip"><b>技巧</b><p>嫌「去行首再敲两次」麻烦？把变量 <code>kill-whole-line</code>（默认为 <code>nil</code>）设成 <code>t</code>，那么在行首敲 <kbd>C</kbd><kbd>k</kbd> 就会连同后面的换行一起吃掉整行（本机 Emacs 32.0.50 实测确认）。原书建议先适应默认手感，我同意：默认那套节奏其实比你想的快，而且它让你不会被自己的配置骗到。另一个键是 <kbd>C</kbd><kbd>S</kbd><kbd>&lt;backspace&gt;</kbd>（命令 <code>kill-whole-line</code>，注意它和上面那个<strong>同名变量</strong>不是一回事），无论光标在行内哪个位置都直接干掉整行加换行；但原书提醒过，<strong>很多终端模拟器根本发不出这个组合</strong>，因为它被终端当作 XOFF（暂停输出）截获了，图形界面下一般没问题，纯终端里请用上面那套 <kbd>C</kbd><kbd>k</kbd> 方案。</p></div>
+
+  <h4>1.7 往 kill ring 里追加：<kbd>C</kbd><kbd>M</kbd><kbd>w</kbd></h4>
+
+  <p>你要删的两块文本隔得很远、中间还干了别的事，但想一次 <kbd>C</kbd><kbd>y</kbd> 全贴回来——这就是 <kbd>C</kbd><kbd>M</kbd><kbd>w</kbd>（<code>append-next-kill</code>）的用途。敲下它，回显区（echo area，屏幕底部显示命令结果的那一行）会提示：如果下一个命令是 kill 命令，它就会追加。用法：<kbd>C</kbd><kbd>M</kbd><kbd>w</kbd> → 移动到别处 → 敲任意 kill 命令，两块就合成一块了。</p>
+
+  <h4>1.8 <kbd>C</kbd><kbd>w</kbd> 没有选区时会发生什么</h4>
+
+  <p>默认情况下 <kbd>C</kbd><kbd>w</kbd> 在没有激活选区时，如果 mark 还留着，就按「point 到 mark」这一段来杀；如果 mark 从来没设过，它会报错：<em>“The mark is not set now, so there is no region”</em>。</p>
+
+  <p>原书推荐装第三方包 <code>whole-line-or-region</code>，让 <kbd>C</kbd><kbd>w</kbd> 在没有选区时改杀当前整行。这仍然是最直接的方案：</p>
+
+  <pre class="el"><code>M-x package-install RET whole-line-or-region RET</code></pre>
+
+  <p>然后在配置里打开它（<code>whole-line-or-region-global-mode</code> 是全局开关，<code>whole-line-or-region-local-mode</code> 只作用于当前缓冲区）。这个包由 Joe Casadonte 写、Steve Purcell 维护，在 MELPA 上，最新 tag 是 2.0，仓库是 <code>github.com/purcell/whole-line-or-region</code>。</p>
+
+  <div class="callout note"><b>要点</b><p>Emacs 31 起有了一个内置的近亲选项：<code>kill-region-dwim</code>（新增于 31.1，默认 <code>nil</code>，见本机 <code>etc/NEWS.31</code>）。设成 <code>emacs-word</code>，<kbd>C</kbd><kbd>w</kbd> 在没有选区时会杀「前一个词」；设成 <code>unix-word</code> 则按 shell（Bash）那种「空白分隔的词」来杀。注意它杀的是<strong>词</strong>不是<strong>整行</strong>，和 <code>whole-line-or-region</code> 的目标不一样，两者不冲突，按喜好选一个即可。</p></div>
+
+  <h3>二、yank：把 kill ring 里的东西取回来</h3>
+
+  <p><strong>yank</strong> 就是从 kill ring 里把文本插回缓冲区，日常说法里就是「粘贴」。（因为「paste」太常见，你在 <kbd>M</kbd><kbd>x</kbd> <code>apropos</code> 里搜 paste，Emacs 会把 yank 相关的结果一起给你。）</p>
+
+  <div class="keys">
+    <h4>yank 命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>y</kbd></td><td><code>yank</code></td><td>取回最近一次 kill 的文本</td></tr>
+        <tr><td><kbd>M</kbd><kbd>y</kbd></td><td><code>yank-pop</code></td><td>把刚 yank 的文本换成 kill ring 里的另一块（轮换）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>y</kbd></td><td><code>yank</code>（带前缀）</td><td>取回同一块文本，但光标留在插入文本<strong>前面</strong>、mark 放后面</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>4</kbd> <kbd>C</kbd><kbd>y</kbd></td><td><code>yank</code>（带数字）</td><td>取回第 4 近的一块</td></tr>
+        <tr><td><kbd>M</kbd> <kbd>2</kbd> <kbd>M</kbd><kbd>y</kbd></td><td><code>yank-pop</code>（带数字）</td><td>一次性往回跳 2 块</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p><strong><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>y</kbd> 不轮换。</strong>口口相传的说法里常说「<kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>y</kbd> 能在 kill ring 里轮换」——在今天的 Emacs 里这是错的。Emacs 32 手册《Yanking》一节写得很清楚：「With a plain prefix argument (<code>C-u C-y</code>), the command instead leaves the cursor in front of the inserted text, and sets the mark at the end.」（带纯前缀参数 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>y</kbd> 时，命令改为把光标留在插入文本前面，mark 放末尾。）效果等价于再按一次 <kbd>C</kbd><kbd>y</kbd>。<strong>轮换的键只有 <kbd>M</kbd><kbd>y</kbd>。</strong>本机用 <code>(key-binding (kbd "C-u C-y"))</code> 查询结果为 <code>nil</code>，Emacs 32 并没有给它单独绑定。</p></div>
+
+  <h4>2.1 怎么轮换：<kbd>M</kbd><kbd>y</kbd></h4>
+
+  <p>Emacs 手册用一个形象的说法解释这个机制：把 kill ring 想成一个圆环，上面有一根指针（手册里叫 last-yank pointer）指着其中一块。每次 kill 指针跳到最新那块，<kbd>C</kbd><kbd>y</kbd> 插入指针指着的块，<kbd>M</kbd><kbd>y</kbd> 把指针往前挪一格、缓冲区里的文本跟着换掉，一直按下去会绕回环的起点。</p>
+
+  <p>操作步骤只有两条，但第二条有个硬性前提：</p>
+
+  <ol>
+    <li>在想要文本出现的位置按 <kbd>C</kbd><kbd>y</kbd>。</li>
+    <li><strong>不要执行任何别的命令</strong>——包括移动光标、编辑文本——直接连续按 <kbd>M</kbd><kbd>y</kbd>。</li>
+  </ol>
+
+  <p>手册的限定更严：<em>“This works only after a <code>C-y</code> or another <code>M-y</code>.”</em> 也就是说 <kbd>M</kbd><kbd>y</kbd> 只有紧跟在 <kbd>C</kbd><kbd>y</kbd> 或另一次 <kbd>M</kbd><kbd>y</kbd> 之后才是「轮换」。<strong>在别的命令之后</strong>按它是另一回事：Emacs 28 新加了 <code>etc/NEWS.28</code> 记载的 “Standalone <code>M-y</code> allows interactive selection from previous kills.”——Emacs 会在 minibuffer（屏幕底部那行输入提示行）里弹出 <strong>Yank from kill-ring:</strong> 提示，把 kill ring 的历史放进去，用 <kbd>M</kbd><kbd>p</kbd> / <kbd>M</kbd><kbd>n</kbd> 或 <kbd>M</kbd><kbd>Tab</kbd> 浏览候选，选中后 <kbd>RET</kbd> 插入。这其实是「交互式选料」而不是「轮换」——它不改动刚才 yank 进来的文本，而是在当前光标处插入你挑的那一块。另一个入口是菜单 <strong>Edit → Paste from Kill Menu</strong>（命令 <code>yank-menu</code>，条目数由 <code>yank-menu-max-items</code> 控制，默认 60，见 <code>etc/NEWS.29</code>）。</p>
+
+  <h4>2.2 和系统剪贴板的关系</h4>
+
+  <p>在图形界面下 Emacs 的 kill 和 yank 与系统剪贴板是打通的：<kbd>C</kbd><kbd>w</kbd>、<kbd>M</kbd><kbd>w</kbd> 之后文本同时进系统剪贴板；<kbd>C</kbd><kbd>y</kbd> 之前 Emacs 会检查系统剪贴板——如果别的程序（比如浏览器）在你上次 kill 之后往剪贴板放了新内容，<kbd>C</kbd><kbd>y</kbd> 就贴那个。想彻底断开，把 <code>select-enable-clipboard</code> 设成 <code>nil</code>。</p>
+
+  <div class="callout note"><b>要点</b><p>还有一条反直觉但重要的规则：<kbd>C</kbd><kbd>-</kbd>（<code>undo</code>，撤销）把 kill 掉的文本放回缓冲区时，<strong>那一份仍然留在 kill ring 里</strong>。也就是说「撤销」和「取回」是两条独立的恢复路径，你不会因为撤销了一次就丢掉 kill ring 里的东西。</p></div>
+
+  <h3>三、转置：一键交换两个语法单位</h3>
+
+  <p><strong>转置</strong>（transposing）就是把两个语法单位交换位置。把函数两个参数写反了、把 <code>let</code> 的绑定写反了、写英文句子时把两个词写反了——这些错误每天都在发生，而「删掉重打」是明显的浪费。</p>
+
+  <div class="keys">
+    <h4>转置命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>t</kbd></td><td><code>transpose-chars</code></td><td>交换两个字符</td></tr>
+        <tr><td><kbd>M</kbd><kbd>t</kbd></td><td><code>transpose-words</code></td><td>交换两个词</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>t</kbd></td><td><code>transpose-sexps</code></td><td>交换两个平衡表达式</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>t</kbd></td><td><code>transpose-lines</code></td><td>交换两行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>transpose-sentences</code> / <code>transpose-paragraphs</code></td><td>同名命令</td><td>交换两个句子 / 两个段落（默认无键位）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>3.1 <kbd>C</kbd><kbd>t</kbd>：改错字神器</h4>
+
+  <p>正常情况下 <kbd>C</kbd><kbd>t</kbd> 交换光标左右两个字符（<code>█</code> 表示光标）：<code>A█BC</code> → <code>BA█C</code>。注意光标<strong>没有动</strong>，所以可以连按 <kbd>C</kbd><kbd>t</kbd> 把一个字符一路「拖」到右边去。</p>
+
+  <p>唯一的特例是行尾。在行尾按 <kbd>C</kbd><kbd>t</kbd>，Emacs 不会去交换「最后一个字符和换行符」（手册说这样「useless」），而是转而交换光标<strong>左边那两个</strong>字符：<code>AB█C</code> → <code>AC█B</code>（本机 Emacs 32.0.50 实测确认）。这个不对称性正是它最好用的时候——打错字的一瞬间，光标恰好就在你刚敲的错字后面，<kbd>C</kbd><kbd>t</kbd> 一次修好。隔了很久才发现，就得先用 <kbd>C</kbd><kbd>b</kbd> 或 <kbd>C</kbd><kbd>r</kbd> 把光标移回两个字符中间。</p>
+
+  <h4>3.2 <kbd>M</kbd><kbd>t</kbd>：交换两个词</h4>
+
+  <p>纯文本里 <kbd>M</kbd><kbd>t</kbd> 符合直觉（<code>Hello █World</code> → <code>World Hello█</code>），光标会像按了 <kbd>M</kbd><kbd>f</kbd> 一样向前挪一格，所以也能连按把一个词往右拖；散文里 <code>Hello,█World!</code> → <code>World, Hello█!</code>。</p>
+
+  <p>真正让它发光的地方是<strong>源码</strong>。原书用 Python 举的例子，我照着在本机 <code>python-mode</code> 下实测过，一字不差：</p>
+
+  <pre class="term"><code>names = {
+    'Jerry':█'Seinfeld',
+    'Cosmo': 'Kramer',
+}
+按 M-t 之后：
+names = {
+    'Seinfeld': 'Jerry',
+    'Cosmo': 'Kramer',
+}
+</code></pre>
+
+  <p>键值对调了个个儿，<strong>但引号留在原位</strong>。再按一次 <code>'Jerry'</code> 和 <code>'Cosmo'</code> 换位；再按一次 <code>'Jerry'</code> 和 <code>'Kramer'</code> 换位。</p>
+
+  <p>为什么符号不会跟着跑？因为 <code>transpose-words</code> 内部就是拿 <strong><kbd>M</kbd><kbd>f</kbd>（<code>forward-word</code>）</strong>定位左右边界的：先用负参数往回找一个词边界，再往正方向找一个词边界，然后只交换两个词本身。这可以直接验证——在原位置分别敲 <kbd>C</kbd><kbd>u</kbd> <kbd>-</kbd> <kbd>M</kbd><kbd>f</kbd> 和 <kbd>M</kbd><kbd>f</kbd>（记得每次都把光标挪回去），你会看到 <kbd>M</kbd><kbd>t</kbd> 要交换的那两个词的左右边界。理解了这一点，移动章节里学的「词法单位」就串起来了：<kbd>M</kbd><kbd>f</kbd> 忽略符号，<kbd>M</kbd><kbd>d</kbd> 按同样的规则切词，<kbd>M</kbd><kbd>t</kbd> 也一样。</p>
+
+  <h4>3.3 <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd>：交换两个表达式</h4>
+
+  <p>原理和 <kbd>M</kbd><kbd>t</kbd> 完全平行，只是边界由 <kbd>C</kbd><kbd>M</kbd><kbd>f</kbd>（<code>forward-sexp</code>）来定。Lisp 代码里最直观（实测确认）：<code>(/ (+ 2 n)█(* 4 n))</code> → <code>(/ (* 4 n) (+ 2 n)█)</code>。如果当前位置没有平衡表达式，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 会退化成按词转置（<code>Hello,█World!</code> → <code>World, Hello█!</code>）；而当一个词和一个表达式混在一起时，它照样按表达式的边界来：<code>Hello,█(insert name here)!</code> → <code>(insert name here), Hello█!</code>。</p>
+
+  <details class="deep"><summary>进阶：Emacs 30 起，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 认语法树</summary>
+  <p>Emacs 30 新增变量 <code>transpose-sexps-function</code>，用来决定 <code>transpose-sexps</code> 怎么找边界，并把旧实现挪进了 <code>transpose-sexps-default-function</code>。tree-sitter（Emacs 内置的语法树解析库）会为所有它支持的语言设置这个变量（见 <code>etc/NEWS.30</code>）。也就是说 Emacs 31/32 里，在开启 tree-sitter 的语言中 <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 按真正的语法树转置，不再只认括号。如果你用 <kbd>M</kbd><kbd>t</kbd> 在 C 代码里觉得切分不对路，多半是词法单位的差异，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 才是对的那个。</p>
+  </details>
+
+  <h4>3.4 数字前缀：让一个单位跨过好几个</h4>
+
+  <p>Emacs 32 手册对转置类命令的数字参数解释得很清楚：<strong>它是一个跨越计数</strong>——把包含光标的（或光标前的）那个单位，往前或往后挪过 N 个单位，等价于连按 N 次。</p>
+
+  <ul>
+    <li><kbd>C</kbd><kbd>u</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>t</kbd>：把光标前的字符往后挪过 3 个字符。手册的例子：<code>f★oobar</code> 变成 <code>oobf★ar</code>。</li>
+    <li><kbd>C</kbd><kbd>u</kbd> <kbd>-</kbd> <kbd>4</kbd> <kbd>M</kbd><kbd>t</kbd>：把光标前的词往前挪过 4 个词；<kbd>C</kbd><kbd>u</kbd> <kbd>-</kbd> <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 撤销一次 <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd>。</li>
+    <li><kbd>C</kbd><kbd>u</kbd> <kbd>0</kbd> <kbd>M</kbd><kbd>t</kbd>：<strong>和 mark 处的那一块交换</strong>。要把 <code>Bob and Mary</code> 改成 <code>Mary and Bob</code>，先在 <code>Bob</code> 上按 <kbd>C</kbd><kbd>space</kbd> 打 mark，再把光标移到 <code>Mary</code> 后面，敲 <kbd>C</kbd><kbd>u</kbd> <kbd>0</kbd> <kbd>M</kbd><kbd>t</kbd>。</li>
+  </ul>
+
+  <p>本机实测（<code>fundamental-mode</code>，文本 <code>a b c d</code>，光标在 <code>a</code> 后）：<kbd>M</kbd> <kbd>2</kbd> <kbd>M</kbd><kbd>t</kbd> 得到 <code>b c a d</code>，也就是 <code>a</code> 往后跨过了两个词。</p>
+
+  <h4>3.5 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>t</kbd>：交换两行</h4>
+
+  <p>命令是 <code>transpose-lines</code>：把当前行和下面一行交换（<code>aaa\nbbb\nccc</code>，光标在 <code>aaa</code> 行，敲一次变成 <code>bbb\naaa\nccc</code>——本机实测确认）。原书说这是他最常用的一个转置命令，用途是<strong>重排以换行分隔的列表</strong>：改配置、调参数顺序、给 README 里的步骤换次序。写代码时也用得上，比如把两个函数定义对调。</p>
+
+  <div class="callout tip"><b>技巧</b><p>段落和句子的转置命令默认<strong>没有键位</strong>，只能 <kbd>M</kbd><kbd>x</kbd> 调用。它们的实现是同一个 <code>transpose-subr</code>：<code>transpose-lines</code>、<code>transpose-sentences</code>、<code>transpose-paragraphs</code> 共享一套逻辑，区别只在「一个单位」用什么移动函数来数（<code>transpose-subr</code> 文档字符串：<em>“MOVER is a function that moves forward by units of the given object.”</em>）。另外还有一个 <code>transpose-regions</code>（默认无键位），能一次交换两段任意形状的文本，用到 mark 环。如果你真的经常重排段落，值得自己绑一个键，绑法在第 13 章会讲。</p></div>
+
+  <h3>四、填充：让长段落自己折行</h3>
+
+  <p><strong>填充</strong>（filling）指把过长的段落重新切成符合指定宽度的行。这件事不只对散文有用——注释、文档字符串、Markdown、LaTeX 都受益。</p>
+
+  <div class="keys">
+    <h4>填充命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>q</kbd></td><td><code>fill-paragraph</code></td><td>重新填充光标所在段落</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>M</kbd><kbd>q</kbd></td><td><code>fill-paragraph</code></td><td>填充并两端对齐（justify）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd></td><td><code>set-fill-column</code></td><td>提示你输入填充宽度（列数）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd></td><td><code>set-fill-column</code></td><td>把填充宽度设成光标当前所在列</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>N</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd></td><td><code>set-fill-column</code></td><td>把填充宽度设成 N 列</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>.</kbd></td><td><code>set-fill-prefix</code></td><td>把本行到光标之间的内容设为填充前缀</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>.</kbd></td><td><code>set-fill-prefix</code></td><td>取消填充前缀</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>auto-fill-mode</code></td><td><code>auto-fill-mode</code></td><td>开关自动填充（缓冲区局部次要模式）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>fill-region</code> / <code>unfill-paragraph</code> / <code>display-fill-column-indicator-mode</code></td><td>同名命令</td><td>填满选区每一段 / 把段落合并成一行 / 在模式行显示填充列标记</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>4.1 <kbd>M</kbd><kbd>q</kbd> 的三种用法</h4>
+
+  <p>原书那个 Sherlock Holmes 的例子最能说明「填充」在做什么。引文超出一页宽，光标放在段落里敲 <kbd>M</kbd><kbd>q</kbd>：</p>
+
+  <pre class="term"><code>填充前（实际只有一行）：
+'It is an old maxim of mine that when you have excluded the impossible,
+whatever remains, however improbable, must be the truth.'
+
+填充后（每行不超过 fill-column）：
+'It is an old maxim of mine that when you
+have excluded the impossible, whatever
+remains, however improbable, must be the
+truth.'
+</code></pre>
+
+  <p>宽度由变量 <code>fill-column</code> 决定，默认 70。本机实测把它设成 30 再跑 <code>fill-paragraph</code>，结果与上面同构。三个细节：</p>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>q</kbd> 作用于<strong>光标所在段落</strong>；光标落在两段之间的空行上时，它会填下面那一段。</li>
+    <li>如果当前有<strong>激活的选区</strong>，<kbd>M</kbd><kbd>q</kbd> 会改成填充整个选区里的所有段落。命令签名是 <code>(fill-paragraph &amp;optional JUSTIFY REGION)</code>，<code>REGION</code> 只在交互调用时为真。</li>
+    <li><kbd>C</kbd><kbd>u</kbd> <kbd>M</kbd><kbd>q</kbd> 会额外做<strong>两端对齐</strong>，把每行撑到一样长。文档字符串原文：<em>“If JUSTIFY is non-nil (interactively, with prefix argument), justify as well.”</em></li>
+  </ul>
+
+  <p>Emacs <strong>不会切词</strong>（没有连字符断词），所以把 <code>fill-column</code> 设成一个很窄的值会很难看——原书专门提醒过这一点。另外 <code>fill-column</code> 是<strong>缓冲区局部</strong>变量：不同文件、不同 major mode 可以有不同宽度，C 语言模式通常已经帮你设成项目约定的值，动手前先 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 看一下。</p>
+
+  <h4>4.2 设置填充宽度与填充前缀</h4>
+
+  <p>原书的做法是把光标放在希望段落折到的列上，敲 <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd>，Emacs 提示你输入宽度，你把当前列号报给它。这有点绕，直接用 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd> 更快——<code>set-fill-column</code> 的文档字符串写着：<em>“Just C-u as argument means to use the current column.”</em>（只按 <kbd>C</kbd><kbd>u</kbd> 就表示用当前列。）也可以 <kbd>C</kbd><kbd>u</kbd> <kbd>8</kbd><kbd>0</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd> 直接设成 80。</p>
+
+  <p><strong>fill prefix</strong>（填充前缀）是你希望每一行开头都有的固定文本，比如列表项的 <code>* </code>、引用的 <code>&gt; </code>、注释里的 <code>;; </code>。设置方法：光标放在空行上、放在你想让前缀结束的位置，敲 <kbd>C</kbd><kbd>x</kbd> <kbd>.</kbd>，Emacs 把「本行开头到光标」之间的字符设为前缀。本机实测：一行 <code>#  some long text…</code>，光标在 <code>#  </code> 之后按 <kbd>C</kbd><kbd>x</kbd> <kbd>.</kbd>，再 <kbd>M</kbd><kbd>q</kbd>，折出来的每一行都带着 <code>#  </code>。取消：光标放在一个空行上，敲 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>.</kbd>。Emacs 手册里还有「自适应填充」一节：它能从段落的第一、二行自动推断前缀，你什么都不用设。</p>
+
+  <h4>4.3 自动填充：<kbd>M</kbd><kbd>x</kbd> <code>auto-fill-mode</code></h4>
+
+  <p>打开之后，你每敲一个空格或回车，行太长时 Emacs 会自动折。它有个关键限制（手册原文）：<em>“Auto Fill mode does not refill entire paragraphs; it breaks lines but does not merge lines.”</em>（自动填充只断行，不合并行。）也就是说你在段落中间改字之后，段落可能变得不整齐，这时要手动 <kbd>M</kbd><kbd>q</kbd> 一次。打开后模式行上会出现 <code>Fill</code> 标记。Emacs 30 新增了变量 <code>inhibit-auto-fill</code>，可以临时压制自动填充。</p>
+
+  <div class="callout warn"><b>易错</b><p>原书的建议是编程模式里别用 auto fill，确实不好用。但更重要的是——<strong>编程模式里 <kbd>M</kbd><kbd>q</kbd> 根本不是 <code>fill-paragraph</code></strong>。本机实测：<code>lisp-mode</code>、<code>python-mode</code>、<code>sh-mode</code> 里 <kbd>M</kbd><kbd>q</kbd> 被改绑成 <code>prog-fill-reindent-defun</code>（重新缩进并填充光标所在的整个函数定义；只有在字符串或注释里才退化成填段落），<code>c-mode</code> 里是 <code>c-fill-paragraph</code>（处理 C 风格的 <code>/* */</code> 和 <code>//</code> 注释，在普通代码里则什么都不做）。只有 <code>fundamental-mode</code> 和 <code>text-mode</code> 里 <kbd>M</kbd><kbd>q</kbd> 才是货真价实的 <code>fill-paragraph</code>。想在这里强制填纯段落，用 <kbd>M</kbd><kbd>x</kbd> <code>fill-paragraph</code>。</p></div>
+
+  <details class="deep"><summary>进阶：中文用户必须知道的两条</summary>
+  <p><strong>一、CJK 文字可以在任意两字之间断行。</strong>Emacs 32 手册在 <em>Auto Fill</em> 和 <em>Fill Commands</em> 两处都说了：对拉丁文字，Emacs 在空格处断行以保持单词完整；对 CJK 文字，行可以在任意两个字符之间断开。如果你用 <code>kinsoku</code> 库（<code>(require 'kinsoku)</code> 后打开 <code>kinsoku-mode</code>），Emacs 还会遵守中文排版的禁则规则，不在不允许的位置断行（比如不把右括号留在行首）。</p>
+  <p><strong>二、显示层换行和文件里的换行是两回事。</strong>Emacs 29 之后有 <code>word-wrap</code> 变量（命令 <code>M-x toggle-word-wrap</code>，<strong>默认没有键位</strong>）和 <code>word-wrap-by-category</code>，它们只改变<strong>屏幕上的显示</strong>，不往文件里写一个换行符。写 Markdown、LaTeX 或任何不希望硬换行的格式时，这个比填充更合适。</p>
+  </details>
+
+  <h3>五、注释：让代码自己排版</h3>
+
+  <p>插入和维护注释是编程里最高频的编辑动作之一，Emacs 为它准备了一组专门命令。</p>
+
+  <div class="keys">
+    <h4>注释命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>;</kbd></td><td><code>comment-dwim</code></td><td>智能注释：按情况插入、对齐、注释或取消注释选区</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>M</kbd><kbd>;</kbd></td><td><code>comment-kill</code></td><td>删掉本行的注释（进 kill ring）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>;</kbd></td><td><code>comment-line</code></td><td>注释 / 取消注释整行（可带数字前缀）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>;</kbd></td><td><code>comment-set-column</code></td><td>把 <code>comment-column</code> 设成光标所在列</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>;</kbd></td><td><code>comment-set-column</code></td><td>对齐到前一条注释，并顺手 <kbd>M</kbd><kbd>;</kbd> 对齐本行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>j</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>j</kbd></td><td><code>default-indent-new-line</code></td><td>换行并续写注释</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>comment-box</code> / <code>comment-region</code></td><td>同名命令</td><td>给选区套方框注释 / 加注释定界符（<code>c-mode</code> 里绑到 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd>），两者都默认无键位</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>5.1 <kbd>M</kbd><kbd>;</kbd>：一个命令四种行为</h4>
+
+  <p><strong>DWIM</strong> 是 “Do What I Mean”（do what I mean，猜你想干什么）的缩写，Emacs 给这类「看情况决定」的命令起的就是这个名字。<code>comment-dwim</code> 的文档字符串把分支列得清清楚楚：</p>
+
+  <ol>
+    <li><strong>有激活的选区</strong>：调 <code>comment-region</code>；但如果选区里每行<em>已经</em>都是注释，就调 <code>uncomment-region</code>。也就是说<strong>同一个键来回切换</strong>。此时给数字前缀 N，表示增删 N 个定界符。</li>
+    <li><strong>没有选区，当前行是空行</strong>：插入一个注释并按 major mode 的缩进规则对齐（等价于敲 <kbd>TAB</kbd> 会到的位置）。</li>
+    <li><strong>没有选区，当前行有内容</strong>：调 <code>comment-indent</code>，在行尾追加注释，光标停在注释起始定界符之后，你可以直接接着打字。Emacs 尽量把注释放在 <code>comment-column</code> 和 <code>comment-fill-column</code> 之间，放不下就另找个合适位置；已有注释的行按一次则把注释重新对齐。</li>
+    <li><strong>没有选区，但给了前缀参数</strong>：调 <code>comment-kill</code>，删掉本行注释（连同它前面的空白）并放进 kill ring。</li>
+  </ol>
+
+  <div class="callout tip"><b>技巧</b><p>第 4 条配 <kbd>C</kbd><kbd>y</kbd> 很好用：<kbd>C</kbd><kbd>u</kbd> <kbd>M</kbd><kbd>;</kbd> 把行尾注释剪下来，移动到另一行行尾，<kbd>C</kbd><kbd>y</kbd> 贴上，再按一下 <kbd>M</kbd><kbd>;</kbd> 让它自动对齐到正确的列。比手工调空格快得多。</p></div>
+
+  <h4>5.2 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>;</kbd> 与 <kbd>M</kbd><kbd>j</kbd></h4>
+
+  <p><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>;</kbd> 和 <kbd>M</kbd><kbd>;</kbd> 的区别是：它<strong>总是</strong>按整行处理，绝不只处理光标后面的部分。有选区时注释/取消注释选区覆盖的<strong>所有行</strong>，没有选区时处理光标所在行。<kbd>M</kbd> <kbd>3</kbd> 处理从本行起的 3 行，<kbd>M</kbd> <kbd>-</kbd> <kbd>3</kbd> 处理往上 3 行；而且手册特别说明：<strong>用负数调用过一次之后</strong>，紧接着用正数调用会自动往上累积，不用再带负号——这是为了让你连着注释一长段代码时省事。</p>
+
+  <p>在注释中间按 <kbd>M</kbd><kbd>j</kbd>（或 <kbd>C</kbd><kbd>M</kbd><kbd>j</kbd>，两个键完全等价），Emacs 会把当前行断开，在新行插入注释定界符和缩进。本机实测：Emacs Lisp 里 <code>(a) ;; hello</code> 这一行，光标在注释中间按 <kbd>M</kbd><kbd>j</kbd>，会得到带 <code>;;</code> 前缀的新行。实现上，<code>default-indent-new-line</code> 检查 <code>comment-start</code> 是否非空，非空就转交给变量 <code>comment-line-break-function</code> 指向的函数，默认是 <code>comment-indent-new-line</code>。所以在代码区按 <kbd>M</kbd><kbd>j</kbd> 它就是普通的「换行并缩进」，进了注释才变成「换行并续写注释」——同一个键，自动分派。对有闭合定界符的语言（C 的 <code>*/</code>），行为由 <code>comment-multi-line</code> 控制：为 <code>nil</code> 时会在旧行闭合注释、在新行开一个新注释；非 <code>nil</code> 时则在原有定界符内另起一行。</p>
+
+  <div class="callout note"><b>要点</b><p>前面讲的填充命令是<strong>懂注释语法</strong>的。在注释里按 <kbd>M</kbd><kbd>q</kbd>，Emacs 会保留每行的注释前缀再折行；auto fill 模式下打字越过填充列，也会用和 <kbd>M</kbd><kbd>j</kbd> 一样的方式续注释。写长注释时放心用。</p></div>
+
+  <h4>5.3 注释框与注释变量</h4>
+
+  <p><code>comment-box</code>（<kbd>M</kbd><kbd>x</kbd> 调用，<strong>默认没有键位</strong>）把选区包成一个方框：<code>/*----------------\n|  some notes\n----------------*/</code>。它内部按 <code>comment-style</code> 选实现：是 <code>box</code> 就套框，是 <code>box-multi</code> 就用多行定界符版本。</p>
+
+  <div class="keys">
+    <h4>注释相关变量（可在 <kbd>M</kbd><kbd>x</kbd> <code>customize</code> 里改）</h4>
+    <table>
+      <thead><tr><th>变量</th><th>典型默认值</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>comment-start</code></td><td>Lisp <code>";"</code>，C <code>"/* "</code></td><td>注释起始定界符</td></tr>
+        <tr><td><code>comment-end</code></td><td>Lisp <code>""</code>，C <code>" */"</code></td><td>注释结束定界符</td></tr>
+        <tr><td><code>comment-padding</code></td><td><code>" "</code></td><td>定界符与正文之间的填充（也可为数字或 <code>nil</code>）</td></tr>
+        <tr><td><code>comment-style</code> / <code>comment-styles</code></td><td><code>indent</code> / 关联表</td><td>注释风格，以及全部可选风格的列表（用 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 查后者）</td></tr>
+        <tr><td><code>comment-column</code> / <code>comment-fill-column</code></td><td>40 / <code>nil</code></td><td>行尾注释起始列（缓冲区局部）；注释的填充列，为 <code>nil</code> 时用 <code>fill-column</code></td></tr>
+        <tr><td><code>comment-multi-line</code></td><td>各模式不同</td><td>控制 <kbd>M</kbd><kbd>j</kbd> 是闭合旧注释还是留在原注释内</td></tr>
+        <tr><td><code>comment-start-skip</code></td><td>各模式不同</td><td>识别「这行已经有注释」用的正则</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>本机读到的 <code>comment-styles</code> 一共 8 种：<code>plain</code>（从第 0 列开始，Emacs 20 时代的风格）、<code>indent-or-triple</code>、<code>indent</code>（每行一条注释，结束符不对齐）、<code>aligned</code>（每行一条，结束符对齐）、<code>box</code>（对齐 + 上下加横线）、<code>extra-line</code>（整个块只在末尾闭合）、<code>multi-line</code>（整个块用一组定界符）、<code>box-multi</code>（多行 + 上下横线）。</p>
+
+  <div class="callout note"><b>要点</b><p>原书说：如果某个 major mode 没把注释变量配好，你第一次用注释命令时 Emacs 会问你要注释字符。这个说法在今天的 Emacs 里基本不会发生了——现代 major mode 几乎都通过 <code>define-derived-mode</code> 和统一的语法表机制配好了这些变量。原书那张变量表依然是理解注释系统的好入口，但「需要你手工回答提示」是 Emacs 二十世纪的做法。</p></div>
+
+  <h3>六、原书写法 vs 今天的 Emacs</h3>
+
+  <div class="keys">
+    <h4>版本差异速查</h4>
+    <table>
+      <thead><tr><th>项目</th><th>原书的说法</th><th>Emacs 30/31/32 的情况</th></tr></thead>
+      <tbody>
+        <tr><td><code>kill-ring-max</code></td><td>「默认值很宽裕」，未给数字</td><td>默认 <strong>120</strong>（Emacs 29 起从 60 提高）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>y</kbd></td><td>未提及</td><td><strong>不是轮换</strong>，等于再 yank 一次但光标留在插入文本前面</td></tr>
+        <tr><td><kbd>M</kbd><kbd>y</kbd></td><td>Emacs 28 起可显示 kill ring 历史</td><td>一致。非 yank 命令之后按它，会在 minibuffer 里让你挑一块插入（不是菜单）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>w</kbd> 无选区</td><td>推荐装 <code>whole-line-or-region</code></td><td>Emacs 31.1 起另有内置选项 <code>kill-region-dwim</code>（杀前一个词，默认 <code>nil</code>）</td></tr>
+        <tr><td><code>M-w</code> 的命令名</td><td>写作 <code>copy-region-as-kill</code></td><td>命令是 <code>kill-ring-save</code>（多了选中区闪烁提示），<code>copy-region-as-kill</code> 是等价的旧名</td></tr>
+        <tr><td><kbd>M</kbd><kbd>q</kbd></td><td>一律等于 <code>fill-paragraph</code></td><td>只在 <code>fundamental-mode</code>/<code>text-mode</code> 是；编程模式里被改绑</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 的边界</td><td>按括号配对</td><td>Emacs 30 起可由 <code>transpose-sexps-function</code> 接管，tree-sitter 会为受支持语言设置它</td></tr>
+        <tr><td>CJK 断行 / 长行显示</td><td>未提及</td><td>CJK 可在任意两字间断行，<code>kinsoku</code> 提供禁则；Emacs 29+ 的 <code>word-wrap</code> 只影响显示不改文件</td></tr>
+        <tr><td>kill ring 缩进</td><td>未提及</td><td>Emacs 30 新增全局次要模式 <code>kill-ring-deindent-mode</code>，存进 kill ring 的文本按首行缩进量去缩进</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip"><b>技巧</b><p>把 kill ring 当临时草稿纸：改写一段话时先 <kbd>M</kbd><kbd>w</kbd> 存一份原版，改坏了 <kbd>C</kbd><kbd>-</kbd> 撤销，或者从 kill ring 里把原版拽回来对照。这正是 kill ring 设计成「多条、可回溯」的用意。</p></div>
+
+  <h3>七、按键速查</h3>
+
+  <div class="keys">
+    <h4>本节核心按键（完整清单见上面各小节的表格）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>d</kbd> / <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>d</kbd></td><td><code>delete-char</code>（带前缀）</td><td>删一个字符（真删） / <strong>变成 kill</strong>，进 kill ring</td></tr>
+        <tr><td><kbd>C</kbd><kbd>w</kbd> / <kbd>M</kbd><kbd>w</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>w</kbd></td><td><code>kill-region</code> / <code>kill-ring-save</code> / <code>append-next-kill</code></td><td>杀选区 / 复制选区 / 追加下一块</td></tr>
+        <tr><td><kbd>M</kbd><kbd>d</kbd> / <kbd>M</kbd><kbd>&lt;DEL&gt;</kbd> / <kbd>C</kbd><kbd>k</kbd> / <kbd>M</kbd><kbd>k</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>k</kbd></td><td><code>kill-word</code> / <code>backward-kill-word</code> / <code>kill-line</code> / <code>kill-sentence</code> / <code>kill-sexp</code></td><td>杀一个词（前 / 后）、到行尾、到句末、一个表达式</td></tr>
+        <tr><td><kbd>C</kbd><kbd>S</kbd><kbd>&lt;backspace&gt;</kbd></td><td><code>kill-whole-line</code></td><td>杀整行（多数终端发不出）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>y</kbd> / <kbd>M</kbd><kbd>y</kbd></td><td><code>yank</code> / <code>yank-pop</code></td><td>取回最近一次 / 轮换（仅紧跟 <kbd>C</kbd><kbd>y</kbd> 时）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>y</kbd> / <kbd>C</kbd><kbd>u</kbd> <kbd>4</kbd> <kbd>C</kbd><kbd>y</kbd></td><td><code>yank</code>（带前缀 / 数字）</td><td>光标留在插入文本前 / 取回第 4 近的一块</td></tr>
+        <tr><td><kbd>C</kbd><kbd>t</kbd> / <kbd>M</kbd><kbd>t</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>t</kbd></td><td><code>transpose-chars</code> / <code>transpose-words</code> / <code>transpose-sexps</code> / <code>transpose-lines</code></td><td>交换两字符 / 两词 / 两表达式 / 两行</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>0</kbd> <kbd>M</kbd><kbd>t</kbd></td><td><code>transpose-words</code>（0 参数）</td><td>与 mark 处交换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>q</kbd> / <kbd>C</kbd><kbd>u</kbd> <kbd>M</kbd><kbd>q</kbd></td><td><code>fill-paragraph</code></td><td>填充段落 / 两端对齐（编程模式见 4.3）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd> / <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>.</kbd></td><td><code>set-fill-column</code> / <code>set-fill-prefix</code></td><td>设填充宽度（<kbd>C</kbd><kbd>u</kbd> 取当前列）/ 设填充前缀</td></tr>
+        <tr><td><kbd>M</kbd><kbd>;</kbd> / <kbd>C</kbd><kbd>u</kbd> <kbd>M</kbd><kbd>;</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>;</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>;</kbd></td><td><code>comment-dwim</code> / <code>comment-kill</code> / <code>comment-line</code> / <code>comment-set-column</code></td><td>智能注释 / 删掉本行注释 / 注释整行 / 设注释列</td></tr>
+        <tr><td><kbd>M</kbd><kbd>j</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>j</kbd></td><td><code>default-indent-new-line</code></td><td>换行并续写注释</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> <kbd>kill-ring</kbd></td><td><code>describe-variable</code></td><td>查看 kill ring 内容</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>八、练习</h3>
+
+  <div class="drill" data-answer="C-u C-d 会进 kill ring，C-d 本身是真删。delete-char 的交互规格是 (interactive &quot;p\nP&quot;)，第二个 P 读原始前缀参数，只要给了前缀就置 killflag，命令从 delete 变成 kill。M-5 C-d 同理，是 kill 5 个字符">
+  <p class="drill-q"><b>练习 1</b>　你按了 <kbd>C</kbd><kbd>d</kbd>，发现那五个字符彻底没了，<kbd>C</kbd><kbd>-</kbd> 也救不回来（kill ring 里没有）。如果当时多按了一个 <kbd>C</kbd><kbd>u</kbd>，结果会怎样？为什么？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>那五个字符会进 kill ring，可以用 <kbd>C</kbd><kbd>y</kbd> 取回。原因是 <code>delete-char</code> 的交互规格是 <code>(interactive "p\nP")</code>，第二个 <code>P</code> 读原始前缀参数，只要给了前缀就置 killflag，命令从 delete 变成 kill。同理 <kbd>M</kbd> <kbd>5</kbd> <kbd>C</kbd><kbd>d</kbd> 是「kill 5 个字符」而不是「删 5 个」。</p></div>
+</div>
+
+  <div class="drill" data-answer="第一次是一整块 one two three；连续 kill 会追加。中间的 C-n 是移动命令，打断了追加链，所以第二次的三次 M-d 另起一块 four five six">
+  <p class="drill-q"><b>练习 2</b>　缓冲区里有两行 <code>one two three</code> 和 <code>four five six</code>。你在第一行开头连敲三次 <kbd>M</kbd><kbd>d</kbd>。kill ring 顶部是一整块还是三块？接着按 <kbd>C</kbd><kbd>n</kbd> 再敲三次 <kbd>M</kbd><kbd>d</kbd>，现在顶部是什么？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>第一次是<strong>一整块</strong> <code>"one two three"</code>——连续 kill 会追加。<kbd>C</kbd><kbd>n</kbd> 是移动命令不是 kill，打断了追加链，所以第二次的三次 <kbd>M</kbd><kbd>d</kbd> 另起一块 <code>"four five six"</code>，上一块还在下面，<kbd>M</kbd><kbd>y</kbd> 可以退回去拿。</p></div>
+</div>
+
+  <div class="drill" data-answer="M-y。yank-pop 只在紧跟 C-y 或另一次 M-y 之后才轮换；其他情况下（Emacs 28 起）弹 minibuffer 让你选一块插入。C-u C-y 不是轮换，它是 yank 带 universal-argument，把光标留在插入文本前面">
+  <p class="drill-q"><b>练习 3</b>　你刚 <kbd>C</kbd><kbd>y</kbd> 贴了一段文字，想换成 kill ring 里的前两条。用哪个键？为什么不是 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>y</kbd>？如果在 <kbd>C</kbd><kbd>y</kbd> 之后先按了一下 <kbd>C</kbd><kbd>n</kbd>，再想换，该怎么办？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>用 <kbd>M</kbd><kbd>y</kbd>。<code>yank-pop</code> 只在紧跟 <code>yank</code> 或另一次 <code>yank-pop</code> 之后才做「轮换」（手册原文：<em>This works only after a C-y or another M-y.</em>）。<kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>y</kbd> 不是轮换——它是 <code>yank</code> 带纯前缀参数，Emacs 32 手册明确说它「leaves the cursor in front of the inserted text, and sets the mark at the end」。如果中间按了 <kbd>C</kbd><kbd>n</kbd>，<kbd>M</kbd><kbd>y</kbd> 会走另一条路：Emacs 28 起在 minibuffer 里提示 <code>Yank from kill-ring:</code>，你从历史里挑一块插入。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-M-3 C-M-k。不能敲 M-3 C-M-k：数字前缀会挂在错误的那一层，Emacs 收到的是先移动后 kill。修饰键必须和命令一致。顺带：C-M-d 在 Emacs 32 里是 down-list，不是删除命令">
+  <p class="drill-q"><b>练习 4</b>　要一次杀死后面三个 s-expression，应该敲什么？能不能敲 <kbd>M</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>M</kbd> <kbd>k</kbd>？为什么 Emacs 要这么要求？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>应该敲 <kbd>C</kbd><kbd>M</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>M</kbd> <kbd>k</kbd>。不能敲 <kbd>M</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>M</kbd> <kbd>k</kbd>：那样数字前缀挂不到 <kbd>C-M-</kbd> 这一层，Emacs 收到的是「先移动、后 kill」两件事。Emacs 的 kill 命令和移动命令共享同一套语法单位，数字前缀必须加在<strong>同一个修饰键</strong>上——这就是「修饰键对称」原则。另外别把 <kbd>C</kbd><kbd>M</kbd><kbd>d</kbd> 当成删除命令，在 Emacs 32 里它是 <code>down-list</code>（沿括号结构向下移动）。</p></div>
+</div>
+
+  <div class="drill" data-answer="去行首敲两次 C-k；或把 kill-whole-line 变量设成 t；或用 C-S-backspace（很多终端发不出）；或装 whole-line-or-region 改 C-w。Emacs 31.1 的内置 kill-region-dwim 杀的是词不是行">
+  <p class="drill-q"><b>练习 5</b>　你想删掉光标所在的这一整行（含换行符），在默认配置下怎么操作？如果嫌麻烦，有哪几种改法？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>默认做法：<kbd>C</kbd><kbd>-</kbd> 到行首，敲两次 <kbd>C</kbd><kbd>k</kbd>——第一次清空行内容，第二次吃掉换行符。改法有三种：把 <code>kill-whole-line</code> <strong>变量</strong>设成 <code>t</code>（此后在行首敲一次 <kbd>C</kbd><kbd>k</kbd> 即连换行一起吃掉）；用 <kbd>C</kbd><kbd>S</kbd><kbd>&lt;backspace&gt;</kbd>（<code>kill-whole-line</code> <strong>命令</strong>，光标在行内任何位置都行，但很多终端发不出这个组合）；装 <code>whole-line-or-region</code> 包把 <kbd>C</kbd><kbd>w</kbd> 改成「没选区就杀整行」。Emacs 31.1 起还有内置变量 <code>kill-region-dwim</code>，但它杀的是词不是行。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-t。行尾时它转而交换光标左边两个字符，所以 pritn| 一次变成 print。这正是打错字后立即修正的用法">
+  <p class="drill-q"><b>练习 6</b>　你把函数名敲成了 <code>pritn</code>，刚敲完最后一个字符，光标就在行尾。用一个键修好的办法是什么？Emacs 手册把这条规则描述成什么样？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>按 <kbd>C</kbd><kbd>t</kbd>，一次修好：<code>pritn|</code> 在行尾，<kbd>C</kbd><kbd>t</kbd> 交换光标左边那两个字符，<code>t</code> 和 <code>n</code> 对调，直接变成 <code>print</code>。这就是手册说的行尾特例——通常 <code>transpose-chars</code> 交换光标左右两个字符，但在行尾它不会去交换「最后一个字符和换行符」（手册说那样「useless」），而是改成交换光标左边那两个。我在本机 Emacs 32.0.50 实测过：<code>AB|C</code> 按 <kbd>C</kbd><kbd>t</kbd> 得到 <code>AC|B</code>。正因为有这个不对称性，打错字的<strong>当下</strong>按一次就能救；过了很久才发现，就得先用 <kbd>C</kbd><kbd>b</kbd> 或 <kbd>C</kbd><kbd>r</kbd> 把光标挪回那两个字符之间。</p></div>
+</div>
+
+  <div class="drill" data-answer="M-t。键值交换而引号留在原位，因为 transpose-words 靠 forward-word 找边界，会跳过符号">
+  <p class="drill-q"><b>练习 7</b>　在 Python 字典里，光标停在 <code>'Jerry':█'Seinfeld'</code> 的冒号后面。按一次什么键能让键和值交换？引号会不会跟着跑到另一边？为什么？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>按 <kbd>M</kbd><kbd>t</kbd>。结果是 <code>'Seinfeld': 'Jerry'</code>，<strong>引号留在原位</strong>，只是词本身换了个位置。原因是 <code>transpose-words</code> 内部靠 <code>forward-word</code>（<kbd>M</kbd><kbd>f</kbd>）找左右边界，而 <code>forward-word</code> 在移动方向上会跳过符号，所以两个边界框住的只是 <code>Jerry</code> 和 <code>Seinfeld</code> 这两个词，连同它们身上的引号整体搬家；不在这两个边界里的 <code>'</code> 留在原地。你可以用 <kbd>C</kbd><kbd>u</kbd> <kbd>-</kbd> <kbd>M</kbd><kbd>f</kbd> 和 <kbd>M</kbd><kbd>f</kbd>（每次都把光标挪回原位）自己验证这两个边界。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-M-t。Emacs 30 起由 transpose-sexps-function 决定，tree-sitter 模式按语法树转置。数字前缀是跨越计数；C-u 0 M-t 是和 mark 处交换">
+  <p class="drill-q"><b>练习 8</b>　Lisp 代码 <code>(/ (+ 2 n) (* 4 n))</code>，光标在两个表达式之间。交换它们用哪个键？Emacs 30 之后这个命令的行为由什么决定？数字前缀在这条命令上是什么意思？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>用 <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd>（<code>transpose-sexps</code>），得到 <code>(/ (* 4 n) (+ 2 n))</code>。Emacs 30 起它的行为由新变量 <code>transpose-sexps-function</code> 决定，旧实现挪到了 <code>transpose-sexps-default-function</code>，tree-sitter 会为受支持的语言设置这个变量（见 <code>etc/NEWS.30</code>）。数字前缀在 Emacs 32 手册里是<strong>跨越计数</strong>：<kbd>C</kbd><kbd>u</kbd> <kbd>3</kbd> <kbd>C</kbd><kbd>M</kbd> <kbd>t</kbd> 表示跨过 3 个单位；而 <kbd>C</kbd><kbd>u</kbd> <kbd>0</kbd> <kbd>M</kbd><kbd>t</kbd> 是特例——和 mark 处的那一块交换。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-u 80 C-x f 设定宽度再 M-q。python-mode 里 M-q 被改绑成 prog-fill-reindent-defun，要填纯段落用 M-x fill-paragraph。C-u C-x f 把宽度设成当前列">
+  <p class="drill-q"><b>练习 9</b>　你把一段 200 字符的注释写成了很长的一行，想按 80 列折好。把填充宽度设成 80 并立刻填充，分别怎么做？在 <code>python-mode</code> 里直接按 <kbd>M</kbd><kbd>q</kbd> 会发生什么？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>设宽度：<kbd>C</kbd><kbd>u</kbd> <kbd>8</kbd><kbd>0</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd>，或把光标放到第 80 列按 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd>。然后 <kbd>M</kbd><kbd>q</kbd> 填充。在 <code>python-mode</code> 里，<kbd>M</kbd><kbd>q</kbd> <strong>不是</strong> <code>fill-paragraph</code>，而是被改绑成 <code>prog-fill-reindent-defun</code>——它会重新缩进并填充光标所在的整个函数定义（只有当光标在字符串或注释里时才退化成填段落）。想明确地只填段落，用 <kbd>M</kbd><kbd>x</kbd> <code>fill-paragraph</code>。另外 Emacs 不会连字符断词，宽度设太窄会很难看。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-x . 把本行到光标的内容设为 fill-prefix；之后 M-q 每行都会带上它；光标在空行上按 C-u C-x . 取消">
+  <p class="drill-q"><b>练习 10</b>　你在写一串列表项，每行都要以 <code># </code> 开头。填行时怎样让 Emacs 自动在每行补上这个前缀？填完怎么取消？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>把光标放在空行上、放在 <code># </code> 之后，敲 <kbd>C</kbd><kbd>x</kbd> <kbd>.</kbd>（<code>set-fill-prefix</code>）——它把「本行开头到光标」的 <code># </code> 设为 fill prefix。之后 <kbd>M</kbd><kbd>q</kbd> 或 auto-fill 折出来的每一行都会带上它。取消：光标放在空行上按 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>.</kbd>。手册的「自适应填充」一节还提到，它能从段落的第一、二行自动推断前缀。</p></div>
+</div>
+
+  <div class="drill" data-answer="M-：有选区时注释/取消注释选区；空行时插入对齐注释；行内有内容时行尾追加注释；带前缀参数时删注释。Emacs 32 的 major mode 基本不会问你注释字符了，用 C-h v comment-start 查即可">
+  <p class="drill-q"><b>练习 11</b>　三个场景：① 选中一段代码想临时注释掉，再取消；② 在一个空行上想写注释；③ 想把行尾那句注释挪到另一行。用哪个键分别怎么处理？如果某个 major mode 没配好注释变量，Emacs 32 会怎么反应？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>都用 <kbd>M</kbd><kbd>;</kbd>（<code>comment-dwim</code>，DWIM = Do What I Mean）：① 有选区时调 <code>comment-region</code>，但如果选区里每行都已经是注释，就调 <code>uncomment-region</code>，同一个键来回切换；② 当前行是空行时插入注释并按缩进规则对齐；③ 行内有内容时在行尾追加注释，光标停在定界符之后——所以 <kbd>C</kbd><kbd>u</kbd> <kbd>M</kbd><kbd>;</kbd> 删下注释、移到另一行、<kbd>C</kbd><kbd>y</kbd> 贴上、再 <kbd>M</kbd><kbd>;</kbd> 对齐。关于最后那问：原书说 Emacs 会提示你输入注释字符，这在 Emacs 32 里基本不会发生了，现代 major mode 通过 <code>define-derived-mode</code> 和统一的语法表机制配好了 <code>comment-start</code>/<code>comment-end</code> 等变量；想知道某个模式配成什么样，按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 查 <code>comment-start</code> 即可。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-h v kill-ring 看内容，Edit → Paste from Kill Menu（yank-menu）看可点清单。容量由 kill-ring-max 控制，Emacs 32 默认 120（Emacs 29 起从 60 提高）">
+  <p class="drill-q"><b>练习 12</b>　你想搞清楚「我的文本到底还能捞回来多少」。Emacs 提供了哪两个地方让你直接检查？容量上限由什么控制，默认是多少（Emacs 32）？为什么「别把 kill ring 当宝贝」这句话并不矛盾？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>两个地方：按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 后输入 <code>kill-ring</code> 能看到整个 kill ring 的当前内容；菜单 <strong>Edit → Paste from Kill Menu</strong>（命令 <code>yank-menu</code>，条目数由 <code>yank-menu-max-items</code> 控制，默认 60）给你一个可点的清单。容量由 <code>kill-ring-max</code> 控制，本机 Emacs 32.0.50 实测默认 120（Emacs 29 的 NEWS 把它从 60 提到 120）。不矛盾的原因：kill ring 是给「临时存放、随手取用」用的，比如改写一段话时把原版存着对照；它满了确实会挤掉最旧的，所以别把它当长期仓库——要长期保存文本，那件事该用寄存器（register）或文件。</p></div>
+</div>
+
+  <div class="callout tip"><b>技巧</b><p>如果你读完这一章只记住一件事，就记住这句：<strong>Emacs 里你几乎不会因为按错删除键而丢代码。</strong>绝大多数删除命令都是 kill，kill ring 全局共享、容量 120、还能轮换回溯；连唯一真删的 <kbd>C</kbd><kbd>d</kbd>，加个 <kbd>C</kbd><kbd>u</kbd> 也会变成 kill。带着这个底气去改代码，Emacs 的编辑效率才发挥得出来。</p></div>
+</section>

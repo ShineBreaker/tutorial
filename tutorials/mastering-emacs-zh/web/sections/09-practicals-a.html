@@ -1,0 +1,798 @@
+<section class="ch" id="ch-09-practicals-a" data-stage="进阶" data-min="45">
+  <h2 class="ch-title">九、实用篇（一）：自助探索、项目管理、交叉引用</h2>
+  <p class="ch-lead">前面八章教你的都是「怎么做」：怎么移动、怎么编辑。这一章教你一件更根本的事——<strong>怎么自己找到答案</strong>。Emacs 的键位有上千个、命令有上万条，任何一本书都列不完；但 <kbd>C</kbd><kbd>h</kbd> 这一个键就能把整个 Emacs 的说明书摊开在你面前。读完这一节，你就能自己查清任何一个陌生功能，并把 Emacs 从「别人的工具」调成「你的工具」。这一章还会交代 Emacs 30/31/32 的现状：项目用 <code>project.el</code>，跳定义统一走 <code>xref</code>（背后多半是 Eglot 那个语言服务器），而 <code>compilation-mode</code> 虽然在「跳编译错误」这件事上被 Eglot 分走了一半，<strong>仍然是核心内建、仍然值得会</strong>；看日志则有一套专门的手法。</p>
+
+  <div class="callout note"><b>要点</b><p>本章的命令与键位全部在 <strong>GNU Emacs 32.0.50</strong> 上用 <code>emacs --batch</code> 实际查询过。凡是原书写错了或已经过时的，正文里会直接标出来。</p></div>
+
+  <h3>一、自助探索：把 Emacs 当成搜索引擎</h3>
+
+  <h4>为什么这是全书最该反复强调的一件事</h4>
+
+  <p>先说一个残酷的事实：<strong>Emacs 的功能你学不完</strong>。它的命令多到写一本书都写不完，而且核心内建的部分每年还在长（Emacs 30 往里塞了 <code>which-key</code>，Emacs 31 加了 <code>project-root-find-file</code>，Emacs 29.1 起 <code>image-mode</code> 换上了一套 <code>image-transform-*</code> 变换键）。如果你打算「背按键」来用 Emacs，这条路是走不通的。</p>
+
+  <p>Emacs 给出的另一条路是：<strong>你不需要记住按键，你需要学会查按键</strong>。这就是这一章第一部分的主题。原书作者说它是「Emacs 里的 alpha 和 omega（开端与终结）」，这不是夸张。</p>
+
+  <p>为什么这件事对初学者尤其重要？因为你一旦开始改配置——改个变量、重新绑定一个键、装一个包——你就会造出一个<strong>全世界只有你一个人有</strong>的 Emacs。别人的教程、别人的答案、别人的快捷键截图，对你可能全是错的。这时候，唯一可靠的信息来源就是 Emacs 自己。</p>
+
+  <div class="callout tip"><b>技巧</b><p>养成一个习惯：每看到一个不认识的键位，先按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 问一句「你是谁」，比直接记在脑子里可靠得多。三十秒的查询，胜过三十天的困惑。</p></div>
+
+  <h4><kbd>C</kbd><kbd>h</kbd> 家族：Emacs 的搜索引擎</h4>
+
+  <p><kbd>C</kbd><kbd>h</kbd> 本身不是一个命令，而是一个<strong>前缀键</strong>。按住 <kbd>C</kbd><kbd>h</kbd> 再按一个字母，就会打开不同的「帮助窗口」。这些字母不是随便挑的，记住它们有个诀窍：<strong>字母就是你要查的东西的第一个字母</strong>。</p>
+
+  <ul>
+    <li><code>f</code> = <strong>f</strong>unction，查函数。</li>
+    <li><code>k</code> = <strong>k</strong>ey，查键位。</li>
+    <li><code>m</code> = <strong>m</strong>ode，查模式。</li>
+    <li><code>v</code> = <strong>v</strong>ariable，查变量。</li>
+    <li><code>i</code> = <strong>i</strong>nfo，进 Info 手册浏览器。</li>
+    <li><code>b</code> = <strong>b</strong>indings，列出当前所有生效的键位绑定。</li>
+  </ul>
+
+  <p>下面是 Emacs 32 里 <kbd>C</kbd><kbd>h</kbd> 家族的实际成员表。这一张表建议你打印出来贴在显示器边上，用一周就记住了。</p>
+
+  <div class="keys">
+    <h4>本节按键：<kbd>C</kbd><kbd>h</kbd> 帮助家族</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd></td><td><code>describe-function</code></td><td>查函数：给我函数名，我说清它是什么、绑在哪、参数怎么传</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd></td><td><code>describe-key</code></td><td>查键位：按一个键，我告诉你它对应哪个命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd></td><td><code>describe-mode</code></td><td>查模式：列出当前缓冲区所有 major mode 与 minor mode 的文档与按键</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>b</kbd></td><td><code>describe-bindings</code></td><td>列出当前生效的<strong>全部</strong>键位绑定（大表，用来找“这个键到底归谁”）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd></td><td><code>apropos-command</code></td><td>按名字模糊搜命令，提示语是 <em>Search for a command or function (word list or regexp):</em></td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd></td><td><code>describe-variable</code></td><td>查变量：当前值、合法取值、文档</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd></td><td><code>apropos-documentation</code></td><td>搜文档字符串：翻遍所有函数和变量的说明文字找匹配</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd></td><td><code>info</code></td><td>进入 Info 手册浏览器（含 GNU Emacs 手册）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd></td><td><code>info-emacs-manual</code></td><td>直接打开《GNU Emacs 手册》的 Info 版本</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>t</kbd></td><td><code>help-with-tutorial</code></td><td><strong>打开官方教程，不是手册。</strong>详见下面的「易错」</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>?</kbd></td><td><code>help-for-help</code></td><td>「帮助的帮助」：<kbd>C</kbd><kbd>h</kbd> 本身怎么用</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>e</kbd></td><td><code>view-echo-area-messages</code></td><td>回放消息区的历史记录（Emacs 报的 warning、报错都在这里）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>P</kbd></td><td><code>describe-package</code></td><td>查包：版本号、依赖、是否已安装、是内建还是第三方</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>I</kbd></td><td><code>describe-input-method</code></td><td>查看/切换当前输入法（非拉丁文字输入必备）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd></td><td><code>Info-goto-emacs-command-node</code></td><td>跳到手册里专门讲「光标处这个命令」的那一节</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>h</kbd></td><td><code>help-for-help</code></td><td>同上，等价写法</td></tr>
+        <tr><td>前缀 + <kbd>C</kbd><kbd>h</kbd></td><td><code>describe-prefix-bindings</code></td><td>列出某个前缀下的<strong>全部</strong>绑定（下面详解）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>S</kbd><kbd>x</kbd></td><td><code>execute-extended-command-for-buffer</code></td><td>只列当前模式声明为有用的命令，比 <kbd>M</kbd><kbd>x</kbd> 干净得多</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd></td><td><code>execute-extended-command</code></td><td>万能入口：按命令名调用任何命令，包括没绑键的</td></tr>
+        <tr><td><kbd>F1</kbd> <kbd>a</kbd> / <kbd>&lt;help&gt;</kbd> <kbd>a</kbd></td><td><code>apropos-command</code></td><td>功能键 <kbd>F1</kbd> 和键盘上的 <kbd>&lt;help&gt;</kbd> 键就是 <kbd>C</kbd><kbd>h</kbd> 的别名，后面的字母组合完全一样（<code>where-is-internal apropos-command</code> 会同时列出这三种写法）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p>上面说的「别名」是 Emacs 内部的：<kbd>F1</kbd> 和 <kbd>&lt;help&gt;</kbd> 在键表里都指向同一个命令 <code>help-command</code>。<strong>但在终端里能不能真的按出来，取决于你的终端会不会把 F1 这个物理键发送成 Emacs 认识的 <code>&lt;f1&gt;</code></strong>——很多老终端不会（常见的是发成 <code>ESC [ A</code> 或 <code>^[[11~</code>，Emacs 收不到）。真按不出来就用 <kbd>C</kbd><kbd>h</kbd>，功能完全一样。</p></div>
+
+  <div class="callout warn"><b>易错</b><p>很多人以为 <kbd>C</kbd><kbd>h</kbd> <kbd>t</kbd> 是「进 Info 手册」。不是。在 Emacs 32 里 <kbd>C</kbd><kbd>h</kbd> <kbd>t</kbd> 绑定的是 <code>help-with-tutorial</code>，它打开的是一份简短的交互式上手教程。进手册要用 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd>（<code>info</code>），直接进 Emacs 手册要用 <kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd>（<code>info-emacs-manual</code>）。这个误解流传很广，写在这里免得你去查。</p></div>
+
+  <h4>逐个拆开：每一条都值得亲手敲一次</h4>
+
+  <p><strong><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>（<code>describe-function</code>）</strong>——已知函数名，查它是什么。Emacs 弹出的 <code>*Help*</code> 缓冲区里有几块内容，顺序是固定的（下面拿 <code>C-x v v</code> 举例，这是我在 Emacs 32 上 <code>M-x describe-function vc-next-action RET</code> 的真实输出）：</p>
+  <ol>
+    <li>定性说明：<em>vc-next-action is an autoloaded interactive Lisp function in ‘vc.el’.</em>——顺便就把「autoloaded（延迟加载）」和「定义在哪个文件」一起交代了；</li>
+    <li><strong>这个命令被绑定在哪些键上</strong>：<em>It is bound to C-x v v.</em>，以及有没有菜单入口；</li>
+    <li>函数签名：<code>(vc-next-action VERBOSE)</code>；</li>
+    <li>Emacs 推断出的类型：<em>Inferred type: (function (t) t)</em>（纯给写 Elisp 的人看的，可跳过）；</li>
+    <li>最后是<strong>文档字符串</strong>，也就是真正讲它怎么用的那段文字。</li>
+  </ol>
+
+  <p>文档字符串里夹着的高亮小方块是可点击的：<code>REGEXP</code> 这种高亮词点一下就会跳去解释它是什么。这种「文档里嵌链接」的设计在 Emacs 里到处都是，习惯之后查东西会非常快。</p>
+
+  <p><strong><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd>（<code>describe-key</code>）</strong>——已知键位，查它干什么。这个方向和 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 相反，是「按键 → 命令」。它会把<strong>这个键当前生效的所有绑定一起列出来</strong>：局部绑定（来自 minor mode 或 major mode）和全局绑定都能看到，哪个在前哪个在后一目了然。</p>
+
+  <div class="callout warn"><b>易错</b><p>Emacs 32 里 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> <strong>不接受前缀参数</strong>——你按 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd>，它还是会按当前缓冲区（包括 minor mode 的局部覆盖）来回答，不是「只看全局绑定」。（<code>describe-key</code> 的 <code>interactive</code> 形式只有 <code>(help--read-key-sequence)</code>，文档里也没提前缀参数；老的 <code>describe-global-key</code> 命令也不存在了。）<strong>真想跳过 minor mode 只看全局绑定</strong>，用 <kbd>M</kbd><kbd>-</kbd> 求值 <code>(lookup-key global-map (kbd "C-x v v") t)</code>——第三个参数 <code>t</code> 表示「没绑就返回 <code>nil</code>，别报错」。（别去搜 <code>global-lookup-key</code>，那个函数在 Emacs 32 里已经没有了。）</p></div>
+
+  <div class="callout note"><b>要点</b><p>原书作者提醒过一个小缺点，这里值得重复：<kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 的读者对象其实是写 Elisp 的人。它的说明会带上一堆技术细节，比如 <code>C-x v v</code> 在 Emacs 32 的输出第一行就是 <em>vc-next-action is an autoloaded interactive Lisp function in ‘vc.el’</em>（这是一个定义在 <code>vc.el</code> 里的、延迟加载的交互式 Lisp 函数）。<strong>不要被这些词吓到</strong>——你只要越过前面几行，直接看最后那段文档字符串就够了，那段是用人话写的。</p></div>
+
+  <p><strong><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd>（<code>describe-mode</code>）</strong>——这是最被低估的一个。它显示<strong>当前缓冲区所有生效模式</strong>的文档：<strong>major mode</strong>（主模式，决定这个缓冲区的主要编辑行为，比如 <code>emacs-lisp-mode</code>、<code>text-mode</code>）和所有 <strong>minor mode</strong>（次模式，叠加在主模式上的小功能）。每个 minor mode 都会列出它自己额外提供的键位。</p>
+
+  <p>怎么用：<strong>当你走进一个陌生缓冲区，不知道能对它做什么的时候，按 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd></strong>。你会看到这个模式是谁、有哪些额外的键、以及每个键的完整说明。Emacs 32 的 <code>describe-mode</code> 输出是可点击的超链接界面，一路点下去就行。</p>
+
+  <p><strong><kbd>C</kbd><kbd>h</kbd> <kbd>b</kbd>（<code>describe-bindings</code>）</strong>——列出当前生效的<strong>全部</strong>键位，输出到一个 <code>*Help*</code> 缓冲区（<code>help-mode</code>，就是 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 用的那个；Emacs 32 里已经没有叫 <code>*Key Bindings*</code> 的缓冲区了）。这是一张大表，可以边看边筛：在 <code>*Help*</code> 里按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> 输一个前缀片段（比如 <code>C-x v</code>），只留匹配的行。什么时候用它？当你按一个键什么都没发生、或者发生了你不想要的事，你需要知道「现在谁占着这个键」的时候。</p>
+
+  <p><strong><kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd>（<code>apropos-command</code>）与 <kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd>（<code>apropos-documentation</code>）</strong>——这两个是<strong>搜索</strong>，不是<strong>查询</strong>。区别很重要：</p>
+  <ul>
+    <li><kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd> 搜的是<strong>名字</strong>。你知道大概叫什么但记不准全名时用它。</li>
+    <li><kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd> 搜的是<strong>文档字符串</strong>——所有函数和变量的说明文字。名字完全不知道、只知道它大概是干什么的时候用它。</li>
+  </ul>
+
+  <p>原书说 <kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd> 是「最散乱的查找方式」，这话对但要理解为什么：文档是自由文本，没有统一格式，所以你会搜出一堆沾亲带故的东西。<strong>但它是覆盖面最广的一种搜法</strong>——只要 Emacs 里有任何地方提到过一个词，<kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd> 就能找到它。所以「先宽后窄」的顺序才是对的：先用 <kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd> 找到大致方向，再用 <kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd> 拿到准确命令名，最后用 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 看细节。</p>
+
+  <p>顺手提几个没有默认键位、但同属这一家的命令，用 <kbd>M</kbd><kbd>x</kbd> 调：<code>apropos</code>（搜符号名）、<code>apropos-variable</code>（搜变量名）、<code>apropos-library</code>（搜某个库文件里有什么）、<code>info-apropos</code>（在<strong>所有</strong> Info 手册里搜关键词）。<code>info-apropos</code> 特别有用——手册不是每个功能都有专章，但 <code>info-apropos</code> 能把所有手册全文爬一遍。至于 <code>apropos-mode</code>：它在 Emacs 32 里<strong>还在</strong>（<code>apropos.el</code> 第 488 行的 <code>define-derived-mode</code>），但它是 <code>*Apropos*</code> 结果缓冲区用的那个大模式，<strong>不是搜索命令</strong>——搜命令的入口始终是上面那几个 <code>apropos-*</code> 命令，别搞混。</p>
+
+  <h4>前缀键调查法：按一个不完整的序列，再按 <kbd>C</kbd><kbd>h</kbd></h4>
+
+  <p>这是本节最实用、也最少人知道的一招。</p>
+
+  <p>假如你记得 Emacs 里有个东西叫 VC（版本控制接口），你敲了 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> 出现了一个前缀键表，你不知道后面按什么。诀窍是：<strong>在敲完前缀之后，接着敲 <kbd>C</kbd><kbd>h</kbd></strong>，Emacs 会把这个前缀下的全部绑定列出来。</p>
+
+  <p>这背后的命令叫 <code>describe-prefix-bindings</code>，它的文档字符串在 Emacs 32 里是这样写的：<em>「Describe the bindings of the prefix used to reach this command. The prefix described consists of all but the last event of the key sequence that ran this command.」</em>（描述「用来到达本命令的前缀」的绑定；这个前缀就是把你引到本命令的那串按键里除最后一个事件之外的部分。）所以机制是：你在 <kbd>C</kbd><kbd>v</kbd> 之后按了 <kbd>C</kbd><kbd>h</kbd>，Emacs 发现 <kbd>C</kbd><kbd>h</kbd> 没有绑定，于是拿<strong>前面那串前缀</strong>去查，列出它的全部子键。</p>
+
+  <p>这个功能在 Emacs 32 里依然有效（我自己查过：<code>describe-prefix-bindings</code> 存在，机制如描述）。Emacs 官方文档自己也在用这招：Emacs 28 的 NEWS 在介绍 <code>C-x p</code> 这个项目前缀键时专门写了一句「Type <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>C</kbd><kbd>h</kbd> to show the full list」；<code>project.el</code> 的 Commentary 里也留着同一句。</p>
+
+  <div class="callout tip"><b>技巧</b><p>这一招还有个副作用很有用：它会<strong>把你想不到的功能翻出来</strong>。原书写得很准——你可能会看到「给当前修订打标签」这样的功能，你从来没想过 Emacs 有，但既然它在那儿，就说明有它存在的理由。</p></div>
+
+  <details class="deep"><summary>进阶：为什么「前缀 + C-h」比 <code>C-h b</code> 更好用</summary>
+  <p><code>C-h b</code> 会列出当前缓冲区的<strong>全部</strong>绑定，输出可能上千行，你得在里面翻找。而「前缀 + <kbd>C</kbd><kbd>h</kbd>」只列<strong>你关心的那一小段前缀</strong>下的绑定，输出通常不到二十行，噪声极小。</p>
+  <p>正确的用法顺序是：</p>
+  <ol>
+    <li>你只知道一个模糊的印象——「好像是 <kbd>C</kbd><kbd>x</kbd> 开头的吧」。敲 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>h</kbd>，列出 <code>C-x</code> 下的全部绑定，扫描一遍找方向。</li>
+    <li>找到了感兴趣的前缀，比如 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd>，再敲 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>C</kbd><kbd>h</kbd> 收窄。</li>
+    <li>看到可疑的命令名后，用 <kbd>M</kbd><kbd>x</kbd> 加 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 确认它是干什么的。</li>
+  </ol>
+  <p>这三步是本章的核心工作流，后面 VC 那个完整案例就走的是这条路。</p>
+  <p>顺便一提，Emacs 内部用的键位查找变量叫 <code>help-char</code>，在 Emacs 32 里它的值就是 <code>C-h</code>。如果你好奇整条机制长什么样，<kbd>M</kbd><kbd>x</kbd> 描述一下 <code>help-char</code> 就有分晓。</p>
+</details>
+
+  <h4>which-key：Emacs 30 起已经内建</h4>
+
+  <p>原书写于 which-key 还是个 MELPA 第三方包的时代，读者如果照着装是装得上的。但今天有变化，而且是好变化。</p>
+
+  <p><strong>Emacs 30 起，<code>which-key</code> 已经是核心内建包，不需要装任何东西。</strong>本机 Emacs 32.0.50 的 <code>etc/NEWS.30</code> 里原文写着：<em>「New package 'which-key'. The 'which-key' package from GNU ELPA is now included in Emacs. It implements the global minor mode 'which-key-mode' that displays a table of key bindings upon entering a partial key chord and waiting for a moment.」</em>（新增 <code>which-key</code> 包，原本在 GNU ELPA 上的它现在被并入 Emacs。它实现了一个全局次模式 <code>which-key-mode</code>：你敲下一个不完整的前缀键并稍等片刻，它就会显示一张按键表。）</p>
+
+  <p><strong>which-key</strong>（一个全局 minor mode）做的事是：当你敲下一个前缀键然后<strong>停下来</strong>，它自动弹出一张表，列出这个前缀后面可以跟什么。注意区分两件事：<strong>「表」出现在哪儿</strong>由 <code>which-key-popup-type</code> 决定（默认 <code>side-window</code>，也就是在屏幕侧边开一个小窗口），<strong>「你已经敲到哪了」这段前缀文字显示在哪儿</strong>才由 <code>which-key-show-prefix</code> 决定（默认 <code>echo</code>，也就是回显区）。它和「前缀 + <kbd>C</kbd><kbd>h</kbd>」的区别是：<kbd>C</kbd><kbd>h</kbd> 需要你主动多敲一下，which-key 只需要你<strong>停顿一下</strong>。</p>
+
+  <p>内建版本是 which-key 3.6.1，作者 Justin Burkett（bundled 版本头部的版权行是 2017–2026 Free Software Foundation）。默认的等待时间是 <code>which-key-idle-delay</code>，值为 <code>1.0</code> 秒——很多人嫌慢，调到 <code>0.3</code> 或 <code>0.4</code> 更好用。</p>
+
+  <p>打开它的最简写法，是在你的 Emacs 配置文件里加两行：</p>
+
+  <pre class="el"><code>;; 在 init.el 里（或 early-init.el 里，更快）
+(setq which-key-idle-delay 0.4)
+(which-key-mode 1)</code></pre>
+
+  <p>放在 <code>early-init.el</code>（<strong>Emacs 27.1</strong> 引入的启动早期配置文件；Emacs 27 的 NEWS 里那条标题就是「Emacs can now be configured using an early init file」）里比放在 <code>init.el</code> 里更好，因为这样它在包系统初始化之前就生效了，别的包绑的键也能被显示出来。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong>开 which-key 有一个必须知道的代价：它会抢走前缀之后的 <kbd>C</kbd><kbd>h</kbd>，而那正是本书反复在教你的自省手法。</strong>因果链是这样的：前缀键之后按 <kbd>C</kbd><kbd>h</kbd>，Emacs 默认会跑 <code>describe-prefix-bindings</code>，列出这个前缀下的全部绑定——本书的「前缀 + <kbd>C</kbd><kbd>h</kbd> 列全部绑定」讲的<strong>就是它</strong>。<strong>而 which-key 默认把这个键接管了</strong>：前缀之后按 <kbd>C</kbd><kbd>h</kbd> 不再列绑定，而是变成「在 which-key 已经弹出的那张表里翻页」。</p>
+  <p>开关是 <code>which-key-use-C-h-commands</code>，<strong>默认值是 <code>t</code>（也就是「接管」），本书作者在 Emacs 32.0.50 的内建 which-key 上实测过 <code>(default-value 'which-key-use-C-h-commands)</code> 返回 <code>t</code></strong>。<strong>既然你要跟着这本书学，开 which-key 之前就把它设成 <code>nil</code></strong>：</p>
+  <pre class="el"><code>;; 这一行要放在 (which-key-mode 1) 之前
+(setq which-key-use-C-h-commands nil)
+(which-key-mode 1)</code></pre>
+  <p><strong>顺序有讲究</strong>：设成 <code>nil</code> 必须在启用 which-key <strong>之前</strong>，否则它自己已经把 <kbd>C</kbd><kbd>h</kbd> 抢过去了。这两行<strong>一起放进 <code>early-init.el</code></strong> 最省事——本书第 13 章会讲 <code>early-init.el</code> 和 <code>init.el</code> 的分工。</p>
+  <p>另一个相关选项 <code>which-key-show-early-on-C-h</code> 默认是 <code>nil</code>；设成 <code>t</code> 之后，等 which-key 的计时器还没到就按下 <kbd>C</kbd><kbd>h</kbd>，也会立刻把表弹出来。<strong>但它同样会占掉这个键，设成 <code>nil</code> 之外的任何值都意味着你放弃了 <code>describe-prefix-bindings</code>。</strong>要哪个自己选，本书建议两个都保持默认、只关掉上面那一个接管项。</p>
+</div>
+
+  <details class="deep"><summary>进阶：which-key 值得调的选项清单</summary>
+  <p>这些变量在 Emacs 32 的内建 which-key 里都存在，都是 <code>defcustom</code>，可以用 <kbd>M</kbd><kbd>x</kbd> <code>customize</code> 里选 <code>which-key</code> 分组统一调整。</p>
+  <ul>
+    <li><code>which-key-idle-delay</code>（默认 <code>1.0</code>）：停顿多久弹出表。常用值 <code>0.3</code>–<code>0.5</code>。</li>
+    <li><code>which-key-show-prefix</code>（默认 <code>echo</code>）：把「你已经敲到哪了」这段前缀文字显示在哪里。可选 <code>left</code>、<code>top</code>、<code>bottom</code>、<code>echo</code>、<code>mode-line</code>、<code>nil</code>。</li>
+    <li><code>which-key-popup-type</code>（默认 <code>side-window</code>）：按键表本体弹在哪儿。可选 <code>minibuffer</code>、<code>side-window</code>、<code>frame</code>、<code>custom</code>。<code>side-window</code> 在终端里也照样能用（它就是一个普通窗口），只是要吃掉一截屏幕宽度；屏幕窄的终端可以改成 <code>minibuffer</code>。</li>
+    <li><code>which-key-max-description-length</code>（默认 <code>27</code>）：描述文字最长显示多少字符，超了就截断。窗口窄的时候可以调小。</li>
+    <li><code>which-key-show-docstrings</code>（默认 <code>nil</code>）：是否把命令的文档字符串也显示出来。设 <code>t</code> 信息量很大，但会占更多屏幕。</li>
+    <li><code>which-key-show-early-on-C-h</code>（默认 <code>nil</code>）：见上面的「易错」。</li>
+    <li><code>which-key-sort-order</code>（默认 <code>which-key-key-order</code>）和 <code>which-key-sort-uppercase-first</code>（默认 <code>t</code>）：排序方式。默认按键盘位置排，很符合直觉，一般不用动。</li>
+    <li><code>which-key-side-window-max-width</code>（默认 <code>0.333</code>）、<code>which-key-side-window-max-height</code>（默认 <code>0.25</code>）：side window 模式下的尺寸上限。</li>
+  </ul>
+  <p>内建版本自带几个一键切换的预设命令（都是 autoload 的交互命令，用 <kbd>M</kbd><kbd>x</kbd> 就能调）：<code>which-key-setup-side-window-right</code>、<code>which-key-setup-side-window-right-bottom</code>、<code>which-key-setup-side-window-bottom</code>、<code>which-key-setup-minibuffer</code>。不知道从哪儿调起的话，先跑一次这四个里最合你屏幕的那个，剩下的默认值它会顺手改好。</p>
+  <p>判断一个键后面还有没有后续，要看表里那一项是不是一个 <strong>prefix</strong>（前缀）——内建 which-key 会在续按键的前面加一个 <code>+</code> 号（比如 <code>+ f</code> 表示 <kbd>C</kbd><kbd>x</kbd> <kbd>f</kbd> 后面还有东西）。<code>which-key-prefix-prefix</code> 这个变量就是控制这个 <code>+</code> 的，默认值就是 <code>"+"</code>。</p>
+</details>
+
+  <h4><kbd>M</kbd><kbd>S</kbd><kbd>x</kbd>：只列出当前模式下真正有用的命令</h4>
+
+  <p>原书提到了 Emacs 28 新增的 <kbd>M</kbd><kbd>S</kbd><kbd>x</kbd>，绑定到 <code>execute-extended-command-for-buffer</code>（为当前缓冲区执行扩展命令）。Emacs 28 的 <code>NEWS.28</code> 原文：<em>「New command 'execute-extended-command-for-buffer'. This new command, bound to 'M-S-x', works like 'execute-extended-command', but limits the set of commands to the commands that have been determined to be particularly useful with the current mode.」</em></p>
+
+  <p>它和 <kbd>M</kbd><kbd>x</kbd> 的区别：<kbd>M</kbd><kbd>x</kbd> 列的是<strong>全部</strong>命令（几千条），<kbd>M</kbd><kbd>S</kbd><kbd>x</kbd> 列的是<strong>当前模式声明为有用的</strong>那几十条。走进一个陌生的模式，敲 <kbd>M</kbd><kbd>S</kbd><kbd>x</kbd> 而不是 <kbd>M</kbd><kbd>x</kbd>，噪声小一个数量级。</p>
+
+  <p>它的局限原书也点到了：效果依赖<strong>模式作者有没有配合</strong>。有些模式（尤其是第三方写的）没有提供任何「推荐命令」提示，那 <kbd>M</kbd><kbd>S</kbd><kbd>x</kbd> 给你的结果就跟 <kbd>M</kbd><kbd>x</kbd> 差不多，甚至更少。所以它适合当 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 的补充，不适合当替代品。</p>
+
+  <h4>万能入口 <kbd>M</kbd><kbd>x</kbd></h4>
+
+  <p>你从本书开始应该就知道，但这一章要专门强调：<strong>任何命令都有名字，任何命令都能用 <kbd>M</kbd><kbd>x</kbd> 调起来</strong>。<kbd>M</kbd><kbd>x</kbd> 后面那串可以只打前几个字母然后按 <kbd>TAB</kbd> 补全，比如 <code>M-x comp RET</code> 会调起 <code>compile</code>（编译当前目录）。</p>
+
+  <p>初学者常犯的错是「因为没有快捷键所以以为功能不存在」。Emacs 里有大量功能<strong>故意不绑键</strong>——因为快捷键有限，而这类功能要么用得少，要么每个项目的用法不同。这类功能的标准调用方式就是 <kbd>M</kbd><kbd>x</kbd>。反过来，你也可以<strong>给自己常用的 <kbd>M</kbd><kbd>x</kbd> 命令绑键</strong>，方法在配置那一章会讲。</p>
+
+  <h4>走一遍：怎么从零调查一个陌生功能</h4>
+
+  <p>下面是原书里那段 VC（<strong>VC</strong>，Emacs 内建的版本控制接口，<code>vc.el</code>，负责对接 Git、Mercurial 等各种版本控制系统）调查的完整流程。这个流程本身就是方法论，值得原样走一遍。</p>
+
+  <ol>
+    <li><strong>读手册。</strong><kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 进 Info 浏览器，选 Emacs 手册，然后 <kbd>C</kbd><kbd>s</kbd> 搜 <code>version control</code>，一路点进 Version Control 那一章。Emacs 32 里这一步更简单：直接 <kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd> 就到了。</li>
+    <li><strong>知道手册找不到时，换 <code>info-apropos</code>。</strong><kbd>M</kbd><kbd>x</kbd> <code>info-apropos</code> 会爬<strong>所有</strong>已安装的 Info 手册，搜关键词。Emacs 32 自带两本 Info 文档：《GNU Emacs 手册》（<code>emacs.info</code>）和《GNU Emacs Lisp 编程手册》（<code>elisp.info</code>），所以 Emacs 自己的功能一定搜得到。但原书那句抱怨今天依然成立——第三方包绝大多数只带文档字符串、不带 Info 手册，那部分还得靠 <kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd>。</li>
+    <li><strong>名字完全不知道，就搜文档。</strong><kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd> 搜 <code>version control</code>，结果里会出现 <code>vc-mode</code> 这类条目。Emacs 的 Elisp 文档字符串里通常会顺带告诉你：<em>「VC 的命令都在 <code>C-x v</code> 这个前缀下」</em>。这就是线索。</li>
+    <li><strong>顺着前缀挖。</strong>敲 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>C</kbd><kbd>h</kbd>，列出 <code>C-x v</code> 下的全部绑定。我在本机 Emacs 32.0.50 上核对过，下面这张表是真的：</li>
+  </ol>
+
+  <div class="keys">
+    <h4>本节按键：VC 前缀键 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd>（本机实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd></td><td><code>vc-prefix-map</code></td><td>VC 的全部命令都在这个前缀下</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>d</kbd></td><td><code>vc-dir</code></td><td>显示当前仓库状态（哪些文件已修改、哪些未跟踪）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>=</kbd></td><td><code>vc-diff</code></td><td>对比当前文件与上一版本</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>g</kbd></td><td><code>vc-annotate</code></td><td>逐行 blame（显示每行是谁、哪次提交改的）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>v</kbd></td><td><code>vc-next-action</code></td><td>执行「下一个逻辑动作」（加文件 / 提交 / 推送，按状态自适应）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>l</kbd></td><td><code>vc-print-log</code></td><td>打印提交日志</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>s</kbd></td><td><code>vc-create-tag</code></td><td>给当前版本打标签</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>a</kbd></td><td><code>vc-update-change-log</code></td><td>更新并查看 ChangeLog</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ol start="5">
+    <li><strong>验证与回到起点。</strong>看到 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>v</kbd> 这个键，<strong>又忘了它是干什么的？</strong>按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 然后按 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>v</kbd>，Emacs 会告诉你它跑的是 <code>vc-next-action</code>，并把它的完整文档字符串贴给你。</li>
+  </ol>
+
+  <p>看官，你注意到了吗：<strong>上面这五步里，有四步是查询。</strong>从头到尾没有一个字需要你背。原书写这一节的时候，作者用的正是这个流程；今天唯一的变化是第 2 步变得更有用了（Info 手册覆盖面更广），第 3 步之后多了一个 <code>which-key</code> 可以省掉一部分等待。</p>
+
+  <div class="callout note"><b>要点</b><p>顺带回答一个初学者常见疑问：Emacs 的 Elisp 没有<strong>命名空间</strong>（namespace，把同名的东西按来源分组隔离的机制，别的语言里叫包/模块），所以各个包靠给自己的函数和变量加前缀来避免撞车。上面看到的 <code>vc-dir</code>、<code>vc-diff</code> 全都带 <code>vc-</code> 前缀，就是这个约定的产物。这带来一个非常实用的推论：<strong>知道一个包的前缀，你就能一次搜出它的全部命令</strong>。<kbd>M</kbd><kbd>x</kbd> <code>apropos-command</code>，输入 <code>^vc-</code>（<code>^</code> 是正则的「行首」锚点），就能把 <code>vc-</code> 开头的命令全捞出来。</p></div>
+
+  <div class="keys">
+    <h4>本节按键：查询方向一览</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd></td><td><code>describe-function</code></td><td>命令名 → 它是什么</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd></td><td><code>describe-key</code></td><td>键位 → 它是什么</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd></td><td><code>describe-mode</code></td><td>当前模式及其所有键位</td></tr>
+        <tr><td>前缀 + <kbd>C</kbd><kbd>h</kbd></td><td><code>describe-prefix-bindings</code></td><td>某个前缀下的全部绑定</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>b</kbd></td><td><code>describe-bindings</code></td><td>当前生效的全部绑定（大表）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd></td><td><code>apropos-command</code></td><td>按名字搜命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd></td><td><code>apropos-documentation</code></td><td>按文档文字搜一切</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd></td><td><code>describe-variable</code></td><td>查变量的当前值与说明</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>P</kbd></td><td><code>describe-package</code></td><td>查包（内建还是第三方、版本、依赖）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd></td><td><code>Info-goto-emacs-command-node</code></td><td>从命令直达手册对应小节</td></tr>
+        <tr><td><kbd>M</kbd><kbd>S</kbd><kbd>x</kbd></td><td><code>execute-extended-command-for-buffer</code></td><td>只列当前模式推荐的命令</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd></td><td><code>execute-extended-command</code></td><td>万能入口，按名字调任何命令</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="C-h m，即 describe-mode">
+  <p class="drill-q"><b>练习 1</b>　你打开了一个从没见过的缓冲区（比如 <code>*Messages*</code>），完全不知道能对它做什么。应该按哪个键？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd>，即 <code>describe-mode</code>。它会列出当前缓冲区所有生效的 major mode 和 minor mode，以及每个模式额外提供的键位。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-h i（info），或 C-h r（info-emacs-manual）直接进 Emacs 手册">
+  <p class="drill-q"><b>练习 2</b>　要查 Emacs 官方手册里的某个功能，<kbd>C</kbd><kbd>h</kbd> <kbd>t</kbd> 对不对？该怎么按？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>不对。<kbd>C</kbd><kbd>h</kbd> <kbd>t</kbd> 是 <code>help-with-tutorial</code>，打开的是交互式教程。正确做法：<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd>（<code>info</code>）进入 Info 浏览器自己找，或者 <kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd>（<code>info-emacs-manual</code>）一步直达 Emacs 手册。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-h a，即 apropos-command">
+  <p class="drill-q"><b>练习 3</b>　你想找一个功能，隐约记得命令名里带 <code>occ</code>，但想不起全名。用哪个命令搜？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd>，即 <code>apropos-command</code>，它搜的是命令名。<kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd>（<code>apropos-documentation</code>）搜的是文档文字，方向不对。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-h d，即 apropos-documentation">
+  <p class="drill-q"><b>练习 4</b>　你不知道任何命令名，只知道 Emacs 好像有「在多个文件里批量替换」的功能。用什么查？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd>，即 <code>apropos-documentation</code>，它搜索所有函数和变量的文档字符串。搜「across files」之类的关键词即可。因为是在搜自由文本，结果会掺杂无关条目，扫一遍标题就好。</p></div>
+</div>
+
+  <div class="drill" data-answer="敲前缀后紧跟 C-h，例如 C-x v C-h，会运行 describe-prefix-bindings">
+  <p class="drill-q"><b>练习 5</b>　你敲了 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> 出现一串候选，但不知道后面按什么。补完这个操作该怎么敲？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>在敲完前缀之后紧接着按 <kbd>C</kbd><kbd>h</kbd>，也就是 <kbd>C</kbd><kbd>x</kbd> <kbd>v</kbd> <kbd>C</kbd><kbd>h</kbd>。这会运行 <code>describe-prefix-bindings</code>，列出该前缀下的全部绑定。注意：若 which-key 开着且 <code>which-key-use-C-h-commands</code> 为 <code>t</code>（默认），这一下会被改成翻 which-key 的表；把它设成 <code>nil</code> 才能得到原本的行为。</p></div>
+</div>
+
+  <div class="drill" data-answer="M-S x，即 execute-extended-command-for-buffer">
+  <p class="drill-q"><b>练习 6</b>　<kbd>M</kbd><kbd>x</kbd> 会弹出几千条命令，太吵。有没有一个只列「当前模式下真正有用」的命令的键？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>M</kbd><kbd>S</kbd><kbd>x</kbd>，Emacs 28 新增，绑定到 <code>execute-extended-command-for-buffer</code>。它依赖模式作者提供推荐命令，第三方模式可能什么都没有，所以适合当 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 的补充而不是替代。</p></div>
+</div>
+
+  <div class="drill" data-answer="Emacs 30 起 which-key 已经是内建包，直接 (which-key-mode 1) 即可，不需要安装">
+  <p class="drill-q"><b>练习 7</b>　想让 Emacs 在你敲下前缀键并停顿时自动显示候选表，原书说要从 MELPA 安装 <code>which-key</code>。2026 年还需要装吗？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>不用装。<strong>Emacs 30 起 <code>which-key</code> 已是核心内建包</strong>（见 Emacs 30 的 <code>NEWS.30</code>：「The 'which-key' package from GNU ELPA is now included in Emacs」）。直接 <code>(which-key-mode 1)</code> 即可，建议连同 <code>(setq which-key-idle-delay 0.4)</code> 写在 <code>early-init.el</code> 里。</p></div>
+</div>
+
+  <div class="drill" data-answer="which-key-use-C-h-commands 设为 nil">
+  <p class="drill-q"><b>练习 8</b>　你开了 which-key 之后，「前缀 + <kbd>C</kbd><kbd>h</kbd> 列出所有绑定」这个操作失灵了。改哪个变量？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>把 <code>which-key-use-C-h-commands</code> 设为 <code>nil</code>。它默认为 <code>t</code>，此时 <kbd>C</kbd><kbd>h</kbd> 会被改成翻 which-key 弹窗的分页键。想恢复 <code>describe-prefix-bindings</code> 的原行为就把它关掉。</p></div>
+</div>
+
+  <h3>二、项目管理：<code>project.el</code> 及其今天的地位</h3>
+
+  <h4>Emacs 一贯「一个文件一个文件」地看世界</h4>
+
+  <p>在讲具体命令之前，先说清楚为什么这件事存在。历史上 Emacs 一直把文件当作<strong>孤立的个体</strong>来编辑，从来不认为「这一堆文件属于同一个项目」。所以：多文件搜索替换要你自己想办法，编译要你自己敲命令，打开项目里的文件你得一个个 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd>。</p>
+
+  <p>Emacs 早年有个 <strong>fileset</strong>（文件集，一组被归类到一起的文件，可以让一批命令同时作用其上）机制，从 2002 年就存在，<strong>但它太冷门了，连维护者自己都忘了</strong>——原书作者这句话说得很重，也确实是实话。（补一句今天的状态：<code>fileset.el</code> 本身<strong>已经从 Emacs 里移除了</strong>，我在 Emacs 32 的 <code>lisp</code> 目录下找不到这个文件。VC 那边还留着 <code>fileset</code> 这个词，指的是另一回事，不是这套机制。）除了它，Emacs 主要靠两样东西撑场面：一是 <strong>directory-local variables</strong>（目录局部变量，<code>.dir-locals.el</code>，Emacs 读到它时会求值里面的 Elisp，让某个目录下的文件自动带上某些设置），二是外部工具比如 <code>Makefile</code>。</p>
+
+  <p>这些都不够。开发者想编辑一个项目的五个文件，希望一条搜索能扫完整个项目，希望编译命令自动在项目根目录跑，希望能一键列出这个项目里所有打开的缓冲区。<strong>Emacs 后来意识到这是一个正经的内建功能</strong>，于是有了 <code>project.el</code>。</p>
+
+  <details class="deep"><summary>进阶：项目管理的三代历史（原书的来龙去脉）</summary>
+  <p>原书用了一整段讲这段历史，因为它解释了为什么今天 Emacs 里会有好几套并存的方案。理一遍：</p>
+  <ol>
+    <li><strong>EDE</strong>（<strong>Emacs Development Environment</strong>，Emacs 开发环境，Emacs 23 引入，来自 <strong>CEDET</strong>——CEDET 是 Emacs 的一整套语言分析与代码工具集，做语义分析、补全、代码生成、图表等；它的缩写展开是 <strong>Collection of Emacs Development Environment Tools</strong>，见《GNU Emacs 手册》的「GNU Emacs 致谢」一节）。EDE 只是 CEDET 的一个子集。CEDET 在 C/C++ 社区有一批拥趸，但在其他语言上一直没火起来。</li>
+    <li><strong>projectile</strong> 和它的同类（第三方，MELPA 有）。它们真正改变了「项目管理」这个概念：<strong>不再要求你先创建一个项目文件，而是从版本控制仓库反推</strong>——只要你在一个 Git 仓库里，它就知道哪些文件是相关的。这个思路对了，于是被官方吸收。</li>
+    <li><strong><code>project.el</code></strong>（2015 年才写进 Emacs 源码，<strong>随 Emacs 25.1 首次发布</strong>——Emacs 25 的 NEWS 里有一条「New package Project」；<code>C-x p</code> 前缀键是 <strong>Emacs 28</strong> 才加上的）。原书的评价很中肯：如果你没有强烈偏好，<strong>就用它</strong>——开箱体验对绝大多数用户都很好。</li>
+  </ol>
+  <p>今天写在这里的补充：<strong>「build on ideas from third-party packages」这句话是原书作者的评论，不是 Emacs 源码里的原文</strong>（我 <code>grep</code> 过 <code>lisp/progmodes/project.el</code>，零命中）。源码能证实的是另一件事：<code>project.el</code> 的 Commentary 里写着 <em>Any third-party code that wants to use this package should likewise target the public API. Use any of the built-in commands as the example.</em>（想在这个包上做扩展的第三方代码，应该只依赖它的公共 API，并且拿内建命令当范例）——也就是说它从设计上就打算让第三方往上接。同一段 Commentary 还留了一句「Type <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>C</kbd><kbd>h</kbd> to see all available commands and bindings」，正好又教了上一节那招。</p>
+  <p>原书说「只要有一个 Git 或 Mercurial 仓库就能用」，这一点今天依然成立，而且更简单：<code>project.el</code> 会沿着目录往上找版本控制的根目录，找到就算一个项目。</p>
+</details>
+
+  <h4><code>project.el</code> 的核心思想：先确定「项目」是什么</h4>
+
+  <p>理解 <code>project.el</code> 的关键，是理解它怎么回答「当前这个文件属于哪个项目」。<strong>Emacs 32 的做法是：沿着当前文件所在目录逐级向上找，找到一个版本控制的根目录（比如有 <code>.git</code> 的那一层）就停。</strong>找到以后，这个根目录就是项目根，项目里「已知的文件」就是版本控制知道的那批文件。</p>
+
+  <p>这个设计比原书描述的还要多一层兜底：<strong>万一找不到项目怎么办？</strong>Emacs 32 的 <code>project-current</code> 文档字符串把这里的分寸讲得很清楚：<code>project-current</code> 的第二个参数叫 <code>MAYBE-PROMPT</code>，<strong>它不给（或者给 <code>nil</code>）时找不到项目就返回 <code>nil</code>；给了真值才会去问你要不要用当前目录当项目</strong>（问的方式由 <code>project-prompter</code> 决定），而<strong>你确认了却还是找不到版本控制根，它才返回一个「transient（临时）project」</strong>——一个以当前目录为根、包含该目录下所有文件（除了 <code>vc-directory-exclusion-list</code> 和 <code>grep-find-ignored-files</code> 里匹配的那些）的临时项目。</p>
+
+  <p>换句话说：<strong>只要你在一个目录里，<code>C-x p</code> 就能用。</strong>这一点对初学者很重要——你不需要先「创建一个项目」，不需要写任何配置文件，不需要装任何包。原因就在这里：下面那条 <code>C-x p</code> 命令几乎都是用 <code>(project-current t)</code> 调的（<code>t</code> 就是「找不到就问我」），你答了「就用这儿」，它就给你造一个临时项目继续干。</p>
+
+  <div class="callout note"><b>要点</b><p>Emacs 32 里，「怎么找项目」这套规则挂在<strong>钩子</strong>（hook，一个变量，里面装着一串函数；Emacs 触发某个事件时会挨个调用它们）<code>project-find-functions</code> 上：<code>project-current</code> 内部用 <code>run-hook-with-args-until-success</code> 逐个试，直到某个函数返回项目为止。第三方包可以往这个钩子里加自己的识别规则（比如按 <code>package.json</code>、<code>pyproject.toml</code> 认项目）。</p></div>
+
+  <div class="callout warn"><b>易错</b><p>Emacs 26/27 时代的老配置里你会看到 <code>(setq project-backends '(project-backend-vc project-backend-elisp project-backend-dumb))</code> 这样的写法。<strong>在 Emacs 32 里这些符号已经不存在了</strong>：<code>project-backends</code> 这个变量没有了，<code>project-backend-vc</code> 这个函数也没有了（我用 <code>emacs --batch</code> 查过，都返回 void）。所以网上老的配置片段不要照抄。同样地，<code>project-elsewhere-prompt</code> 也没了，现在控制「找不到项目时问什么」的是 <code>project-prompter</code>，默认值是 <code>project-prompt-project-dir</code>。</p></div>
+
+  <h4>今天该知道的三个版本差异</h4>
+
+  <ul>
+    <li><strong>Emacs 28</strong>：加了 <code>C-x p</code> 这个前缀键表，也就是下面那张表；同时新增了 <code>project-dired</code>、<code>project-vc-dir</code>、<code>project-shell</code>、<code>project-eshell</code> 和 <code>project-compile</code>。</li>
+    <li><strong>Emacs 29</strong>：新增命令 <code>project-list-buffers</code>，绑定在 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>C-b</kbd>（就是下面表里那一行）；<code>project-find-file</code> 与 <code>project-or-external-find-file</code> 拿到前缀参数时可以「把项目外的文件也算进来」；<code>project-kill-buffers</code> 可以在关之前先列一份要关的清单（由 <code>project-kill-buffers-display-buffer-list</code> 控制）。还新增了 <code>project-vc-extra-root-markers</code>（额外认作版本控制根的标记目录）和 <code>project-vc-include-untracked</code>。</li>
+    <li><strong>Emacs 31</strong>：新增了 <code>project-root-find-file</code>、<code>project-customize-dirlocals</code>（把 <code>C-x p f</code> 加进 <code>.dir-locals.el</code> 的 <code>f</code> 列表）、<code>project-find-matching-buffer</code>、<code>project-list-exclude</code>、<code>project-prune-zombie-projects</code>，以及 <strong><code>C-x p C-x s</code>（<code>project-save-some-buffers</code>）</strong>——「只保存这个项目的缓冲区」。</li>
+  </ul>
+
+  <h4>逐条读那张表</h4>
+
+  <p>下面这张表是 Emacs 32.0.50 上 <code>project-prefix-map</code> 的完整内容（我直接读了 <code>project.el</code> 源码第 1021–1040 行那二十条 <code>define-key</code>，逐条对过）。对照原书那张十条目的表：<strong>九条原封不动，一条变了</strong>——原书把 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>d</kbd> 写成「Open a Dired buffer」，但 Emacs 32 的 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>d</kbd> 已经是 <code>project-find-dir</code>（在项目里挑一个<strong>子</strong>目录打开），项目<strong>根</strong>目录的 dired 挪到了 Emacs 28 新增的大写 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>D</kbd>。</p>
+
+  <div class="keys">
+    <h4>本节按键：<code>C-x p</code> 项目前缀键（Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>f</kbd></td><td><code>project-find-file</code></td><td>打开项目内的文件，只列项目已知文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>F</kbd></td><td><code>project-or-external-find-file</code></td><td>同上，但把项目外文件也列进来（用 <code>C-f</code> 原生的补全）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>b</kbd></td><td><code>project-switch-to-buffer</code></td><td>切换到本项目的某个缓冲区</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>C-b</kbd></td><td><code>project-list-buffers</code></td><td>打开本项目的缓冲区清单（在 <code>*Buffer List*</code> 缓冲区里）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>g</kbd></td><td><code>project-find-regexp</code></td><td>在项目内所有文件里搜索正则</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>G</kbd></td><td><code>project-or-external-find-regexp</code></td><td>同上，但搜索范围不限项目</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>r</kbd></td><td><code>project-query-replace-regexp</code></td><td>在项目内所有文件里交互式替换</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>k</kbd></td><td><code>project-kill-buffers</code></td><td>关掉本项目所有打开的缓冲区</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>p</kbd></td><td><code>project-switch-project</code></td><td>切换到另一个已知项目</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>c</kbd></td><td><code>project-compile</code></td><td>在项目根目录编译</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>v</kbd></td><td><code>project-vc-dir</code></td><td>打开版本控制状态缓冲区</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>s</kbd></td><td><code>project-shell</code></td><td>在项目根目录开一个 <code>shell</code></td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>e</kbd></td><td><code>project-eshell</code></td><td>同上，但用 <code>eshell</code>（Emacs 自己的 shell，有补全和历史）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>d</kbd></td><td><code>project-find-dir</code></td><td>在项目里指定一个<strong>子</strong>目录，用 <code>dired</code> 打开它</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>D</kbd></td><td><code>project-dired</code></td><td>用 <code>dired</code> 打开项目<strong>根</strong>目录（目录浏览器）——原书里这才是 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>d</kbd> 的功能</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>o</kbd></td><td><code>project-any-command</code></td><td>把任意命令套上「先定位到项目」的前缀</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>x</kbd></td><td><code>project-execute-extended-command</code></td><td>在项目上下文中用 <kbd>M</kbd><kbd>x</kbd> 调命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>!</kbd></td><td><code>project-shell-command</code></td><td>在项目根跑一条同步 shell 命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>&amp;</kbd></td><td><code>project-async-shell-command</code></td><td>同上但异步，不阻塞编辑</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>C-x</kbd> <kbd>s</kbd></td><td><code>project-save-some-buffers</code></td><td>只保存本项目的缓冲区（Emacs 31 新增）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>原书说得对：<strong>这些命令和它们的通用版本工作方式一样，只是被限制在项目的范围内。</strong>比如 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>f</kbd> 就是「只在项目已知文件里补全的 <code>find-file</code>」。原书还有一条小提醒值得保留，但<strong>要看版本</strong>：它说「如果你用 IDO 补全，<kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>f</kbd> 不会给你补全（因为 IDO 不读这个上下文的文件表），但 FIDO 可以」。这条在 IDO 还是默认补全的年代是真的（Emacs 23–28）。今天不一样了：<code>project.el</code> 是通过 <code>completing-read</code> 动态绑定候选表来补全的，走的是内建 completion 通道——具体是 <code>completion-styles</code> 这个变量在起作用（Emacs 32 里默认值是 <code>(basic partial-completion emacs22)</code>）。所以<strong>在今天的 Emacs 上 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>f</kbd> 正常补全，什么都不用额外配</strong>。只有你显式开启 <code>ido-mode</code> 之类的第三方补全前端时，才需要重新留意这条。（顺便澄清一个常见误会：网上有说「Emacs 29 引入了 <code>use-completion</code>」的——<strong>Emacs 32 里没有这个变量</strong>，<code>(boundp 'use-completion)</code> 返回 <code>nil</code>；那个名字是 <code>use-completion-under-point</code> 之类<strong>函数</strong>的前缀，不是开关。）</p>
+
+  <div class="callout tip"><b>技巧</b><p>新手最容易忽略的是 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>b</kbd> 和 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>C-b</kbd> 的区别。前者让你在输入框里敲缓冲区名继续补全，后者直接弹出一个本项目缓冲区的清单。刚开始用 Emacs 时，<strong>后者比你想的更有用</strong>——它回答了「我手头这堆窗口到底属于哪个项目」这个每天都要问的问题。</p></div>
+
+  <h4>项目搜索的一个额外能力</h4>
+
+  <p>原书说项目功能「内置枚举项目文件的支持，可以跨文件搜索替换」——这一点值得展开，因为它是 <code>project.el</code> 相对旧方案的核心优势：<strong>它知道哪些文件该跳过</strong>。版本控制忽略列表里的东西（<code>.gitignore</code> 之类）、二进制文件、巨大的生成物，都会被自动排除。你不需要维护一份自己的文件白名单。</p>
+
+  <p>命令行版本的对应物是 Emacs 内建的 <code>rgrep</code>（<kbd>M</kbd><kbd>x</kbd> <code>rgrep</code>，递归 <code>grep</code>），它也会参考 <code>grep-find-ignored-files</code> 和 <code>grep-find-ignored-directories</code> 这两个变量来过滤。两个变量在项目搜索和 <code>dired</code> 搜索里是共用的，值得知道。</p>
+
+  <div class="drill" data-answer="C-x p f（project-find-file）">
+  <p class="drill-q"><b>练习 9</b>　想打开当前项目里的某个文件，但希望候选列表里不要出现项目外的东西。用哪个键？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>f</kbd>，即 <code>project-find-file</code>。如果你确实偶尔需要列出项目外的文件，用大写的 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>F</kbd>（<code>project-or-external-find-file</code>）。</p></div>
+</div>
+
+  <div class="drill" data-answer="project-backends 变量和 project-backend-vc 函数在 Emacs 32 中都已不存在">
+  <p class="drill-q"><b>练习 10</b>　你在网上抄到一段老配置：<code>(setq project-backends '(project-backend-vc ...))</code>。把它放进 Emacs 32 的配置里会怎样？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>会报 void-variable <code>project-backends</code>。Emacs 32 里这个变量和 <code>project-backend-vc</code>、<code>project-backend-elisp</code>、<code>project-backend-dumb</code> 这些函数都已经不存在了。识别规则现在挂在钩子 <code>project-find-functions</code> 上，而 <strong>你根本不需要配它</strong>——Emacs 默认就能沿目录向上找版本控制根目录。</p></div>
+</div>
+
+  <div class="drill" data-answer="project-shell（C-x p s）、project-eshell（C-x p e）、project-dired（C-x p D）、project-vc-dir（C-x p v）">
+  <p class="drill-q"><b>练习 11</b>　想在项目根目录开一个 shell，用 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>s</kbd> 还是 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>e</kbd>？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>s</kbd> 是 <code>project-shell</code>（系统 shell），<kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>e</kbd> 是 <code>project-eshell</code>（Emacs 内建 shell，有补全、历史、跨会话持久）。初学者用 <kbd>s</kbd> 就够；熟了之后 <code>eshell</code> 更顺手。相关的还有 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>D</kbd>（<code>project-dired</code>）和 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>v</kbd>（<code>project-vc-dir</code>）。</p></div>
+</div>
+
+  <h3>三、编译与错误跳转：<code>compilation-mode</code> 今天的位置</h3>
+
+  <h4>先说结论：它没被取代，但角色变了</h4>
+
+  <p>这一节要处理原书没怎么讲、但今天必须讲清楚的一件事。<strong>如果你用 Eglot，跳转编译错误这件事已经不用 <code>compilation-mode</code> 了</strong>——语言服务器会直接给你诊断、让你直接跳到出错的那一行。但 <code>compilation-mode</code> 本身仍然是 Emacs 核心的一部分，并没有过时。</p>
+
+  <p>它现在承担的角色可以这样理解：</p>
+  <ul>
+    <li><strong>它不再是「跳转器」，而是「构建日志阅读器」。</strong>编译输出里有很多东西语言服务器不告诉你——测试框架的运行结果、链接器的完整报错、构建工具自己的警告。这些还得靠它。</li>
+    <li><strong>它仍然是「没有 LSP 时的退路」。</strong>不是每种语言都有成熟的语言服务器。</li>
+    <li><strong>它的能力被复用到内联诊断上。</strong><strong>Emacs 26.1</strong> 起 Emacs 把 Flymake 整个重做过，现在它是一套内建诊断框架（作用是把「这个文件哪里有问题」直接标在缓冲区里，替代了当年<em>「跑一次编译、跳一次错误」</em>的循环），Eglot 启动时会自动把 Flymake 接上。也就是说，<strong>你看到的那条红色波浪线，很可能就来自编译输出，只是被重新整理了一遍</strong>。Emacs 29 只是给它补了 ShellCheck 后端和行尾提示灯，不是它诞生的版本。</li>
+  </ul>
+
+  <p>原书写这一章的时候，<code>compilation-mode</code> 就是「跳到编译错误」的主力。这个机制今天在 Emacs Lisp 里还完好无损——你甚至能亲眼看到它的默认诊断后端。<strong>不开 Eglot</strong> 的时候，在 <code>emacs-lisp-mode</code> 缓冲区里查 <code>flymake-diagnostic-functions</code>，它的 buffer-local 值是：</p>
+
+  <pre class="term"><code>(elisp-flymake-byte-compile elisp-flymake-checkdoc t)</code></pre>
+
+  <p>也就是说，即便不开 Eglot，<strong>Emacs Lisp 文件也会被自动做字节编译检查和文档字符串检查</strong>。这些默认是从 <code>elisp-mode.el</code> 的 <code>emacs-lisp-mode-hook</code> 注册进去的（见 <code>elisp-mode.el</code> 第 774–776 行两处 <code>add-hook</code>）。<strong>注意一个反直觉的点：Eglot 一旦在这个项目里跑起来，它不是把这个列表<em>追加</em>，而是整个替换成 <code>(eglot-flymake-backend)</code></strong>（<code>eglot.el</code> 第 2450 行）——所以你在用了 Eglot 的会话里查，看到的就只剩语言服务器这一条了。<code>flymake-diagnostic-functions</code> 本身是一个<strong>特殊钩子</strong>（special hook，一个「往里加一个函数，就等于加一条检查规则」的钩子）——它的文档字符串第一句就是 <em>「Special hook of Flymake backends that check a buffer.」</em>。想给别的语言加编译检查，往这个钩子里加函数就行。</p>
+
+  <h4>怎么用</h4>
+
+  <p>运行编译用 <kbd>M</kbd><kbd>x</kbd> <code>compile</code>，或者用项目版本 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>c</kbd>（<code>project-compile</code>，在项目根目录跑）。Emacs 会问你要执行什么命令，默认填的是 <code>compile-command</code> 这个变量的值——<strong>Emacs 32 里默认是 <code>make -k -j15 </code></strong>（末尾有个空格，是 Emacs 特意加的，别删）。</p>
+
+  <div class="callout note"><b>要点</b><p><code>compile</code> 命令在 Emacs 32 里<strong>没有默认键位</strong>。我查过 <code>where-is-internal</code>，它只返回菜单栏入口 <code>Tools &gt; Compile</code>，没有任何键盘绑定。所以用 <kbd>M</kbd><kbd>x</kbd> 调用，或者自己绑一个。</p></div>
+
+  <p>编译输出会进到一个专用缓冲区（<code>*compilation*</code>），它用的是 <strong>compilation-mode</strong>。这个缓冲区里的按键如下，全部是我在 Emacs 32 上从 <code>compile.el</code> 源码里核对过的：</p>
+
+  <div class="keys">
+    <h4>本节按键：编译缓冲区（<code>compilation-mode</code>，Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd>（或 <kbd>RET</kbd>，或鼠标左键）</td><td><code>compile-goto-error</code></td><td>跳到光标所在那条错误对应的源码位置</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>o</kbd></td><td><code>compilation-display-error</code></td><td>在另一个窗口显示该错误，但不移动光标</td></tr>
+        <tr><td><kbd>M</kbd><kbd>n</kbd> <kbd>M</kbd><kbd>p</kbd></td><td><code>compilation-next-error</code> / <code>compilation-previous-error</code></td><td>下一条 / 上一条错误（跟到源码）</td></tr>
+        <tr><td><kbd>n</kbd> <kbd>p</kbd></td><td><code>next-error-no-select</code> / <code>previous-error-no-select</code></td><td>同样在错误间移动，但<strong>光标留在本缓冲区</strong></td></tr>
+        <tr><td><kbd>TAB</kbd></td><td><code>compilation-next-error</code></td><td>下一条错误（同 <kbd>M</kbd><kbd>n</kbd>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>{</kbd> <kbd>M</kbd><kbd>}</kbd></td><td><code>compilation-previous-file</code> / <code>compilation-next-file</code></td><td>跳到上一个 / 下一个出错的<strong>文件</strong></td></tr>
+        <tr><td><kbd>g</kbd></td><td><code>recompile</code></td><td>用上次的命令重新编译</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>next-error-follow-minor-mode</code></td><td>开关「跟着错误走」模式</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>k</kbd></td><td><code>kill-compilation</code></td><td>中止正在跑的编译进程</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>还有一组键不在这个缓冲区里，但和它配套：<strong>next-error</strong> 系列命令用于「在出错列表之间来回走」，包括从别处跳回来。它在 Emacs 32 里绑在 <kbd>C</kbd><kbd>x</kbd> <kbd>`</kbd>（反引号键）、<kbd>M</kbd><kbd>g</kbd> <kbd>n</kbd> 和 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 上（<code>where-is-internal</code> 返回的就是这三个键序列）。它的文档字符串里有个细节很实用：<strong>只按 <kbd>C</kbd><kbd>u</kbd>（不带数字）当前缀，会重新解析整个错误缓冲区并跳回第一条错误</strong>。</p>
+
+  <details class="deep"><summary>进阶：<code>next-error</code> 的「同一套机制」原理</summary>
+  <p><code>next-error</code> 不是一个功能，而是一套<strong>通用协议</strong>。任何缓冲区只要设置好 <code>next-error-function</code> 这个 buffer-local 变量，告诉 Emacs「我的第 N 条消息对应源文件的哪个位置」，<code>next-error</code> 就能在它里面跳。</p>
+  <p>今天内建的用户里，除了 <code>compilation-mode</code>，还有：</p>
+  <ul>
+    <li><strong><code>*Warnings*</code> 缓冲区今天<em>不</em>走这套协议</strong>（这一点原书写的时候还不是这样，别照抄）。我在 Emacs 32 上实测：<code>*Warnings*</code> 只是个 <code>special-mode</code> 缓冲区，<code>next-error-function</code> 是 <code>nil</code>；当年的 <kbd>M</kbd><kbd>x</kbd> <code>list-errors</code> 命令也<strong>已经不存在</strong>——<code>where-is-internal</code>、<code>apropos</code>、整个 <code>lisp</code> 目录、Emacs 32 手册全文，四处都查不到这个符号。警告里带的位置跳转要靠警告自带的按钮，不能靠 <kbd>M</kbd><kbd>n</kbd>。</li>
+    <li><strong><code>*Occur*</code> 缓冲区</strong>——它的 <code>next-error-function</code> 是 <code>occur-next-error</code>，所以在 <code>*Occur*</code> 里也能用同一套 <code>next-error</code> 命令跳转，这正是上面那张表里 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd> 的作用。</li>
+    <li><strong>Elisp 的字节编译诊断</strong>（<code>byte-compile-file</code> 的输出缓冲区）——它用的 major mode 叫 <code>emacs-lisp-compilation-mode</code>，是从 <code>compilation-mode</code> 派生的。</li>
+  </ul>
+  <p>理解了这一点，你就知道为什么 Emacs 里「跳到下一个错误」听起来像很多功能、其实是一个函数。第三方包想接入，只要实现同一个协议就自动兼容。</p>
+</details>
+
+  <div class="drill" data-answer="M-x compile；C-x p c 是 project-compile，在项目根目录跑。compile 没有默认键位">
+  <p class="drill-q"><b>练习 12</b>　想编译当前项目，Emacs 32 里用什么命令？它有默认键位吗？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>用 <kbd>M</kbd><kbd>x</kbd> <code>compile</code>；在项目里用 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>c</kbd>（<code>project-compile</code>）。<strong><code>compile</code> 没有默认键位</strong>——我查过 <code>where-is-internal</code>，只有菜单栏入口 <code>Tools &gt; Compile</code>。默认执行的命令来自 <code>compile-command</code>，Emacs 32 里是 <code>make -k -j15 </code>（末尾有空格）。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-c C-k（kill-compilation）中止；g（recompile）重新编译">
+  <p class="drill-q"><b>练习 13</b>　编译卡住不动了，在编译缓冲区里按什么能停掉？编完之后想再跑一遍按什么？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>停掉按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>k</kbd>，即 <code>kill-compilation</code>。重跑按 <kbd>g</kbd>，即 <code>recompile</code>。注意别和 <kbd>M</kbd><kbd>n</kbd> 搞混——那个是「跳到下一条错误」，<kbd>n</kbd> 是「不离开当前缓冲区地看下一条错误」。</p></div>
+</div>
+
+  <h3>四、Xref：跳定义的统一前端</h3>
+
+  <h4>它解决的问题是什么</h4>
+
+  <p><strong>Xref</strong>（cross-reference，交叉引用）是一个「统一的前端」：不管你光标下那个标识符（identifier，代码里的名字：函数名、变量名、类型名）的定义在哪里，xref 都负责找到它、列给你、让你跳过去。</p>
+
+  <p>关键在于「统一」两个字。Emacs 里能回答「这个东西在哪定义」的东西有很多：TAGS、<code>grep</code>、语言服务器（<strong>LSP</strong>，Language Server Protocol，语言服务器协议，一套让编辑器跟「语言服务器」通信、由后者提供补全/跳转/重命名能力的工业标准）……每一家的后端都不一样。<strong>xref 不管后端是谁，它只提供一套键和一套界面。</strong>你要换后端，键不变。这在架构上叫「依赖倒置」，理解这一点，后面 Eglot 那部分就顺理成章了。</p>
+
+  <p>Emacs 32 里 <code>xref-backend-functions</code> 这个钩子有<strong>两层值</strong>：全局值是 <code>(etags--xref-backend)</code>（<code>xref.el</code> 第 247 行用 <code>(add-hook 'xref-backend-functions #'etags--xref-backend t)</code> 注册的 etags 后端），而在 Elisp 缓冲区里它会多出一条 buffer-local 的值 <code>(elisp--xref-backend t)</code>——<code>elisp--xref-backend</code> 由 <code>elisp-mode.el</code> 第 768 行和 <code>help-fns.el</code> 第 294 行注册。<strong>问题来了：那个 <code>t</code> 是什么？</strong></p>
+
+  <div class="callout note"><b>要点</b><p><strong>先把「钩子的两层值」这件事本身说清，你才能读懂 <code>t</code>。</strong>一个钩子变量可以同时有两份值：<strong>全局一份、当前 buffer 一份</strong>，默认只用全局那份。<code>add-hook</code> 的<strong>第三个参数</strong>是「要不要设成 buffer-local」：写成 <code>t</code>，Emacs 就<strong>只在当前 buffer 里</strong>加上这个函数，全局那份一动不动。</p>
+    <p><strong>那么 buffer 里有自己的值之后，全局那份还跑不跑？</strong><strong>默认不跑</strong>——buffer-local 值<strong>取代</strong>全局值。<strong>而 <code>add-hook</code> 干了一件很贴心的事：它在设成 buffer-local 的同时，顺手往那份 buffer-local 值里塞一个 <code>t</code>。</strong>这个 <code>t</code> 不是函数，它是一个<strong>标记</strong>，意思是「<strong>除了本地的这些，全局那些也要照跑</strong>」。跑到它的时候被跳过（因为它不是函数），但它代表的语义已经被执行了。</p>
+    <p>这正是 <code>add-hook</code> 文档字符串里的原话：<em>This makes the hook buffer-local, and it makes t a member of the buffer-local value. That acts as a flag to run the hook functions of the global value as well as in the local value.</em></p>
+    <p><strong>下面这几行是本书作者在本机 Emacs 32.0.50 上真跑出来的，你可以照着敲一遍验证：</strong></p>
+    <pre class="term"><code>M-: (setq my-hook '(my-a))
+M-: (add-hook 'my-hook 'my-b nil t)       ; 第三个参数 t = 设成 buffer-local
+M-: (list my-hook (default-value 'my-hook))
+⇒ ((my-b t) (my-a))
+      ↑ 本地值    ↑ 全局那份没被动过
+M-: (run-hooks 'my-hook)                  ; 看它到底跑了谁
+⇒ (b a)                                   ; 先跑本地的 my-b，再跑全局的 my-a
+
+对照组：第三个参数不写 t
+M-: (setq my-hook2 '(my-a))
+M-: (add-hook 'my-hook2 'my-b)            ; 没写第三个参数
+M-: (list my-hook2 (default-value 'my-hook2))
+⇒ ((my-b my-a) (my-b my-a))               ; 两层都被改了，等于直接改全局</code></pre>
+    <p><strong>回到 <code>xref-backend-functions</code>：</strong>在一个 Elisp 缓冲区里，它的 buffer-local 值 <code>(elisp--xref-backend t)</code> 读作「先用 <code>elisp--xref-backend</code>，然后<strong>接着照样用全局那份 <code>etags--xref-backend</code></strong>」——两个后端都在链上，Emacs 会挨个问「你能不能处理这个符号」。<strong>敲 <kbd>M</kbd><kbd>-</kbd> 求值 <code>(default-value 'xref-backend-functions)</code> 就能看到全局值</strong>（本书作者实测返回 <code>(etags--xref-backend)</code>）；想看当前 buffer 的完整值，在任意缓冲区里求值 <code>xref-backend-functions</code>（不带 <code>default-value</code>）。</p>
+  </div>
+
+  <div class="callout tip"><b>技巧</b><p><strong>记住这一条就够了：<code>add-hook</code> 第三个参数写 <code>t</code>，意思是「只在当前 buffer 生效，但全局那套照旧保留、照旧执行」。</strong>第 13 章配置包时会大量用到它——比如让某个「只在项目里该关掉」的功能只影响项目缓冲区，而不动你个人的全局配置。</p></div>
+
+  <h4>四个键，加上一个反悔键</h4>
+
+  <div class="keys">
+    <h4>本节按键：xref 四个命令（Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>.</kbd></td><td><code>xref-find-definitions</code></td><td>找光标处符号的定义</td></tr>
+        <tr><td><kbd>M</kbd><kbd>,</kbd></td><td><code>xref-go-back</code></td><td>返回上一个位置（原书写作 xref-pop-marker-stack，见下方说明）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>?</kbd></td><td><code>xref-find-references</code></td><td>找出所有引用了该符号的地方</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>.</kbd></td><td><code>xref-find-apropos</code></td><td>按正则找符号</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>,</kbd></td><td><code>xref-go-forward</code></td><td>「反悔」键：撤销上一次 <kbd>M</kbd><kbd>,</kbd>，回到当初按 <kbd>M</kbd><kbd>,</kbd> 时所在的那个位置</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>原书那张表的四条内容完全正确。补两点 Emacs 32 的现状：</p>
+
+  <ul>
+    <li><strong>「pop marker stack」这个说法变了。</strong>原书讲的那个机制叫 <strong>marker stack</strong>（标记栈：Emacs 存了一叠「你之前在哪」的坐标，<kbd>M</kbd><kbd>,</kbd> 一次弹一个；这是计算机科学里「栈」这个概念在 Emacs 里的应用）。命令确实曾经叫 <code>xref-pop-marker-stack</code>，<strong>这个函数在 Emacs 32 里仍然存在，但已经被标成废弃别名</strong>（源码里写着 <code>(define-obsolete-function-alias 'xref-pop-marker-stack #'xref-go-back "29.1")</code>，从 Emacs 29.1 起作废），主命令改叫 <code>xref-go-back</code>。我查了它的文档字符串，原文是：<em>「Go back to the previous position in xref history. To undo, use C-M-,.」</em>——所以 <kbd>M</kbd><kbd>,</kbd> 往回走，<kbd>C</kbd><kbd>M</kbd><kbd>,</kbd> 撤销这一次；反悔键的命令名是 <code>xref-go-forward</code>，文档字符串是 <em>「Go to the point where a previous M-, was invoked.」</em>。</li>
+    <li><strong>找不到后端时会退化成 grep。</strong>如果你在 C 或 shell 脚本的缓冲区里按 <kbd>M</kbd><kbd>?</kbd>，没有专门后端，Emacs 会退回到用 <code>grep</code> 之类的工具在你的项目目录里搜。原书说这「通常是个还不错的起点」——这话今天依然成立。</li>
+  </ul>
+
+  <h4>结果缓冲区里的按键</h4>
+
+  <p><kbd>M</kbd><kbd>.</kbd> 如果只找到一个定义，就直接跳过去。如果找到多个，或者 Emacs 不确定哪个最好，就打开一个 xref 缓冲区列出所有候选。这个缓冲区里可以这样操作：</p>
+
+  <div class="keys">
+    <h4>本节按键：xref 结果缓冲区（Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>RET</kbd></td><td><code>xref-goto-xref</code></td><td>跳到当前这行的定义，并关掉 xref 缓冲区</td></tr>
+        <tr><td><kbd>TAB</kbd></td><td><code>xref-quit-and-goto-xref</code></td><td>同上（显式退出后再跳，效果一样）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>o</kbd></td><td><code>xref-show-location-at-point</code></td><td>在另一个窗口里显示这个定义，不离开当前窗口</td></tr>
+        <tr><td><kbd>.</kbd> <kbd>,</kbd>（或 <kbd>n</kbd> <kbd>p</kbd>）</td><td><code>xref-next-line</code> / <code>xref-prev-line</code></td><td>在候选列表里上下移动，光标跟着跳到对应位置</td></tr>
+        <tr><td><kbd>N</kbd> <kbd>P</kbd></td><td><code>xref-next-group</code> / <code>xref-prev-group</code></td><td>按「分组」跳转（结果被分成若干组时有用）</td></tr>
+        <tr><td><kbd>r</kbd></td><td><code>xref-query-replace-in-results</code></td><td>在这份结果里交互式替换正则</td></tr>
+        <tr><td><kbd>M</kbd><kbd>,</kbd></td><td><code>xref-quit-and-pop-marker-stack</code></td><td>在候选缓冲区里直接跳过去并返回</td></tr>
+        <tr><td><kbd>e</kbd></td><td><code>xref-change-to-xref-edit-mode</code></td><td>切换到 xref 编辑模式，就地改这张列表</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>原书教的操作顺序是对的：<strong>先用 <kbd>.</kbd> 和 <kbd>,</kbd> 快速浏览</strong>——Emacs 会随着你的移动跳到各个匹配处，让你有个画面感；<strong>选定了再按 <kbd>TAB</kbd></strong>，跳过去并关掉这个缓冲区。记住这个手感：<kbd>TAB</kbd> 和 <kbd>RET</kbd> 的区别只在于前者会顺手把 xref 缓冲区关掉。</p>
+
+  <h4>今天真正的答案：Eglot 接管了跳转</h4>
+
+  <p>这一节要更新原书最明确。Emacs 29.1 起，<strong>Eglot</strong>（Emacs 内建的 LSP 客户端）已经随 Emacs 分发。版本关系的证据就写在 <code>eglot.el</code> 里——它把这张对应表挂在 <code>customize-package-emacs-version-alist</code> 上：<code>(Eglot ("1.12" . "29.1") ("1.12" . "29.2") ("1.12" . "29.3") ("1.12.29" . "29.4") ("1.17.30" . "30.1") ("1.24.31" . "31.1"))</code>，即 Eglot 1.12 从 Emacs 29.1 开始随发行版分发，到 Emacs 31.1 是 1.24（我查到的本机 Emacs 32.0.50 里内嵌的正是 1.24）。它一启动，就把 <code>eglot-xref-backend</code> 挂到 <code>xref-backend-functions</code> 钩子上（我读了 <code>eglot.el</code> 第 2442 行确认）。</p>
+
+  <p>所以真实情况是：<strong>你按的还是 <kbd>M</kbd><kbd>.</kbd>，但背后干活的已经不是 xref 自带的后端，而是你的语言服务器。</strong>这才是「统一前端」设计的兑现——<code>xref.el</code> 在这里的角色和 LSP 出现之前完全一样。</p>
+
+  <p>还有一件值得知道的事：<strong>Eglot 用 <code>project.el</code> 来找项目根目录</strong>。它的源码里直接调用 <code>project-root</code> 来确定 LSP 的工作区。所以上一节那套 <code>C-x p</code> 体系不只是方便你自己浏览文件——它是 Eglot 能不能正常工作的地基。你在一个不是版本控制仓库的裸目录里打开代码，Eglot 就会去找「transient project」，行为可能不如预期。</p>
+
+  <p>还有一件事要提醒：<strong>Eglot 在 Emacs 32 里没有默认键位。</strong>我查过，<code>where-is-internal</code> 对 <code>eglot</code>、<code>eglot-ensure</code>、<code>eglot-shutdown</code> 全部返回 <code>nil</code>，<code>eglot</code> 只有一个菜单栏入口（<em>Tools &gt; Eglot</em>）。另外提醒一句：老配置里常见的 <code>eglot-mode</code> 和 <code>eglot-retake</code> 在 Emacs 32 里<strong>已经不是命令</strong>了——<code>(fboundp 'eglot-mode)</code> 和 <code>(fboundp 'eglot-retake)</code> 都返回 <code>nil</code>。所以每个项目里你都得自己绑一个，比如：</p>
+
+  <pre class="el"><code>;; 在项目配置里：打开 C/C++ 文件时自动起语言服务器
+(add-hook 'c-mode-hook #'eglot-ensure)
+
+;; 全局兜底：任何时候按 M-l 起一个 Eglot 会话
+(global-set-key (kbd "M-l") #'eglot-ensure)</code></pre>
+
+  <p>用 <code>eglot-ensure</code> 而不是 <code>eglot</code>，是因为它做了幂等处理——文档字符串写得很直接：<em>「Start Eglot session for current buffer if there isn't one.」</em>（如果当前缓冲区还没有会话，就起一个。）挂在 <code>c-mode-hook</code> 上时，如果 Eglot 已经在管这个项目里的文件，它什么也不做。</p>
+
+  <div class="callout note"><b>要点</b><p>想判断「当前缓冲区是不是已经被 Eglot 管着」，用公开函数 <code>eglot-managed-p</code>（文档字符串是 <em>「Tell if current buffer is managed by Eglot.」</em>）。<strong>注意别写成 <code>eglot--managed-p</code></strong>——带双横线的那个名字在 Emacs 32 里并不存在，我实测是 void function（内部真正对应的是一个叫 <code>eglot--managed-mode</code> 的 minor mode，不是函数）。同理，老配置里常见的 <code>eglot-workspace-fallback</code> 在 Emacs 32 的 <code>eglot</code> 里也已经找不到了，别照抄。</p></div>
+
+  <div class="callout warn"><b>易错</b><p>如果你在 C/C++ 项目里既开了 Eglot 又按 <kbd>M</kbd><kbd>.</kbd> 得到「找不到定义」，多半是语言服务器没找到编译数据库（比如 <code>compile_commands.json</code>），或者项目根被认错了。该做的是检查 <code>project.el</code> 认出来的根目录对不对（<kbd>M</kbd><kbd>x</kbd> <code>project-current</code> 会告诉你），而不是回退到 xref 的老后端。诊断信息看 <kbd>M</kbd><kbd>x</kbd> <code>eglot-list-connections</code>；Eglot 1.24 起还可以用 <kbd>M</kbd><kbd>x</kbd> <code>eglot-describe-connection</code> 看详细的连接状态。</p></div>
+
+  <details class="deep"><summary>进阶：TAGS、即时搜索和 LSP 该怎么选</summary>
+  <p>原书在 xref 那节末尾讨论了三条技术路线，这里把结论整理得更明确一些，因为今天的选择比原书简单得多。</p>
+  <ol>
+    <li><strong>TAGS</strong>（旧学派的产物）。做法是：把所有源文件里的标识符和它们的行号抽出来，存成一个巨大的静态查找表（传统上叫 <code>TAGS</code> 文件）。Emacs 32 里自带 <code>etags</code>（Emacs 自己的标签生成器，<code>etags</code> 这个命令开箱可用）；更快的 <code>ctags</code> 是<strong>外部程序</strong>（现在的事实标准是 <code>universal-ctags</code>），得自己装，Emacs 不带。</li>
+    <li><strong>即时搜索工具</strong>：<code>grep</code>、<code>ack</code>、<code>ag</code>、<code>ripgrep</code>。原书推荐 <code>dumb-jump</code>（第三方，MELPA 有）——它利用 ripgrep 之类的搜索器，按当前 major mode 的规则猜「什么才算定义」，然后跳过去。这个方案在<strong>大项目上比 TAGS 快得多</strong>，因为不需要预先建索引，也不需要在文件改动后重建索引。Emacs 32 里 ripgrep 快得离谱，原书说它在现代硬件上「快得不可测」（unfathomably fast），我同意这个判断。</li>
+    <li><strong>LSP</strong>：今天的事实标准。</li>
+  </ol>
+  <p><strong>选型建议：</strong></p>
+  <ul>
+    <li>有语言服务器（几乎所有主流语言现在都有）→ <strong>用 Eglot</strong>，它给出的不只是跳转，还有补全、悬停文档、重命名、诊断。</li>
+    <li>没有语言服务器的小语言 / 配置语言 → <code>dumb-jump</code>，或者用 <code>ripgrep</code> 包提供的 <kbd>M</kbd><kbd>x</kbd> <code>rg</code>（注意：<code>rg</code> 本身<strong>不是</strong>内建的，来自第三方包 <code>ripgrep</code>，得先从 MELPA 装；同时你本机要有 <code>rg</code> 这个可执行文件）再配合 <code>xref</code> 的 grep / rgrep 兜底。</li>
+    <li>TAGS 在<strong>超大项目</strong>里仍有意义（原书说它「在天文数字般大的项目里表现良好」），但日常用不着。</li>
+  </ul>
+  <p>无论选哪条，<strong><kbd>M</kbd><kbd>.</kbd> 这个键不变</strong>。这就是 xref 存在的全部意义。</p>
+</details>
+
+  <h4>Dired 里的 xref：一个需要更新的说法</h4>
+
+  <p>原书写「Xref 在 Dired 里也能用：按 <kbd>A</kbd> 搜索，按 <kbd>Q</kbd> 搜索并替换被标记的文件」。</p>
+
+  <p>键位<strong>没有变</strong>——Emacs 32 里 <kbd>A</kbd> 确实还是 <code>dired-do-find-regexp</code>（在标记过的文件里查找匹配），<kbd>Q</kbd> 确实还是 <code>dired-do-find-regexp-and-replace</code>（在标记过的文件里交互式替换）。我查了 Emacs 32 的 <code>dired-mode-map</code>（<code>dired.el</code> 第 2424 行开始的绑定表）：<code>A</code> 在第 2437 行，<code>Q</code> 在第 2450 行。</p>
+
+  <p><strong>但机制变了。</strong>这两个命令现在的文档字符串里写的是「REGEXP 应当使用你本地 <code>grep</code> 命令支持的构造」，还提到了 <code>grep-find-ignored-files</code> 和 <code>grep-find-ignored-directories</code> 这两个过滤变量——而在 Emacs 32 的 <code>dired.el</code> 里，<strong><code>xref</code> 这个词一次都没出现过</strong>（我 <code>grep</code> 过整个文件，零命中）。所以今天这两条命令走的是 <code>grep</code> 后端，不是 xref 体系。</p>
+
+  <p>这不影响你使用它们。实际效果上，<kbd>Q</kbd> 在几百个文件上做替换依然是好用的工具。知道它是 grep 而不是 xref 的意义在于：<strong>它的正则语法受限于你本机 <code>grep</code> 的实现</strong>（GNU grep 和 BSD grep 有差异），遇到奇怪的正则会报「Invalid grep regex」。</p>
+
+  <div class="drill" data-answer="M-. ，即 xref-find-definitions">
+  <p class="drill-q"><b>练习 14</b>　光标停在一个函数名上，想跳到它的定义。按哪个键？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>M</kbd><kbd>.</kbd>，即 <code>xref-find-definitions</code>。如果你开着 Eglot，实际干活的是语言服务器（Eglot 会把 <code>eglot-xref-backend</code> 挂到 <code>xref-backend-functions</code> 上），但键和界面完全一样。</p></div>
+</div>
+
+  <div class="drill" data-answer="M-, 即 xref-go-back；xref-pop-marker-stack 已是废弃别名；C-M-, 即 xref-go-forward，是反悔">
+  <p class="drill-q"><b>练习 15</b>　按 <kbd>M</kbd><kbd>.</kbd> 跳走了，想回到原处，按什么？原书里这个命令叫什么？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>按 <kbd>M</kbd><kbd>,</kbd>。Emacs 32 里它绑定的主命令叫 <code>xref-go-back</code>，原书写的 <code>xref-pop-marker-stack</code> 还在，但已从 Emacs 29.1 起被标成废弃别名（<code>define-obsolete-function-alias</code>）。另外 <kbd>C</kbd><kbd>M</kbd><kbd>,</kbd>（<code>xref-go-forward</code>）是「反悔」——撤销上一次返回，回到当初按 <kbd>M</kbd><kbd>,</kbd> 时所在的位置。</p></div>
+</div>
+
+  <div class="drill" data-answer="dired-do-find-regexp 和 dired-do-find-regexp-and-replace，现在走 grep 后端而非 xref">
+  <p class="drill-q"><b>练习 16</b>　在 <code>dired</code> 缓冲区里按 <kbd>Q</kbd> 跨文件替换，这背后用的是 xref 还是 <code>grep</code>？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>用 <code>grep</code>。<kbd>A</kbd> 和 <kbd>Q</kbd> 的绑定没变（<code>dired-do-find-regexp</code> / <code>dired-do-find-regexp-and-replace</code>），但 Emacs 32 的 <code>dired.el</code> 里已经没有 xref 相关代码了，这两个命令的文档字符串明确要求「正则要符合本机 <code>grep</code> 支持的语法」。</p></div>
+</div>
+
+  <div class="drill" data-answer="不绑定；Eglot 在 Emacs 32 里没有默认键位，需要用户自己 bind">
+  <p class="drill-q"><b>练习 17</b>　在 Emacs 32 里 <code>M-x eglot-ensure</code> 有没有默认键位？没有的话你一般怎么起？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>没有。我用 <code>where-is-internal</code> 查过 <code>eglot</code>、<code>eglot-ensure</code>、<code>eglot-shutdown</code>，全部返回 <code>nil</code>；<code>eglot</code> 只有菜单栏入口 <em>Tools &gt; Eglot</em>。（顺带一提，老配置里的 <code>eglot-mode</code>、<code>eglot-retake</code> 在 Emacs 32 里已经不是命令了，<code>fboundp</code> 返回 <code>nil</code>。）常见做法是自己在项目的配置里绑一个全局键，比如 <code>(global-set-key (kbd "M-l") #'eglot-ensure)</code>，需要时按一下就起。</p></div>
+</div>
+
+  <h3>五、看日志文件：Emacs 的隐藏强项</h3>
+
+  <h4>为什么日志值得专门学</h4>
+
+  <p>读日志、盯构建输出、翻线上错误——这是程序员每天都要干的事。原书说得很准：<strong>日志文件里那些长得几乎一模一样的行，是最容易「看漏」的文本</strong>。用眼睛扫一百行近乎重复的内容，人会本能地开始跳读，然后漏掉真正重要的那一行。</p>
+
+  <p>Emacs 在这件事上有几件专门的工具。掌握它们之后，你看日志的方式会从「读」变成「筛」。</p>
+
+  <h4>第一步：以只读方式打开</h4>
+
+  <div class="keys">
+    <h4>本节按键：打开文件与只读</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>find-file</code></td><td>打开文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>r</kbd></td><td><code>find-file-read-only</code></td><td>以<strong>只读</strong>模式打开（防手滑改坏日志）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>q</kbd></td><td><code>read-only-mode</code></td><td>开关只读模式</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>原书提到一个小机制很实用：<strong>如果文件本身不可写，Emacs 会自动用 <code>read-only-mode</code> 打开它</strong>。很多日志文件靠 <code>chmod</code> 设成了只读，所以「打开就是只读」往往是自动的，你什么都不用做。</p>
+
+  <p>什么时候需要解除只读？原书的答案很明确：<strong>当你接下来要对缓冲区做破坏性操作的时候</strong>，比如下面要讲的 <code>flush-lines</code>。只读模式下你不能删行，而删行正是缩小日志视野的手段。</p>
+
+  <div class="callout warn"><b>易错</b><p>日志文件如果真被 <code>flush-lines</code> 改动了而你按了保存，就把日志毁了。<strong>不要对正在写入的日志用 <code>C-x</code> <kbd>s</kbd></strong>。你的目的是在缓冲区里看得清爽，不是改磁盘上的文件。</p></div>
+
+  <h4>第二步：筛掉无关的行</h4>
+
+  <p><code>occur</code>（<kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>）是这一节的主力。它的行为是：按一个正则，把当前缓冲区里所有匹配的行抽出来，放进一个叫 <code>*Occur*</code> 的新缓冲区，每行前面标着它在原文件里的行号。原缓冲区<strong>完全不动</strong>。</p>
+
+  <p>Emacs 32 里 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> 绑定的就是 <code>occur</code>（<code>isearch</code> 模块加载后我核对过全局绑定）。有个变化值得知道：搜索进行中按的 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> 现在触发的是 <code>isearch-occur</code>，而老名字 <code>isearch-other-buffer</code> 在 Emacs 32 里<strong>已经没有这个函数了</strong>。</p>
+
+  <p><code>*Occur*</code> 缓冲区里的按键：</p>
+
+  <div class="keys">
+    <h4>本节按键：<code>*Occur*</code> 缓冲区</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>occur-mode-goto-occurrence</code></td><td>跳回原缓冲区的那一行</td></tr>
+        <tr><td><kbd>RET</kbd></td><td><code>occur-mode-goto-occurrence</code></td><td>同上，回车即可</td></tr>
+        <tr><td><kbd>o</kbd></td><td><code>occur-mode-goto-occurrence-other-window</code></td><td>在另一个窗口跳过去，方便两边对照</td></tr>
+        <tr><td><kbd>C</kbd><kbd>o</kbd>（单次）</td><td><code>occur-mode-display-occurrence</code></td><td>在另一个窗口<strong>显示</strong>但不移动光标</td></tr>
+        <tr><td><kbd>n</kbd> <kbd>p</kbd></td><td><code>next-error-no-select</code> / <code>previous-error-no-select</code></td><td>在匹配行之间移动，光标不出这个缓冲区</td></tr>
+        <tr><td><kbd>M</kbd><kbd>n</kbd> <kbd>M</kbd><kbd>p</kbd></td><td><code>occur-next</code> / <code>occur-prev</code></td><td>同上，但可以带数字前缀（<kbd>M-</kbd><kbd>3</kbd> <kbd>M</kbd><kbd>n</kbd> 连跳三条匹配行）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>next-error-follow-minor-mode</code></td><td>开关「跟着 Occur 走」</td></tr>
+        <tr><td><kbd>r</kbd></td><td><code>occur-rename-buffer</code></td><td>给 <code>*Occur*</code> 缓冲区改个名（多次筛选时很有用）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip"><b>技巧</b><p>原书提了一句很多人不知道的事：<strong>你可以在 <code>*Occur*</code> 缓冲区里再按一次 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>，对已有的结果再筛一层</strong>。机制是 Occur 缓冲区记住了上一次的搜索参数——存在 <code>occur-revert-arguments</code> 这个 buffer-local 变量里（我实测它的值是 <code>("a" nil (#&lt;buffer …&gt;))</code> 这种「正则 + 标志 + 原缓冲区」的形状），而重放动作交给 <code>*Occur*</code> 缓冲区里的 buffer-local <code>revert-buffer-function</code>（它的值就是函数 <code>occur-revert-function</code>）。效果是：先 <code>ERROR</code>，再 <code>timeout</code>，你就得到了「超时导致的错误」列表。<strong>这才是 <code>occur</code> 真正强大的用法</strong>——单次筛选谁都会，多次叠加才能处理复杂日志。</p></div>
+
+  <h4>第三步：给关键信息上色</h4>
+
+  <p><strong>highlight</strong>（高亮，用不同的 face 即「外观样式」把匹配的部分染上颜色或加粗，让眼睛能快速抓住）。Emacs 的高亮是<strong>叠加式</strong>的：同一行可以有多种不同颜色的高亮共存。</p>
+
+  <div class="keys">
+    <h4>本节按键：高亮一组命令（Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>p</kbd></td><td><code>highlight-phrase</code></td><td>高亮匹配该正则的地方，额外把「一个空格」放宽成任意长度空白（见下方说明）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>r</kbd></td><td><code>highlight-regexp</code></td><td>高亮所有匹配某个正则的地方</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>.</kbd></td><td><code>highlight-symbol-at-point</code></td><td>高亮光标处的<strong>符号</strong>（一个词）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>u</kbd></td><td><code>unhighlight-regexp</code></td><td>取消光标处这处高亮（逐个去）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>原书这里有一条建议非常实用，值得原样记住：<strong>就算你记不住这四个键也没关系，只要知道它们全叫 <code>highlight-</code> 开头，需要的时候用 <kbd>M</kbd><kbd>x</kbd> 就能调出来。</strong>Emacs 的命令命名是有规律的——同一族功能共享前缀，所以「猜名字」这件事本身就可靠。这和第一章说的「Emacs 的 Elisp 没有命名空间、靠前缀防撞车」是同一件事的两面。</p>
+
+  <p>顺带说清 <code>highlight-phrase</code> 和 <code>highlight-regexp</code> 到底差在哪。翻 Emacs 32 的 <code>highlight-phrase</code> 文档字符串，它其实<strong>也接受正则</strong>（参数名就叫 <code>REGEXP</code>），唯一的额外行为是：<em>「Also set <code>search-spaces-regexp</code> to the value of <code>search-whitespace-regexp</code>.」</em>（同时把「搜索一个空格」放宽成「匹配任意长度的空白」。）</p>
+
+  <p>这个差别在日志场景里极其有用。日志经常在窄终端上折行，<code>connection refused</code> 可能被断成 <code>connection</code> 和 <code>refused</code> 两行。用 <code>highlight-regexp</code> 你得写成 <code>connection\s-+refused</code>；用 <code>highlight-phrase</code> 你直接打 <code>connection refused</code>，那个普通空格就已经自动等价于 <code>\s-+</code> 了。<strong>所以看日志首选 <kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>p</kbd></strong>，需要精细控制才换 <kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>r</kbd>。</p>
+
+  <h4>第四步：直接砍掉噪音（不推荐在活动日志上做）</h4>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>x</kbd> <code>flush-lines</code>：问一个正则，把<strong>所有匹配的行从缓冲区删掉</strong>。提示语是 <em>Flush lines containing match for regexp</em>，读的就是一个普通正则（跟 <kbd>M</kbd><kbd>%</kbd> 一样，直接敲 <code>DEBUG</code> 即可）。缓冲区处在只读状态时它会直接报错拒绝执行——这就是为什么必须先 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>q</kbd>。</li>
+    <li><kbd>M</kbd><kbd>x</kbd> <code>keep-lines</code>：反过来，<strong>只保留</strong>匹配的行，删掉其余全部。提示语是 <em>Keep lines containing match for regexp</em>。</li>
+  </ul>
+
+  <p>这两个都是内建函数直接当命令用。它们威力很大，也很容易造成「缓冲区内容和磁盘不一致」的错觉，所以<strong>动手前先想清楚：你是要「看得清爽」还是「要改文件」。看日志永远只是前者</strong>，解掉只读只是手段，不是授权——按完 <kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd> 就把磁盘上的日志改了。删掉的行嫌可惜，还有个折中办法：<kbd>M</kbd><kbd>x</kbd> <code>kill-matching-lines</code>，它同样删匹配行，但会把删掉的内容放进 kill ring，想找回来时按 <kbd>C</kbd><kbd>y</kbd> 就能贴回去。</p>
+
+  <h4>第五步：让日志自己更新</h4>
+
+  <p>日志是活的。原书讲了两种模式，Emacs 32 里都还在：</p>
+
+  <ul>
+    <li><strong><code>auto-revert-mode</code></strong>（很老的老内置模式了——Emacs 22 的 NEWS 就已经在讲它的「自动跳到末尾」行为，Emacs 27 的 NEWS 又整节讨论文件变更通知）——底层文件一变，整个缓冲区重新加载。适合更新不频繁的日志。</li>
+    <li><strong><code>auto-revert-tail-mode</code></strong>——像 Unix 的 <code>tail -f</code> 一样，文件变化时把新增内容<strong>追加</strong>到缓冲区末尾，并自动滚到末尾。适合追踪正在跑的构建。</li>
+  </ul>
+
+  <p>两者都用 <kbd>M</kbd><kbd>x</kbd> 开启（Emacs 32 里<strong>都没有默认键位，也没有全局开启</strong>——我查过 <code>auto-revert-mode</code> 和 <code>auto-revert-tail-mode</code> 都是默认值 <code>nil</code>，而且 <code>get</code> 查它们的 <code>globalized-local</code> 属性返回 <code>nil</code>，也就是说它们是普通的、非全局化的 minor mode）。</p>
+
+  <p>Emacs 底层用的是<strong>文件系统变更通知</strong>（inotify 这类机制，现代平台上都有），不支持通知的老系统会退化成轮询（<code>auto-revert-interval</code> 控制轮询间隔，默认 5 秒）。这对你意味着：<strong>只要 Emacs 跑着，变化就能被察觉到，你不用按任何键。</strong>另外，这两个模式在<strong>只读缓冲区里照样能用</strong>——<code>read-only</code> 限制的是你手动编辑，重载缓冲区不受这条限制（我用一个 <code>chmod 400</code> 的文件实测过）。</p>
+
+  <div class="callout note"><b>要点</b><p>还有一个相关的设置：<code>revert-without-query</code>。<strong>注意它不是布尔量</strong>——在 Emacs 32 里它的类型是「正则列表」（<code>:type '(repeat regexp)</code>），默认值 <code>nil</code> 表示空列表、也就是什么都不特殊处理。它的含义是：<strong>如果文件名匹配上列表里某个正则，并且你在这个缓冲区里没有未保存的修改，<code>revert-buffer</code> 就不再问你</strong>。看到的那句询问，在有改动时是 <em>Discard edits and reread from %s?</em>，没改动时是 <em>Revert buffer from file %s?</em>。所以对日志文件，正确的写法是按名字给正则，比如 <code>(setq revert-without-query '("\\.log\\'" "syslog"))</code>；<strong>千万别写成 <code>(setq revert-without-query t)</code></strong>——那是个列表被塞了 <code>t</code>，Emacs 会拿它当序列遍历而出错。（另外顺带一提：缓冲区本来就没被改过时，<kbd>M</kbd><kbd>x</kbd> <code>revert-buffer</code> 根本不会问，所以你大多数时候根本不需要动这个变量。老版本的 <code>auto-revert-check-unchanged</code> 在 Emacs 32 里已经没有这个符号了。）</p></div>
+
+  <h4>顺手一提：压缩文件与图片浏览</h4>
+
+  <p>原书在这一节末尾还带了两段「同类技术迁移到其它文件类型」的示范，都值得知道。</p>
+
+  <p><strong>auto-compression-mode</strong>（自动解压模式，一个默认开启的 minor mode）会在你打开一个压缩文件时自动解压，在保存时自动重新压回去。Emacs 32 里它确实是默认开启的。它的妙处在于：<strong>配合 <kbd>M</kbd><kbd>x</kbd> <code>dired</code>，你能把一个压缩包当目录一样浏览</strong>——列内容、进入子目录、甚至直接编辑里面的文件，存盘时自动打包回去。</p>
+
+  <div class="keys">
+    <h4>本节按键：图片浏览（<code>image-dired</code>，Emacs 29 已重写，键位表在 <code>image-dired-thumbnail-mode</code> 里）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>image-dired</code></td><td><code>image-dired</code></td><td>打开缩略图浏览器（带一个 dired 窗口）</td></tr>
+        <tr><td><kbd>f</kbd> <kbd>b</kbd></td><td><code>image-dired-forward-image</code> / <code>image-dired-backward-image</code></td><td>下一个 / 上一个缩略图</td></tr>
+        <tr><td><kbd>n</kbd> <kbd>p</kbd></td><td><code>image-dired-next-line</code> / <code>image-dired-previous-line</code></td><td>上一行 / 下一行的缩略图</td></tr>
+        <tr><td><kbd>m</kbd> <kbd>u</kbd> <kbd>U</kbd></td><td><code>image-dired-mark-thumb-original-file</code> 等</td><td>标记 / 取消标记 / 全部取消标记</td></tr>
+        <tr><td><kbd>d</kbd></td><td><code>image-dired-flag-thumb-original-file</code></td><td>打删除标记；<kbd>x</kbd> 执行已标记的删除</td></tr>
+        <tr><td><kbd>t</kbd> <kbd>t</kbd> / <kbd>t</kbd> <kbd>r</kbd></td><td><code>image-dired-tag-thumbnail</code> / <code>-remove</code></td><td>加标签 / 去标签</td></tr>
+        <tr><td><kbd>RET</kbd></td><td><code>image-dired-display-this</code></td><td>打开这张图</td></tr>
+        <tr><td><kbd>L</kbd> <kbd>R</kbd></td><td><code>image-dired-rotate-original-left</code> / <code>-right</code></td><td>左转 / 右转</td></tr>
+        <tr><td><kbd>S</kbd></td><td><code>image-dired-slideshow-start</code></td><td>幻灯片播放</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p><strong>原书那张 image-dired 键位表已经完全作废了。</strong>原书写的是 <kbd>C</kbd><kbd>f</kbd> / <kbd>C</kbd><kbd>b</kbd> 移动、<kbd>C</kbd><kbd>n</kbd> / <kbd>C</kbd><kbd>p</kbd> 上下、<kbd>l</kbd> <kbd>r</kbd> 旋转、<kbd>t</kbd> <kbd>u</kbd> 取消标签。这些命令在 Emacs 32 里<strong>连函数都不存在了</strong>（<code>image-dired-next-thumbnail</code>、<code>image-dired-mark-thumbnail</code> 我都查过，(fboundp) 返回 <code>nil</code>；<code>image-dired-rotate-thumbnail-left</code> 也已经不绑键了，只是函数体还留着并被标成 <code>(declare (obsolete … "29.1"))</code>）。Emacs 29 把 image-dired 重写成了「网格 + 原生 Emacs 键位」的风格，键位表见上。原书那句提示仍然成立：<strong>从 dired 打开图片进入的是 <code>image-mode</code>（通用的图片查看器），不是 image-dired 专用的显示模式</strong>——不过 Emacs 29 起 <code>image-dired-image-mode</code> 也改成基于 <code>image-mode</code> 了，所以两者的键位现在是一致的。</p></div>
+
+  <p><strong>DocView</strong>（<code>doc-view-mode</code>，在 Emacs 内部把 PDF 等文档渲染成图来看）是 Emacs 最有名的实用功能之一：只要系统里装了对应的转换工具，Emacs 就能在打开 PDF、<code>EPUB</code>、<code>CBZ</code> 漫画、PostScript、DVI、<strong>OpenDocument</strong>、<strong>MS Office</strong>（<code>DOCX</code> / <code>XLSX</code> / <code>PPTX</code>）文件时直接渲染。</p>
+
+  <p>原书教的一个查找技巧今天依然有效：<strong>想知道 Emacs 到底认哪些文件，用 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> <code>auto-mode-alist</code> 然后搜 <code>doc-view</code></strong>。<code>auto-mode-alist</code>（自动模式列表）是一张「文件名后缀 → 该用哪个 major mode」的表。我查了 Emacs 32 里的实际条目，它是：</p>
+
+  <pre class="term"><code>("\\.\\(?:PDF\\|EPUB\\|CBZ\\|FB2\\|O?XPS\\|DVI\\|OD[FGPST]\\|DOCX\\|XLSX?\\|PPTX?\\|pdf\\|epub\\|cbz\\|fb2\\|o?xps\\|djvu\\|dvi\\|od[fgpst]\\|docx\\|xlsx?\\|pptx?\\)\\'" . doc-view-mode-maybe)</code></pre>
+
+  <p>注意挂上去的是 <code>doc-view-mode-maybe</code> 而不是 <code>doc-view-mode</code>——「maybe」版本会先检查依赖的外部程序在不在，缺了才提示装。这正是原书脚注说的「取决于你的系统上装了哪些程序」，在 Emacs 32 里这个判断被自动化了。想看 Emacs 认为你还缺什么，可以 <kbd>M</kbd><kbd>x</kbd> <code>customize-group</code> <code>doc-view</code>。</p>
+
+  <div class="keys">
+    <h4>本节按键：DocView（Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>n</kbd> <kbd>p</kbd></td><td><code>doc-view-next-page</code> / <code>previous-page</code></td><td>下一页 / 上一页</td></tr>
+        <tr><td><kbd>SPC</kbd></td><td><code>doc-view-scroll-up-or-next-page</code></td><td>滚动一行，到顶就翻页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>n</kbd> <kbd>C</kbd><kbd>p</kbd></td><td><code>doc-view-next-line-or-next-page</code> 等</td><td>下一行，到底就翻页</td></tr>
+        <tr><td><kbd>M</kbd><kbd>&lt;</kbd> <kbd>M</kbd><kbd>&gt;</kbd></td><td><code>doc-view-first-page</code> / <code>last-page</code></td><td>跳到首页 / 末页</td></tr>
+        <tr><td><kbd>+</kbd> <kbd>=</kbd> / <kbd>-</kbd> / <kbd>0</kbd></td><td><code>doc-view-enlarge</code> / <code>shrink</code> / <code>scale-reset</code></td><td>放大 / 缩小 / 恢复默认比例</td></tr>
+        <tr><td><kbd>W</kbd> <kbd>H</kbd> <kbd>P</kbd> <kbd>F</kbd></td><td><code>doc-view-fit-width-to-window</code> 等</td><td>按宽 / 高 / 整页 / 窗口贴合缩放</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>doc-view-toggle-display</code></td><td>在「渲染图像」和「纯文本」之间切换</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>t</kbd></td><td><code>doc-view-open-text</code></td><td>开一个新缓冲区看 PDF 的文本内容（PDF 有文本层时可用）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>s</kbd> <kbd>C</kbd><kbd>r</kbd></td><td><code>doc-view-search</code> / <code>-backward</code></td><td>在文档里正向 / 反向搜索</td></tr>
+        <tr><td><kbd>k</kbd> <kbd>K</kbd></td><td><code>image-kill-buffer</code> / <code>doc-view-kill-proc</code></td><td>关掉缓冲区 / 连带杀掉转换进程</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>原书这一页的 DocView 键位表正好没印完。上面这张表是我在 Emacs 32 上从 <code>doc-view-mode-map</code>（以及它继承的 <code>image-mode-map</code>）里直接读出来的，可以放心用；这张表没列全，按 <kbd>?</kbd> 或 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 能看到当前缓冲区里全部生效的键位。</p>
+
+  <div class="drill" data-answer="M-s o，然后在里面再按一次 M-s o 继续筛">
+  <p class="drill-q"><b>练习 18</b>　日志里有几千行，你想先只看 <code>ERROR</code> 行，再在结果里只看含 <code>timeout</code> 的。怎么做？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>在原日志里按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>，正则输 <code>ERROR</code>；然后在 <code>*Occur*</code> 缓冲区里<strong>再按一次</strong> <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>，正则输 <code>timeout</code>。Occur 缓冲区记住了上次的参数，第二次是对已有结果再筛一层。定位到具体某一行按 <kbd>RET</kbd> 回原文件。</p></div>
+</div>
+
+  <div class="drill" data-answer="M-s h p（highlight-phrase）">
+  <p class="drill-q"><b>练习 19</b>　想在日志里把所有出现的 <code>connection refused</code> 染成红色，不删除任何行。用什么？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>p</kbd>，即 <code>highlight-phrase</code>。它不改动文本，只叠加一层着色。特别适合日志的是：它会把「一个空格」放宽成任意长度空白，所以直接打 <code>connection refused</code> 就能同时命中被折行拆开的那几行。需要精确控制正则时再换 <kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>r</kbd>（<code>highlight-regexp</code>）。取消单处高亮用 <kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>u</kbd>。</p></div>
+</div>
+
+  <div class="drill" data-answer="auto-revert-tail-mode，类似 tail -f；auto-revert-mode 是整份重载；两者在只读缓冲区里也能开">
+  <p class="drill-q"><b>练习 20</b>　你在 <code>tail</code> 一个正在增长的构建日志，希望新增行自动出现并且视图停在末尾。开哪个模式？需要先解只读吗？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>开 <code>auto-revert-tail-mode</code>，工作方式等同 Unix 的 <code>tail -f</code>：文件一变就把新增内容追加到缓冲区末尾并滚过去。<strong>不需要先 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>q</kbd> 解只读</strong>——「只读」限制的是你手动编辑，重载缓冲区不受它管；我实测一个 <code>chmod 400</code> 的日志文件，两个 auto-revert 模式都能正常打开并在文件增长时刷新。另一个 <code>auto-revert-mode</code> 是整份重新加载，适合更新不频繁的文件。两者在 Emacs 32 里都默认关闭，也没有默认键位。</p></div>
+</div>
+
+  <div class="drill" data-answer="n / p（doc-view-next-page / doc-view-previous-page）">
+  <p class="drill-q"><b>练习 21</b>　用 DocView 打开一个 PDF，翻页用哪两个键？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p><kbd>n</kbd> 翻到下一页，<kbd>p</kbd> 翻回上一页（<code>doc-view-next-page</code> / <code>doc-view-previous-page</code>）。<kbd>SPC</kbd> 是「滚动一行，到顶了才翻页」。想看 PDF 里的纯文本用 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>t</kbd>。</p></div>
+</div>
+
+  <div class="drill" data-answer="C-x C-q（read-only-mode），之后可以 flush-lines，但千万别保存">
+  <p class="drill-q"><b>练习 22</b>　想在日志缓冲区里删掉所有 <code>DEBUG</code> 行好让它短一点，第一步该做什么？</p>
+  <button class="drill-btn" type="button">显示答案</button>
+  <div class="drill-a"><p>先 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>q</kbd> 解除只读（<code>read-only-mode</code>）。然后 <kbd>M</kbd><kbd>x</kbd> <code>flush-lines</code>，正则输 <code>DEBUG</code>。<strong>删完千万不要按 <kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd></strong>——你只是想看得清爽，不是想改磁盘上的日志。觉得比 <code>occur</code> 粗暴的话，<kbd>M</kbd><kbd>x</kbd> <code>keep-lines</code> 是它的反面（只保留匹配行）。</p></div>
+</div>
+
+  <div class="callout note"><b>要点</b><p>最后把这一章的线索收一下。<strong>探索</strong>给你的是「任何时候都不慌」的能力：<kbd>C</kbd><kbd>h</kbd> 加上 <code>which-key</code>，Emacs 的任何功能你都能在三分钟内查到。<strong>项目管理</strong>给你的是「多文件是常态」的观念：<kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> 这一组键会随 Emacs 版本持续变厚（Emacs 31 才加了 <kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>C-x</kbd> <kbd>s</kbd>），值得偶尔用「前缀 + <kbd>C</kbd><kbd>h</kbd>」重新扫一遍。<strong>编译与 xref</strong>给你的是「分层」的观念：<code>xref</code> 是永远不变的界面，语言服务器是可换的引擎；<code>compilation-mode</code> 从「跳转器」退成「日志阅读器」，但仍然是核心。<strong>日志</strong>这一节给你的是「Emacs 会替你做减法」的能力：长文本交给 <code>occur</code>、交给高亮、交给自动刷新，你只负责给对的那一个正则。</p></div>
+</section>

@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>从 Zed / VSCode 到 Emacs · 编辑器迁移手册</title>
+<style>
+/* ============================================================
+   主题变量：跟随系统深浅色，色系取 Modus 主题气质
+   ============================================================ */
+:root {
+  --bg: #faf9f7;
+  --bg-elev: #ffffff;
+  --bg-sunk: #f1efec;
+  --fg: #2d2a28;
+  --fg-muted: #6e6a64;
+  --fg-faint: #97928b;
+  --accent: #3548b5;
+  --accent-soft: #e8eaf8;
+  --accent-2: #8f5faf;
+  --border: #e2ded8;
+  --border-strong: #c9c4bc;
+  --kbd-bg: #ffffff;
+  --kbd-border: #c9c4bc;
+  --kbd-shadow: #b5b0a7;
+  --kbd-fg: #3a3733;
+  --code-bg: #f4f2ef;
+  --code-border: #e5e1db;
+  --ok: #2f7f4f;
+  --warn: #9a6700;
+  --tag-bg: #ede9f7;
+  --tag-fg: #5b4a8f;
+  --row-alt: #f6f4f1;
+  --hl: #ffe89e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181c;
+    --bg-elev: #1e2025;
+    --bg-sunk: #131418;
+    --fg: #e4e2de;
+    --fg-muted: #a5a19a;
+    --fg-faint: #78746e;
+    --accent: #a9b6ff;
+    --accent-soft: #262a3d;
+    --accent-2: #c8aaf5;
+    --border: #31343b;
+    --border-strong: #454953;
+    --kbd-bg: #26292f;
+    --kbd-border: #454953;
+    --kbd-shadow: #0c0d10;
+    --kbd-fg: #e4e2de;
+    --code-bg: #202228;
+    --code-border: #31343b;
+    --ok: #7dd97a;
+    --warn: #e0b35d;
+    --tag-bg: #2c2840;
+    --tag-fg: #c0b1f0;
+    --row-alt: #1d1f24;
+    --hl: #5a4d1e;
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Noto Sans CJK SC", "Source Han Sans SC", ui-sans-serif, system-ui,
+               -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+code, kbd, pre, .mono {
+  font-family: "JetBrains Mono", "Noto Sans Mono CJK SC", ui-monospace,
+               "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+/* ---------------- 顶部导航 ---------------- */
+nav.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+nav.topbar .inner {
+  max-width: 1120px; margin: 0 auto; padding: 10px 24px;
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+nav.topbar .brand {
+  font-weight: 700; font-size: 15px; color: var(--fg);
+  text-decoration: none; letter-spacing: .02em;
+}
+nav.topbar .brand .logo { color: var(--accent); margin-right: 6px; }
+nav.topbar a.navlink {
+  color: var(--fg-muted); text-decoration: none; font-size: 14px;
+  padding: 4px 10px; border-radius: 8px; transition: all .15s;
+  white-space: nowrap;
+}
+nav.topbar a.navlink:hover { color: var(--fg); background: var(--bg-sunk); }
+nav.topbar a.navlink.active { color: var(--accent); background: var(--accent-soft); }
+
+/* ---------------- Hero ---------------- */
+header.hero {
+  max-width: 1120px; margin: 0 auto; padding: 72px 24px 40px;
+}
+header.hero .eyebrow {
+  display: inline-block; font-size: 13px; font-weight: 600;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 3px 14px; border-radius: 999px; margin-bottom: 18px;
+  letter-spacing: .12em;
+}
+header.hero h1 {
+  font-size: clamp(30px, 5vw, 46px); line-height: 1.25;
+  margin: 0 0 16px; font-weight: 800; letter-spacing: .01em;
+}
+header.hero h1 .grad {
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+header.hero p.sub {
+  font-size: 17px; color: var(--fg-muted); max-width: 46em; margin: 0 0 26px;
+}
+header.hero .meta {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  font-size: 13.5px; color: var(--fg-faint);
+}
+header.hero .meta .dot { opacity: .5; }
+
+/* ---------------- 版式骨架 ---------------- */
+main { max-width: 1120px; margin: 0 auto; padding: 0 24px 40px; }
+section { margin: 56px 0; }
+section > h2 {
+  font-size: 26px; font-weight: 800; margin: 0 0 6px;
+  display: flex; align-items: baseline; gap: 14px;
+}
+section > h2 .no {
+  font-size: 15px; font-weight: 700; color: var(--accent);
+  font-variant-numeric: tabular-nums; letter-spacing: .08em;
+}
+section > p.lead { color: var(--fg-muted); margin-top: 0; font-size: 16px; }
+h3 { font-size: 19px; margin: 40px 0 4px; }
+h3 .hk { color: var(--fg-faint); font-weight: 500; font-size: 14px; }
+
+article.card {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: 14px; padding: 22px 26px; margin: 18px 0;
+}
+article.card > h3:first-child { margin-top: 0; }
+
+/* ---------------- 键帽 ---------------- */
+kbd {
+  display: inline-block;
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--kbd-fg);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+.kbd-seq { white-space: nowrap; }
+.kbd-seq kbd + kbd { margin-left: 3px; }
+
+span.badge {
+  display: inline-block; font-size: 11.5px; font-weight: 600;
+  color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  border-radius: 5px; padding: 0 6px; margin-left: 6px;
+  vertical-align: 1px; white-space: nowrap;
+}
+span.tag {
+  display: inline-block; font-size: 11.5px; font-weight: 600;
+  background: var(--tag-bg); color: var(--tag-fg);
+  border-radius: 5px; padding: 1px 8px; margin-left: 6px;
+  vertical-align: 1px; white-space: nowrap;
+}
+
+/* ---------------- 对照表 ---------------- */
+table.vs {
+  width: 100%; border-collapse: collapse; margin: 14px 0 6px;
+  font-size: 14.5px; line-height: 1.65;
+}
+table.vs th {
+  text-align: left; font-size: 12.5px; letter-spacing: .1em;
+  color: var(--fg-faint); font-weight: 700;
+  padding: 8px 12px; border-bottom: 2px solid var(--border-strong);
+  white-space: nowrap;
+}
+table.vs td {
+  padding: 9px 12px; border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+table.vs tbody tr:nth-child(even) { background: var(--row-alt); }
+table.vs td.you { color: var(--fg-muted); width: 30%; }
+table.vs td.key { width: 34%; }
+table.vs td.cmd { color: var(--fg-muted); font-size: 13px; }
+table.vs td.cmd code { font-size: 12.5px; }
+table.vs .feature {
+  color: var(--accent); font-weight: 700; font-size: 12px;
+  letter-spacing: .06em;
+}
+
+/* 「Emacs 的思路」提示框 */
+aside.idea {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 12px 12px 0;
+  padding: 14px 20px; margin: 16px 0;
+  font-size: 15px;
+}
+aside.idea .t {
+  font-weight: 700; color: var(--accent);
+  font-size: 13px; letter-spacing: .1em;
+  display: block; margin-bottom: 4px;
+}
+aside.idea p { margin: 6px 0; }
+aside.idea p:last-child { margin-bottom: 0; }
+
+/* ---------------- 代码块（手工高亮） ---------------- */
+pre.code {
+  background: var(--code-bg); border: 1px solid var(--code-border);
+  border-radius: 10px; padding: 14px 18px;
+  overflow-x: auto; font-size: 13px; line-height: 1.7;
+  margin: 12px 0;
+}
+pre.code code .kw  { color: var(--accent-2); font-weight: 600; }
+pre.code code .fn  { color: var(--accent); }
+pre.code code .str { color: var(--ok); }
+pre.code code .cmt { color: var(--fg-faint); font-style: italic; }
+pre.code code .pfx { color: var(--warn); font-weight: 600; }
+
+/* ---------------- 心智转变卡片 ---------------- */
+div.mindgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+div.mind {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px 22px;
+}
+div.mind .num {
+  display: inline-flex; width: 30px; height: 30px; border-radius: 9px;
+  background: var(--accent-soft); color: var(--accent);
+  font-weight: 800; align-items: center; justify-content: center;
+  margin-bottom: 8px; font-size: 15px;
+}
+div.mind h4 { margin: 4px 0 8px; font-size: 16.5px; }
+div.mind p { margin: 6px 0; font-size: 14.5px; color: var(--fg-muted); }
+
+/* ---------------- 前缀表 ---------------- */
+table.prefix { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.prefix td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
+table.prefix td:first-child { white-space: nowrap; width: 130px; }
+table.prefix tbody tr:nth-child(even) { background: var(--row-alt); }
+
+/* ---------------- 速查表 ---------------- */
+div.cheat-controls {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  margin: 14px 0 10px;
+}
+div.cheat-controls input#cheatFilter {
+  flex: 1; min-width: 240px;
+  background: var(--bg-elev); color: var(--fg);
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  padding: 10px 16px; font-size: 15px; font-family: inherit;
+  outline: none;
+}
+div.cheat-controls input#cheatFilter:focus { border-color: var(--accent); }
+div.cheat-controls .count { font-size: 13px; color: var(--fg-faint); white-space: nowrap; }
+div#cheatNoResult {
+  display: none; color: var(--fg-muted); font-size: 14px;
+  padding: 18px 4px;
+}
+table.cheat { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.cheat th {
+  text-align: left; font-size: 12px; letter-spacing: .1em;
+  color: var(--fg-faint); padding: 6px 12px;
+  border-bottom: 2px solid var(--border-strong);
+}
+table.cheat td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
+table.cheat td.g {
+  color: var(--accent-2); font-weight: 700; font-size: 13.5px;
+  white-space: nowrap;
+}
+table.cheat tr.grouphow td {
+  background: var(--bg-sunk); color: var(--fg);
+  font-weight: 700; font-size: 13.5px; letter-spacing: .04em;
+  border-bottom: 1px solid var(--border-strong);
+  padding: 7px 12px;
+}
+table.cheat td.d { color: var(--fg-muted); }
+table.cheat mark { background: var(--hl); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+/* ---------------- 学习路径 ---------------- */
+ol.path { padding-left: 0; list-style: none; counter-reset: path; }
+ol.path > li {
+  counter-increment: path; position: relative;
+  padding: 4px 0 20px 52px;
+}
+ol.path > li::before {
+  content: counter(path);
+  position: absolute; left: 0; top: 4px;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent);
+  font-weight: 800; display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+ol.path > li::after {
+  content: ""; position: absolute; left: 17px; top: 42px; bottom: 2px;
+  width: 1.5px; background: var(--border);
+}
+ol.path > li:last-child::after { display: none; }
+ol.path h4 { margin: 4px 0 4px; font-size: 16px; }
+ol.path p { margin: 4px 0; font-size: 14.5px; color: var(--fg-muted); }
+
+/* ---------------- 参考资源 ---------------- */
+ul.refs { padding-left: 0; list-style: none; }
+ul.refs li {
+  padding: 10px 0 10px 30px; position: relative;
+  border-bottom: 1px solid var(--border); font-size: 14.5px;
+}
+ul.refs li::before {
+  content: "→"; position: absolute; left: 6px; color: var(--accent);
+  font-weight: 700;
+}
+ul.refs a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+ul.refs a:hover { border-bottom-style: solid; }
+ul.refs .what { color: var(--fg-muted); }
+
+/* ---------------- 页脚 / 返回顶部 ---------------- */
+footer {
+  border-top: 1px solid var(--border); margin-top: 30px;
+  padding: 26px 24px 48px; text-align: center;
+  color: var(--fg-faint); font-size: 13px; line-height: 1.9;
+}
+button#toTop {
+  position: fixed; right: 22px; bottom: 22px; z-index: 60;
+  width: 42px; height: 42px; border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev); color: var(--fg-muted);
+  font-size: 18px; cursor: pointer; opacity: 0; pointer-events: none;
+  transition: opacity .2s; box-shadow: 0 4px 14px rgba(0,0,0,.12);
+}
+button#toTop.show { opacity: 1; pointer-events: auto; }
+button#toTop:hover { color: var(--accent); border-color: var(--accent); }
+
+/* 响应式：窄屏表格横向滚动 */
+.scrollwrap { overflow-x: auto; }
+@media (max-width: 720px) {
+  header.hero { padding-top: 44px; }
+  table.vs { font-size: 13.5px; }
+  table.vs td.you { width: 36%; }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== 顶部导航 ==================== -->
+<nav class="topbar" aria-label="页面导航">
+  <div class="inner">
+    <a class="brand" href="#top"><span class="logo">✠</span>Emacs 迁移手册</a>
+    <a class="navlink" href="#start">快速上手</a>
+    <a class="navlink" href="#mind">心智转变</a>
+    <a class="navlink" href="#vs">操作对照</a>
+    <a class="navlink" href="#power">独有提效</a>
+    <a class="navlink" href="#cheat">键位速查</a>
+    <a class="navlink" href="#path">学习路径</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <span class="eyebrow">EDITOR MIGRATION GUIDE</span>
+  <h1>从 Zed / VSCode 到 <span class="grad">Emacs</span></h1>
+  <p class="sub">
+    你在其他编辑器里的常用操作，这里几乎都有一一对应的键位——而且本配置已经把
+    <b>C-s 保存、C-p 找文件、C-S-f 查找、C-d 多光标</b>这些现代习惯直接搬了进来。
+    迁移不是「从头学一套按键」，而是先用手上的肌肉记忆平滑落地，再逐步解锁
+    Emacs 真正的过人之处。
+  </p>
+  <div class="meta">
+    <span>适用于本机 <code>emacs.org</code> 配置</span><span class="dot">·</span>
+    <span>键位与配置真理源同步核对</span><span class="dot">·</span>
+    <span>2026-09</span><span class="dot">·</span>
+    <span>离线单文件，无外部依赖</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ==================== § 0 快速上手 ==================== -->
+<section id="start">
+  <h2><span class="no">§0</span>五分钟安心：你已经会用一半了</h2>
+  <p class="lead">
+    本配置有意把高频操作对齐到 Zed / VSCode 的默认键位。下面这张表是「零学习成本区」——
+    打开 Emacs 就能直接用，每一条都与配置真理源逐一核对过。
+  </p>
+  <div class="scrollwrap">
+  <table class="vs">
+    <thead><tr><th>你想做的事</th><th>直接按（与 Zed / VSCode 同键）</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td class="you">保存文件 <span class="tag">Ctrl+S</span></td><td class="key"><span class="kbd-seq"><kbd>C-s</kbd></span></td><td class="cmd">另有失焦自动保存兜底：切离 Emacs 窗口 1 秒后自动静默保存</td></tr>
+      <tr><td class="you">快速打开文件 <span class="tag">Ctrl+P</span></td><td class="key"><span class="kbd-seq"><kbd>C-p</kbd></span>（项目内）<br><span class="kbd-seq"><kbd>C-o</kbd></span>（任意文件）</td><td class="cmd"><code>project-find-file</code> / <code>find-file</code></td></tr>
+      <tr><td class="you">文件内查找 <span class="tag">Ctrl+F</span></td><td class="key"><span class="kbd-seq"><kbd>C-S-f</kbd></span></td><td class="cmd">选中文字后按它，选区自动成为搜索词</td></tr>
+      <tr><td class="you">命令面板 <span class="tag">Ctrl+Shift+P</span></td><td class="key"><span class="kbd-seq"><kbd>C-S-p</kbd></span> 或 <span class="kbd-seq"><kbd>M-x</kbd></span></td><td class="cmd"><code>execute-extended-command</code>，支持模糊匹配</td></tr>
+      <tr><td class="you">多光标选词 <span class="tag">Ctrl+D</span></td><td class="key"><span class="kbd-seq"><kbd>C-d</kbd></span></td><td class="cmd">连按追加下一个匹配，<span class="kbd-seq"><kbd>C-S-l</kbd></span> 全部选中</td></tr>
+      <tr><td class="you">下方开行 <span class="tag">Ctrl+Enter</span></td><td class="key"><span class="kbd-seq"><kbd>C-RET</kbd></span>（上方：<span class="kbd-seq"><kbd>C-S-RET</kbd></span>）</td><td class="cmd">自动缩进到新行</td></tr>
+      <tr><td class="you">切换标签页 <span class="tag">Ctrl+Tab</span></td><td class="key"><span class="kbd-seq"><kbd>C-&lt;tab&gt;</kbd></span> / <span class="kbd-seq"><kbd>C-S-&lt;tab&gt;</kbd></span></td><td class="cmd">标签栏置顶显示，Dired 目录也会追加为新标签</td></tr>
+      <tr><td class="you">打开终端 <span class="tag">Ctrl+`</span></td><td class="key"><span class="kbd-seq"><kbd>C-`</kbd></span></td><td class="cmd">底部 1/3 高度终端面板，自动 cd 到项目根</td></tr>
+      <tr><td class="you">侧栏文件树 <span class="tag">Ctrl+B</span></td><td class="key"><span class="kbd-seq"><kbd>C-b</kbd></span></td><td class="cmd">左侧 Dired 面板开关，回车在主编辑区打开文件</td></tr>
+      <tr><td class="you">分屏 <span class="tag">Ctrl+\</span></td><td class="key"><span class="kbd-seq"><kbd>C-\</kbd></span></td><td class="cmd">向右分屏并聚焦新窗口</td></tr>
+      <tr><td class="you">关掉最近关闭的文件 <span class="tag">Ctrl+Shift+T</span></td><td class="key"><span class="kbd-seq"><kbd>C-S-t</kbd></span></td><td class="cmd">按关闭顺序逐个恢复</td></tr>
+      <tr><td class="you">重命名符号 <span class="tag">F2</span></td><td class="key"><span class="kbd-seq"><kbd>&lt;f2&gt;</kbd></span></td><td class="cmd">LSP 项目级重命名；普通文件则重命名文件本身</td></tr>
+      <tr><td class="you">字体缩放 <span class="tag">Ctrl+= / Ctrl+-</span></td><td class="key"><span class="kbd-seq"><kbd>C-=</kbd></span> <span class="kbd-seq"><kbd>C--</kbd></span> <span class="kbd-seq"><kbd>C-0</kbd></span></td><td class="cmd">放大 / 缩小 / 重置</td></tr>
+      <tr><td class="you">撤销 / 重做 <span class="tag">Ctrl+Z</span></td><td class="key"><span class="kbd-seq"><kbd>C-z</kbd></span> / <span class="kbd-seq"><kbd>C-S-z</kbd></span></td><td class="cmd">另配撤销树 <span class="kbd-seq"><kbd>C-c e u</kbd></span> 可回溯任意分支</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <aside class="idea">
+    <span class="t">这一节的意义</span>
+    <p>很多人对 Emacs 的恐惧来自「键位全要重学」。这份配置的哲学恰恰相反：
+    高频操作保留你现在的肌肉记忆，把学习成本留给那些<b>别的编辑器给不了</b>的能力。
+    上面任何一条不确定时，按 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>k</kbd></span>
+    再按那个键，Emacs 会告诉你它是什么。</p>
+    <p>注：本配置已把 <span class="kbd-seq"><kbd>C-h</kbd></span> 挪作「左移光标」
+    （对齐现代编辑器 Home 排的手位），帮助前缀整体住在 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd></span>
+    上——功能与教科书里的 C-h 一模一样，只是换了门牌。</p>
+  </aside>
+</section>
+
+<!-- ==================== § 1 心智转变 ==================== -->
+<section id="mind">
+  <h2><span class="no">§1</span>三个心智转变：从「记键位」到「会探索」</h2>
+  <p class="lead">
+    迁移 Emacs 真正的坎不是键位数量，而是它对「编辑器应该长什么样」的三个不同假设。
+    理解它们之后，你不再需要背任何速查表——因为编辑器本身会告诉你答案。
+  </p>
+
+  <div class="mindgrid">
+    <div class="mind">
+      <span class="num">1</span>
+      <h4>键位是一棵前缀树，不是一张平面表</h4>
+      <p>VSCode 的快捷键是孤立的组合；Emacs 的键位是树：按下一个前缀键，停顿 0.3 秒，
+      <b>which-key</b> 会弹出这棵子树里所有命令的中文菜单。</p>
+      <p>例如按 <span class="kbd-seq"><kbd>C-c</kbd> <kbd>g</kbd></span> 停一下，所有 Git
+      操作尽收眼底。所以你只需要记住 14 个前缀的<b>语义</b>（g = Git、w = 窗口、e = 编辑……），
+      不用记每个字母。</p>
+    </div>
+    <div class="mind">
+      <span class="num">2</span>
+      <h4>万物皆命令，帮助永远在手边</h4>
+      <p>界面上每个按钮背后都是一条具名命令，都可以用
+      <span class="kbd-seq"><kbd>M-x</kbd></span> 按名字调用、可以问、可以改。</p>
+      <p>自助体系：<span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>k</kbd></span> 按了某键会怎样、
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>f</kbd></span> 函数是干嘛的、
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>v</kbd></span> 变量含义、
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>b</kbd></span> 列出当前所有键、
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>?</kbd></span> 本配置的全局中文速查表。
+      本配置把 <span class="kbd-seq"><kbd>C-h</kbd></span> 挪作左移光标，帮助前缀住在
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd></span>——与各教程里的 C-h 同义。</p>
+    </div>
+    <div class="mind">
+      <span class="num">3</span>
+      <h4>很多功能是「会话」而不是「面板」</h4>
+      <p>isearch、minibuffer 补全、矩形编辑都是临时接管键盘的<b>模式</b>：进去后同一批键有了新含义，
+      用 <span class="kbd-seq"><kbd>C-g</kbd></span> 或 <span class="kbd-seq"><kbd>ESC</kbd></span>
+      随时退出。</p>
+      <p><span class="kbd-seq"><kbd>C-g</kbd></span> 是万能取消：卡住了、按错了、想反悔了，先按它。</p>
+    </div>
+  </div>
+
+  <h3>术语对照：同一件事，两套名字</h3>
+  <div class="scrollwrap">
+  <table class="vs">
+    <thead><tr><th>Zed / VSCode 概念</th><th>Emacs 概念</th><th>差异要点</th></tr></thead>
+    <tbody>
+      <tr><td class="you">Tab（标签页）</td><td class="key">Buffer（缓冲区）</td><td class="cmd">文件在内存里的副本；标签栏只展示其中一部分（面板类缓冲区不占标签位）</td></tr>
+      <tr><td class="you">Editor Pane（窗格）</td><td class="key">Window（窗口）</td><td class="cmd">同一 Frame 内的分割区域</td></tr>
+      <tr><td class="you">Window（OS 窗口）</td><td class="key">Frame</td><td class="cmd">一个 Frame 可拆出多个窗口；Emacs 以 daemon 常驻，Frame 即开即用</td></tr>
+      <tr><td class="you">Command Palette</td><td class="key"><span class="kbd-seq"><kbd>M-x</kbd></span></td><td class="cmd">所有命令都在这里，补全按历史频次排序</td></tr>
+      <tr><td class="you">Status Bar</td><td class="key">Mode line（底部）/ Echo area（回显行）</td><td class="cmd">本配置精简为一条；消息历史在 <span class="kbd-seq"><kbd>C-S-u</kbd></span></td></tr>
+      <tr><td class="you">Settings UI</td><td class="key"><span class="kbd-seq"><kbd>C-,</kbd></span> 打开 <code>emacs.org</code></td><td class="cmd">设置即一份可执行的文学编程文档，改完重启 daemon 生效</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>14 个前缀：这本配置的「门牌号」</h3>
+  <p style="margin-bottom:8px">
+    记住门牌号语义，剩下的交给 which-key 弹窗（按 <span class="kbd-seq"><kbd>C-c</kbd></span> 停顿即可看到全部）：
+  </p>
+  <div class="scrollwrap">
+  <table class="prefix">
+    <tbody>
+      <tr><td><span class="kbd-seq"><kbd>C-x</kbd></span></td><td>文件 / 缓冲区 / 窗口 / 标签（ Emacs 原生主前缀）</td><td><span class="kbd-seq"><kbd>C-x p</kbd></span></td><td>项目（project.el）</td></tr>
+      <tr><td><span class="kbd-seq"><kbd>M-s</kbd></span></td><td>搜索与替换</td><td><span class="kbd-seq"><kbd>M-g</kbd></span></td><td>跳转 / 错误</td></tr>
+      <tr><td><span class="kbd-seq"><kbd>C-c c</kbd></span></td><td>代码</td><td><span class="kbd-seq"><kbd>C-c g</kbd></span></td><td>Git</td></tr>
+      <tr><td><span class="kbd-seq"><kbd>C-c e</kbd></span></td><td>编辑变换（大小写 / 多光标 / 替换…）</td><td><span class="kbd-seq"><kbd>C-c w</kbd></span></td><td>窗口与面板</td></tr>
+      <tr><td><span class="kbd-seq"><kbd>C-c o</kbd></span></td><td>Org 与知识库</td><td><span class="kbd-seq"><kbd>C-c a</kbd></span></td><td>生活应用（Agent / RSS / 游戏…）</td></tr>
+      <tr><td><span class="kbd-seq"><kbd>C-c t</kbd></span></td><td>开关（行号 / 折行 / 诊断…）</td><td><span class="kbd-seq"><kbd>C-c q</kbd></span></td><td>退出与 Frame</td></tr>
+      <tr><td><span class="kbd-seq"><kbd>C-c h</kbd></span></td><td>帮助与配置</td><td><span class="kbd-seq"><kbd>C-c i</kbd></span></td><td>快速插入</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ==================== § 2 操作对照 ==================== -->
+<section id="vs">
+  <h2><span class="no">§2</span>操作对照：你在那边习惯的，这边怎么做</h2>
+  <p class="lead">
+    按场景分组。左列是你的旧习惯，中列是本配置键位（<span class="badge">终端</span> 徽标表示该键在
+    TTY 下会退化、需用旁边的备用键），右列是背后的命令，可直接 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>f</kbd></span> 查询。
+  </p>
+
+  <!-- 2.1 文件与项目 -->
+  <article class="card" id="vs-file">
+    <h3>2.1 文件与项目 <span class="hk">Files &amp; Projects</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+P 文件快速打开</td><td class="key"><span class="kbd-seq"><kbd>C-p</kbd></span> / <span class="kbd-seq"><kbd>C-S-a</kbd></span></td><td class="cmd"><code>project-find-file</code>，项目内模糊找文件</td></tr>
+        <tr><td class="you">Ctrl+O 打开文件</td><td class="key"><span class="kbd-seq"><kbd>C-o</kbd></span> 或 <span class="kbd-seq"><kbd>C-x C-f</kbd></span></td><td class="cmd">后者会感知光标处的路径（ffap）</td></tr>
+        <tr><td class="you">最近文件（Ctrl+R / Ctrl+E）</td><td class="key"><span class="kbd-seq"><kbd>C-S-r</kbd></span> 或 <span class="kbd-seq"><kbd>C-x C-r</kbd></span></td><td class="cmd"><code>recentf-open</code></td></tr>
+        <tr><td class="you">Ctrl+Shift+T 重开关闭的文件</td><td class="key"><span class="kbd-seq"><kbd>C-S-t</kbd></span> 或 <span class="kbd-seq"><kbd>C-x T</kbd></span></td><td class="cmd">按关闭顺序恢复</td></tr>
+        <tr><td class="you">另存为</td><td class="key"><span class="kbd-seq"><kbd>C-S-s</kbd></span></td><td class="cmd"><code>write-file</code></td></tr>
+        <tr><td class="you">Ctrl+Shift+E 打开资源管理器</td><td class="key"><span class="kbd-seq"><kbd>C-x p p</kbd></span></td><td class="cmd">切换项目，弹出「d 目录 / f 文件 / r 搜索 / a 其他」菜单</td></tr>
+        <tr><td class="you">打开文件夹</td><td class="key"><span class="kbd-seq"><kbd>C-x p o</kbd></span></td><td class="cmd">选任意目录打开 Dired 并注册为项目</td></tr>
+        <tr><td class="you">Reveal in Explorer</td><td class="key"><span class="kbd-seq"><kbd>C-c w d</kbd></span></td><td class="cmd">左侧文件面板定位到当前文件并选中</td></tr>
+        <tr><td class="you">—</td><td class="key"><span class="kbd-seq"><kbd>C-x p b</kbd></span></td><td class="cmd">只在当前项目的缓冲区间切换，多项目不串台</td></tr>
+        <tr><td class="you">关闭文件夹</td><td class="key"><span class="kbd-seq"><kbd>C-x p k</kbd></span></td><td class="cmd">关闭项目的全部缓冲区</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：项目是一个「已识别的目录」，不是一种工程文件</span>
+      <p>project.el 把任何 Git 仓库根（甚至任意目录）识别为项目边界：
+      <span class="kbd-seq"><kbd>C-p</kbd></span> 找文件、<span class="kbd-seq"><kbd>C-x p s</kbd></span>
+      搜全文、<span class="kbd-seq"><kbd>C-x p b</kbd></span> 切缓冲区都自动圈定在这个边界内。
+      没有工作区文件、没有「添加文件夹到工作区」——目录即项目。</p>
+    </aside>
+  </article>
+
+  <!-- 2.2 查找与替换 -->
+  <article class="card" id="vs-search">
+    <h3>2.2 查找与替换 <span class="hk">Search &amp; Replace</span> <span class="feature">★ 本轮新键位</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+F 文件内查找</td><td class="key"><span class="kbd-seq"><kbd>C-S-f</kbd></span> 或 <span class="kbd-seq"><kbd>M-s i</kbd></span></td><td class="cmd">选中文字后按它，选区自动填为搜索词</td></tr>
+        <tr><td class="you">Enter 下一个 / Shift+Enter 上一个</td><td class="key"><span class="kbd-seq"><kbd>RET</kbd></span> / <span class="kbd-seq"><kbd>S-RET</kbd></span></td><td class="cmd">isearch 会话内；触底自动回绕，实时显示 3/15 匹配计数</td></tr>
+        <tr><td class="you">Esc 关闭搜索框</td><td class="key"><span class="kbd-seq"><kbd>ESC</kbd></span>（终端 <span class="kbd-seq"><kbd>ESC ESC</kbd></span>）</td><td class="cmd">停在当前匹配处；<span class="kbd-seq"><kbd>C-g</kbd></span> 则取消并回到起点</td></tr>
+        <tr><td class="you">Ctrl+H 文件内替换（Zed）</td><td class="key"><span class="kbd-seq"><kbd>C-S-h</kbd></span><span class="badge">终端</span><span class="kbd-seq"><kbd>C-c e r</kbd></span></td><td class="cmd"><code>replace-regexp-as-diff</code>：改动手法以 <b>diff 预览</b>确认后再落地</td></tr>
+        <tr><td class="you">Ctrl+Shift+F 项目搜索</td><td class="key"><span class="kbd-seq"><kbd>C-x p s</kbd></span> 或 <span class="kbd-seq"><kbd>M-s p</kbd></span></td><td class="cmd"><code>project-find-regexp</code>，底层是 ripgrep，结果按文件分节</td></tr>
+        <tr><td class="you">Ctrl+Shift+H 项目替换</td><td class="key"><span class="kbd-seq"><kbd>M-s R</kbd></span> 或 <span class="kbd-seq"><kbd>C-x p r</kbd></span></td><td class="cmd"><code>project-query-replace-regexp</code>，逐个确认；大写 R 是为了避开 isearch 会话内的 <span class="kbd-seq"><kbd>M-s r</kbd></span></td></tr>
+        <tr><td class="you">跨多文件替换（带预览）</td><td class="key"><span class="kbd-seq"><kbd>C-c e R</kbd></span></td><td class="cmd"><code>multi-file-replace-regexp-as-diff</code>，diff 预览确认</td></tr>
+        <tr><td class="you">搜索结果列表</td><td class="key"><span class="kbd-seq"><kbd>M-s l</kbd></span>（当前文件）<br><span class="kbd-seq"><kbd>M-s m</kbd></span>（多缓冲区）</td><td class="cmd">occur 家族；结果缓冲区里可直接编辑后 <span class="kbd-seq"><kbd>C-c C-c</kbd></span> 写回</td></tr>
+        <tr><td class="you">搜索符号（@symbol）</td><td class="key"><span class="kbd-seq"><kbd>M-s e</kbd></span></td><td class="cmd"><code>xref-find-apropos</code>，按符号名搜工作区</td></tr>
+        <tr><td class="you">鼠标右键 → Find/Replace</td><td class="key"><span class="kbd-seq"><kbd>S-&lt;f10&gt;</kbd></span> 或鼠标右键</td><td class="cmd">右键菜单「查找与替换」子菜单，条目旁直接标注对应键位</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：搜索不是输入框，是一条「越查越深」的递进链</span>
+      <p>isearch 是一个<b>会话</b>：输入的任意时刻，你都可以就地升级这次搜索——按
+      <span class="kbd-seq"><kbd>M-s o</kbd></span> 把结果变成可编辑的列表（occur）、按
+      <span class="kbd-seq"><kbd>M-%</kbd></span> 直接转入替换（当前搜索串自动预填为被替换串，只需输入新词）、按
+      <span class="kbd-seq"><kbd>C-w</kbd></span> 把光标处的单词吞进搜索串、按
+      <span class="kbd-seq"><kbd>M-s h</kbd></span> 永久高亮所有匹配。回显行末尾常驻
+      <code>[M-s 更多 | M-% 替换 | C-w 取词]</code> 提示，不用背。</p>
+      <p>替换则贯彻「先看 diff 再动手」：<span class="kbd-seq"><kbd>C-S-h</kbd></span>
+      会把替换效果渲染成 diff，确认无误才写入——比逐个 y/n 更快，也比一把梭更安全。</p>
+    </aside>
+    <pre class="code"><code><span class="cmt">;; isearch 会话中的递进（输入搜索词的任意时刻可用）</span>
+<span class="pfx">C-S-f</span>  输入 search-term   <span class="cmt">; 开始增量搜索，回显区实时计数 [3/15]</span>
+<span class="pfx">M-s o</span>                    <span class="cmt">; 升级为 occur 列表：所有匹配按行铺开，可直接编辑</span>
+<span class="pfx">M-%</span>  new-term RET    <span class="cmt">; 升级为逐个替换：搜索词自动预填为被替换串，只输新词即可</span>
+<span class="cmt">;;   循环内：! 全部替换、n 跳过当前、RET 退出——只按一个 RET！</span>
+<span class="cmt">;;   （连按两个 RET 会直接退出且一处不换，echo area 显示 Replaced 0 occurrences）</span></code></pre>
+  </article>
+
+  <!-- 2.3 编辑与文本 -->
+  <article class="card" id="vs-edit">
+    <h3>2.3 编辑与文本 <span class="hk">Editing</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+A 全选</td><td class="key"><span class="kbd-seq"><kbd>C-a</kbd></span></td><td class="cmd"><code>mark-whole-buffer</code></td></tr>
+        <tr><td class="you">Ctrl+C / Ctrl+X / Ctrl+V</td><td class="key"><span class="kbd-seq"><kbd>C-S-c</kbd></span> <span class="kbd-seq"><kbd>C-S-x</kbd></span> <span class="kbd-seq"><kbd>C-S-v</kbd></span></td><td class="cmd">复制 / 剪切都是 DWIM：<b>无选区时自动作用于整行</b></td></tr>
+        <tr><td class="you">剪贴板历史</td><td class="key"><span class="kbd-seq"><kbd>M-y</kbd></span></td><td class="cmd">从剪贴环（kill-ring）逐条挑着粘贴，不覆盖即不丢失</td></tr>
+        <tr><td class="you">Ctrl+Shift+K 删除行</td><td class="key"><span class="kbd-seq"><kbd>C-S-k</kbd></span> 或 <span class="kbd-seq"><kbd>C-c e k</kbd></span></td><td class="cmd"><code>kill-whole-line</code></td></tr>
+        <tr><td class="you">Ctrl+Backspace / Ctrl+Delete 删到词首 / 词尾</td><td class="key"><span class="kbd-seq"><kbd>C-&lt;backspace&gt;</kbd></span> / <span class="kbd-seq"><kbd>M-d</kbd></span></td><td class="cmd">删到词首 / 词尾（Emacs 内置原语，配置未改绑；<span class="kbd-seq"><kbd>M-DEL</kbd></span> 即 Alt+Backspace 亦为删词首）</td></tr>
+        <tr><td class="you">Shift+Alt+↓ 复制行</td><td class="key"><span class="kbd-seq"><kbd>C-S-d</kbd></span><span class="badge">终端</span><span class="kbd-seq"><kbd>C-c e D</kbd></span></td><td class="cmd"><code>duplicate-dwim</code>，有选区时复制选区</td></tr>
+        <tr><td class="you">Alt+↑ / Alt+↓ 移动行</td><td class="key"><span class="kbd-seq"><kbd>C-S-&lt;up&gt;</kbd></span> / <span class="kbd-seq"><kbd>C-S-&lt;down&gt;</kbd></span></td><td class="cmd">整行上下移动并保持缩进</td></tr>
+        <tr><td class="you">Ctrl+/ 行注释</td><td class="key"><span class="kbd-seq"><kbd>C-/</kbd></span>（块注释 <span class="kbd-seq"><kbd>C-S-/</kbd></span>）</td><td class="cmd"><code>comment-line</code> / <code>comment-box</code></td></tr>
+        <tr><td class="you">Home 智能行首</td><td class="key"><span class="kbd-seq"><kbd>&lt;home&gt;</kbd></span></td><td class="cmd">在行首缩进与绝对行首间循环，Shift 组合保持选区</td></tr>
+        <tr><td class="you">Shift+Tab 反向缩进</td><td class="key"><span class="kbd-seq"><kbd>&lt;backtab&gt;</kbd></span></td><td class="cmd">有选区回缩选区，无选区回缩当前行</td></tr>
+        <tr><td class="you">—（大小写转换）</td><td class="key"><span class="kbd-seq"><kbd>C-c e U</kbd></span> / <span class="kbd-seq"><kbd>L</kbd></span> / <span class="kbd-seq"><kbd>C</kbd></span></td><td class="cmd">大写 / 小写 / 首字母大写（DWIM 作用于选区或词）</td></tr>
+        <tr><td class="you">—（中文全半角）</td><td class="key"><span class="kbd-seq"><kbd>C-c e F</kbd></span> / <span class="kbd-seq"><kbd>C-c e f</kbd></span></td><td class="cmd">全角 ⇄ 半角转换（Emacs 31 内置）</td></tr>
+        <tr><td class="you">撤销历史时间线</td><td class="key"><span class="kbd-seq"><kbd>C-c e u</kbd></span></td><td class="cmd"><code>vundo</code> 撤销树：任何分支都能回去</td></tr>
+        <tr><td class="you">跳到上一处修改</td><td class="key"><span class="kbd-seq"><kbd>C-c e .</kbd></span> / <span class="kbd-seq"><kbd>C-c e ,</kbd></span></td><td class="cmd">上一处 / 下一处修改点往返</td></tr>
+        <tr><td class="you">代码片段展开</td><td class="key"><span class="kbd-seq"><kbd>C-c e t</kbd></span></td><td class="cmd">Tempel 模板展开</td></tr>
+        <tr><td class="you">插入特殊字符</td><td class="key"><span class="kbd-seq"><kbd>C-c i u</kbd></span></td><td class="cmd"><code>insert-char</code>，按名字或码点插入 Unicode</td></tr>
+        <tr><td class="you">插入文件路径</td><td class="key"><span class="kbd-seq"><kbd>C-c i f</kbd></span><span class="tag">C-u 前缀</span></td><td class="cmd">插入文件名；<span class="kbd-seq"><kbd>C-u C-c i f</kbd></span> 插入相对项目根的路径</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：DWIM——「按我指的做」</span>
+      <p>同一个键在有选区和无选区时做「你显然想要的」那件事：
+      <span class="kbd-seq"><kbd>C-S-c</kbd></span> 有选区复制选区、无选区复制整行；
+      <span class="kbd-seq"><kbd>C-w</kbd></span> 无选区时删除整行。
+      VSCode 里「先 Home 再 Shift+End 再 Ctrl+C」的三步，这里是一步。</p>
+      <p>剪贴板不是一块，是一个<b>环</b>：每次复制都入环，过去的一切随时用
+      <span class="kbd-seq"><kbd>M-y</kbd></span> 找回来。写作或改配置时「刚才复制的那段还在吗」
+      从此是伪问题。</p>
+    </aside>
+  </article>
+
+  <!-- 2.4 多光标与选区 -->
+  <article class="card" id="vs-mc">
+    <h3>2.4 多光标与选区 <span class="hk">Multiple Cursors</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+D 选中下一个匹配</td><td class="key"><span class="kbd-seq"><kbd>C-d</kbd></span></td><td class="cmd">以光标处词为种子，连按追加</td></tr>
+        <tr><td class="you">Ctrl+K Ctrl+D 跳过这个</td><td class="key"><span class="kbd-seq"><kbd>C-c e s</kbd></span></td><td class="cmd"><code>mc/skip-to-next-like-this</code></td></tr>
+        <tr><td class="you">Ctrl+Shift+L 选中全部匹配</td><td class="key"><span class="kbd-seq"><kbd>C-S-l</kbd></span> 或 <span class="kbd-seq"><kbd>C-c e a</kbd></span></td><td class="cmd">文件内全部；函数内全部用 <span class="kbd-seq"><kbd>C-c e d</kbd></span></td></tr>
+        <tr><td class="you">Alt+Click 加光标</td><td class="key"><span class="kbd-seq"><kbd>M-Click</kbd></span><span class="tag">GUI</span></td><td class="cmd">按住 Alt 点击处追加光标，可连点</td></tr>
+        <tr><td class="you">Ctrl+Alt+↓/↑ 上下行加光标</td><td class="key"><span class="kbd-seq"><kbd>C-M-&lt;down&gt;</kbd></span> / <span class="kbd-seq"><kbd>C-M-&lt;up&gt;</kbd></span><span class="badge">终端</span><span class="kbd-seq"><kbd>C-c e &lt;down&gt;</kbd></span></td><td class="cmd">整列加光标；矩形块另有 <span class="kbd-seq"><kbd>C-x r</kbd></span> 族（见 §3）</td></tr>
+        <tr><td class="you">—（每行一个光标）</td><td class="key"><span class="kbd-seq"><kbd>C-c e l</kbd></span></td><td class="cmd"><code>mc/edit-lines</code>，选中多行后每行一个光标</td></tr>
+        <tr><td class="you">Shift+Alt+→ 扩展选区</td><td class="key"><span class="kbd-seq"><kbd>M-S-&lt;right&gt;</kbd></span> / <span class="kbd-seq"><kbd>M-S-&lt;left&gt;</kbd></span><span class="tag">GUI</span></td><td class="cmd">语义选区逐层扩展 / 收缩（<span class="kbd-seq"><kbd>C-c e x</kbd></span> / <span class="kbd-seq"><kbd>X</kbd></span> 同义，全平台）</td></tr>
+        <tr><td class="you">退出多光标</td><td class="key"><span class="kbd-seq"><kbd>C-g</kbd></span></td><td class="cmd">回到单光标</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：多光标只是手段之一，正则替换往往更快</span>
+      <p>多光标适合「看得见才放心」的十几处小改；当代码里散落几十处同构修改时，
+      先用 <span class="kbd-seq"><kbd>C-S-f</kbd></span> 搜到、
+      <span class="kbd-seq"><kbd>M-%</kbd></span> 转 replace，
+      一个 <code>!</code> 全部完成——这不是劝退多光标，而是两条路都在，选省力的。</p>
+    </aside>
+  </article>
+
+  <!-- 2.5 代码导航与补全 -->
+  <article class="card" id="vs-code">
+    <h3>2.5 代码导航与补全 <span class="hk">Code &amp; LSP</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">F12 / Ctrl+Click 跳转定义</td><td class="key"><span class="kbd-seq"><kbd>&lt;f12&gt;</kbd></span> 或 <span class="kbd-seq"><kbd>C-c c d</kbd></span></td><td class="cmd"><code>xref-find-definitions</code>；GUI 下鼠标点击也走 xref</td></tr>
+        <tr><td class="you">Shift+F12 查找引用</td><td class="key"><span class="kbd-seq"><kbd>S-&lt;f12&gt;</kbd></span> 或 <span class="kbd-seq"><kbd>M-g r</kbd></span></td><td class="cmd"><code>xref-find-references</code></td></tr>
+        <tr><td class="you">Alt+← / → 前进后退</td><td class="key"><span class="kbd-seq"><kbd>M-g b</kbd></span> / <span class="kbd-seq"><kbd>M-g f</kbd></span></td><td class="cmd">xref 导航历史；GUI 鼠标侧键同义</td></tr>
+        <tr><td class="you">Ctrl+G 跳到行</td><td class="key"><span class="kbd-seq"><kbd>M-g g</kbd></span></td><td class="cmd"><code>goto-line</code></td></tr>
+        <tr><td class="you">Ctrl+T 工作区符号</td><td class="key"><span class="kbd-seq"><kbd>C-t</kbd></span></td><td class="cmd">模糊搜索并跳转工作区符号</td></tr>
+        <tr><td class="you">Ctrl+Shift+O 文件大纲</td><td class="key"><span class="kbd-seq"><kbd>C-S-o</kbd></span> 或 <span class="kbd-seq"><kbd>C-c c i</kbd></span></td><td class="cmd">imenu 符号大纲</td></tr>
+        <tr><td class="you">F2 重命名</td><td class="key"><span class="kbd-seq"><kbd>&lt;f2&gt;</kbd></span></td><td class="cmd">DWIM：LSP 项目级重命名；非代码文件重命名文件</td></tr>
+        <tr><td class="you">Ctrl+. 快速修复</td><td class="key"><span class="kbd-seq"><kbd>C-.</kbd></span> 或 <span class="kbd-seq"><kbd>C-c c a</kbd></span></td><td class="cmd"><code>eglot-code-actions</code></td></tr>
+        <tr><td class="you">F8 / Shift+F8 错误跳转</td><td class="key"><span class="kbd-seq"><kbd>&lt;f8&gt;</kbd></span> / <span class="kbd-seq"><kbd>S-&lt;f8&gt;</kbd></span></td><td class="cmd">Flymake 诊断穿梭</td></tr>
+        <tr><td class="you">Ctrl+Shift+M 问题面板</td><td class="key"><span class="kbd-seq"><kbd>C-S-m</kbd></span> 或 <span class="kbd-seq"><kbd>M-g l</kbd></span></td><td class="cmd">错误列表面板</td></tr>
+        <tr><td class="you">悬停看文档</td><td class="key"><span class="kbd-seq"><kbd>M-g h</kbd></span></td><td class="cmd">光标处符号的文档开进独立缓冲区；echo area 常驻一行速览</td></tr>
+        <tr><td class="you">Ctrl+Shift+[ / ] 折叠</td><td class="key"><span class="kbd-seq"><kbd>C-S-[</kbd></span> / <span class="kbd-seq"><kbd>C-S-]</kbd></span></td><td class="cmd">Hideshow 折叠 / 展开；<span class="kbd-seq"><kbd>C-c c z</kbd></span> 前缀有全部折叠等</td></tr>
+        <tr><td class="you">Shift+Alt+F 格式化</td><td class="key"><span class="kbd-seq"><kbd>M-S-f</kbd></span> 或 <span class="kbd-seq"><kbd>C-c c f</kbd></span></td><td class="cmd">Apheleia；<b>保存时自动格式化</b>，通常无需手按</td></tr>
+        <tr><td class="you">Tab 接受补全建议</td><td class="key"><span class="kbd-seq"><kbd>TAB</kbd></span></td><td class="cmd">行内幽灵文本补全：<span class="kbd-seq"><kbd>M-n</kbd></span> / <span class="kbd-seq"><kbd>M-p</kbd></span> 换候选，不打断视线</td></tr>
+        <tr><td class="you">Ctrl+Space 手动补全</td><td class="key"><span class="kbd-seq"><kbd>C-c c c</kbd></span></td><td class="cmd"><code>completion-at-point</code>；词内补全用 <span class="kbd-seq"><kbd>M-/</kbd></span></td></tr>
+        <tr><td class="you">F5 调试 / F9 断点</td><td class="key"><span class="kbd-seq"><kbd>&lt;f5&gt;</kbd></span> / <span class="kbd-seq"><kbd>&lt;f9&gt;</kbd></span></td><td class="cmd">Dape（DAP）；构建 <span class="kbd-seq"><kbd>C-S-b</kbd></span>，GDB <span class="kbd-seq"><kbd>C-c c G d</kbd></span></td></tr>
+        <tr><td class="you">书签</td><td class="key"><span class="kbd-seq"><kbd>C-c c m</kbd></span> 设 / <span class="kbd-seq"><kbd>C-c c b</kbd></span> 跳</td><td class="cmd">跨会话保留的书签，比记忆「行号」可靠</td></tr>
+        <tr><td class="you">Ctrl+Shift+\ 跳到匹配括号</td><td class="key"><span class="kbd-seq"><kbd>C-c c j</kbd></span></td><td class="cmd">光标闪到配对括号</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：LSP 只是后端，导航是一张可回溯的图</span>
+      <p>定义、引用、声明、实现、类型定义都在 xref 这一个体系里
+      （<span class="kbd-seq"><kbd>C-c c x</kbd></span> 前缀），跳转历史用
+      <span class="kbd-seq"><kbd>M-g b</kbd></span> 一步步回退——像浏览器的后退键，
+      而不是每次跳转都「再也回不去」。</p>
+      <p>补全刻意选了<b>幽灵文本</b>而非弹窗：灰色的候选浮在光标右侧，
+      <span class="kbd-seq"><kbd>TAB</kbd></span> 采纳、继续打字即忽略。
+      屏幕上没有跳动的小窗，注意力不中断。</p>
+    </aside>
+  </article>
+
+  <!-- 2.6 面板分屏与鼠标 -->
+  <article class="card" id="vs-panel">
+    <h3>2.6 面板、分屏与鼠标调窗 <span class="hk">Panels &amp; Windows</span> <span class="feature">★ 本轮新键位</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+B 侧栏开关</td><td class="key"><span class="kbd-seq"><kbd>C-b</kbd></span></td><td class="cmd">左侧文件面板（Dired，宽 20%）</td></tr>
+        <tr><td class="you">Ctrl+Shift+E 聚焦资源管理器</td><td class="key"><span class="kbd-seq"><kbd>C-S-e</kbd></span> 或 <span class="kbd-seq"><kbd>C-c w f</kbd></span></td><td class="cmd">面板内回车在<b>主编辑窗口</b>打开文件，面板不丢</td></tr>
+        <tr><td class="you">Ctrl+` 终端面板</td><td class="key"><span class="kbd-seq"><kbd>C-`</kbd></span> 或 <span class="kbd-seq"><kbd>C-c w t</kbd></span></td><td class="cmd">底部 1/3 高度；再按聚焦已有终端，不重复开</td></tr>
+        <tr><td class="you">—（ docks 一键收放）</td><td class="key"><span class="kbd-seq"><kbd>C-c w T</kbd></span></td><td class="cmd">三面板总开关：左侧文件树 + 底部终端 + 右侧 Agent 一键收放，焦点回主编辑区</td></tr>
+        <tr><td class="you">Ctrl+Shift+G 源代码管理</td><td class="key"><span class="kbd-seq"><kbd>C-S-g</kbd></span></td><td class="cmd">底部 Magit 状态页（见 §2.8）</td></tr>
+        <tr><td class="you">Ctrl+Shift+U 输出面板</td><td class="key"><span class="kbd-seq"><kbd>C-S-u</kbd></span></td><td class="cmd"><code>*Messages*</code> 消息历史</td></tr>
+        <tr><td class="you">Ctrl+\ 分屏</td><td class="key"><span class="kbd-seq"><kbd>C-\</kbd></span>（右）<span class="kbd-seq"><kbd>C-c w 2</kbd></span>（下）</td><td class="cmd">右分屏自动聚焦新窗口</td></tr>
+        <tr><td class="you">Ctrl+W 关闭窗格</td><td class="key"><span class="kbd-seq"><kbd>C-c w 0</kbd></span>；只留当前 <span class="kbd-seq"><kbd>C-c w 1</kbd></span></td><td class="cmd">等价内置 <span class="kbd-seq"><kbd>C-x 0</kbd></span> / <span class="kbd-seq"><kbd>C-x 1</kbd></span></td></tr>
+        <tr><td class="you">分屏间切换</td><td class="key"><span class="kbd-seq"><kbd>M-&lt;方向&gt;</kbd></span><span class="badge">终端</span><span class="kbd-seq"><kbd>C-c w h/j/k/l</kbd></span></td><td class="cmd">方向键直切；终端里方向键可能被拦截，用镜像键</td></tr>
+        <tr><td class="you">拖拽分隔线调窗</td><td class="key">GUI 直接拖分隔线<span class="tag">GUI</span></td><td class="cmd">分隔线已加宽到 5px；<span class="kbd-seq"><kbd>C-mouse-2</kbd></span> 在分隔处点击可就地新分屏</td></tr>
+        <tr><td class="you">同上（终端无鼠标）</td><td class="key">右键菜单 →「窗口」<span class="badge">终端</span></td><td class="cmd">加宽 5 列 / 增高 3 行等步进调窗，另有均衡、最大化、恢复布局</td></tr>
+        <tr><td class="you">布局重排（拖拽窗格）</td><td class="key"><span class="kbd-seq"><kbd>C-c w &lt;right&gt;</kbd></span> 旋转、<span class="kbd-seq"><kbd>x</kbd></span> 转置、<span class="kbd-seq"><kbd>o</kbd></span> 轮转…</td><td class="cmd">Emacs 31 窗口树变换族：旋转 / 镜像 / 转置 / 轮转 / 合并 / 拆到新 Frame</td></tr>
+        <tr><td class="you">撤掉误拖的布局</td><td class="key"><span class="kbd-seq"><kbd>C-c w u</kbd></span> / <span class="kbd-seq"><kbd>C-c w r</kbd></span></td><td class="cmd">winner 模式：窗口布局也有撤销 / 重做</td></tr>
+        <tr><td class="you">拖拽选中文字移动</td><td class="key">按住左键拖选区<span class="tag">GUI</span></td><td class="cmd">已开启 <code>mouse-drag-and-drop-region</code>；中键随处粘贴</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：窗口是纯键盘可管理的树，鼠标是加分项</span>
+      <p>Zed / VSCode 的窗格靠拖；Emacs 的窗口是<b>树结构</b>，旋转、镜像、转置都是 O(1)
+      的结构变换——键盘比拖拽更快，而且 <span class="kbd-seq"><kbd>C-c w u</kbd></span>
+      让任何布局变化都可撤销，可以放心乱试。</p>
+      <p>右键菜单被刻意保留为「功能发现入口」：菜单栏工具栏都已隐藏，
+      右键（或 <span class="kbd-seq"><kbd>S-&lt;f10&gt;</kbd></span>）里集中了查找替换与调窗入口，
+      <b>每个菜单项右侧还印着对应的快捷键</b>——用鼠标的过程就是在背键位。</p>
+    </aside>
+  </article>
+
+  <!-- 2.7 内嵌终端 -->
+  <article class="card" id="vs-term">
+    <h3>2.7 内嵌终端 <span class="hk">Terminal</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+` 打开 / 聚焦终端</td><td class="key"><span class="kbd-seq"><kbd>C-`</kbd></span></td><td class="cmd">Ghostty 引擎（libghostty-vt）真终端，底部 1/3</td></tr>
+        <tr><td class="you">终端自动定位项目根</td><td class="key">自动（无需按键）</td><td class="cmd">新终端 cd 到项目根；<span class="kbd-seq"><kbd>C-u C-`</kbd></span> 改用当前文件目录</td></tr>
+        <tr><td class="you">在终端与编辑器间传文件</td><td class="key">同一 kill-ring</td><td class="cmd">编辑器里 <span class="kbd-seq"><kbd>C-S-c</kbd></span> 复制，终端里直接粘贴，反之亦然</td></tr>
+        <tr><td class="you">Ctrl+C 中断终端里的程序</td><td class="key"><span class="kbd-seq"><kbd>C-c</kbd> <kbd>C-c</kbd></span></td><td class="cmd">裸 <span class="kbd-seq"><kbd>C-c</kbd></span> 落回 Emacs 作终端控制前缀，连按两次才向程序发中断信号（tmux 同款前缀哲学）</td></tr>
+        <tr><td class="you">—</td><td class="key"><span class="kbd-seq"><kbd>M-&lt;方向&gt;</kbd></span></td><td class="cmd">终端聚焦时也能切窗（方向键不透传给 shell）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：终端是 Emacs 的「一等公民」，不是外挂面板</span>
+      <p><b>按键透传规则（semi-char 模式）</b>：绝大多数按键直接发给 shell，程序自身的快捷键照常工作；
+      只有一张小小的例外表落回 Emacs——<span class="kbd-seq"><kbd>C-c</kbd></span>（终端控制前缀：
+      <span class="kbd-seq"><kbd>C-c</kbd> <kbd>C-c</kbd></span> 中断、<span class="kbd-seq"><kbd>C-c</kbd> <kbd>C-z</kbd></span>
+      挂起、<span class="kbd-seq"><kbd>C-c</kbd> <kbd>C-d</kbd></span> EOF）、<span class="kbd-seq"><kbd>C-x</kbd></span>、
+      <span class="kbd-seq"><kbd>C-u</kbd></span>、<span class="kbd-seq"><kbd>M-x</kbd></span>、
+      <span class="kbd-seq"><kbd>M-:</kbd></span>、<span class="kbd-seq"><kbd>C-\</kbd></span>，
+      以及本配置追加的 <span class="kbd-seq"><kbd>M-&lt;方向&gt;</kbd></span>（切窗）。例外键按下的瞬间
+      which-key 会弹菜单告诉你接下来能做什么，不用背。</p>
+      <p><span class="kbd-seq"><kbd>C-h</kbd></span> 在终端里被单独重绑为「向 shell 发退格」——
+      全局 <span class="kbd-seq"><kbd>C-h</kbd></span> 已挪作左移光标，而帮助前缀住在
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd></span>，两不耽误。</p>
+      <p>最典型的例子是提交代码：终端里敲 <code>git commit</code>，Emacs 会自动在<b>上方主编辑窗口</b>
+      打开提交信息缓冲区（完整编辑器能力：折行、拼写、填空模板），写完按
+      <span class="kbd-seq"><kbd>C-x #</kbd></span>，终端里的 Git 继续执行。
+      「编辑器」和「终端里跑的程序」共享同一套界面与剪贴板，边界是透明的。</p>
+    </aside>
+  </article>
+
+  <!-- 2.8 Git -->
+  <article class="card" id="vs-git">
+    <h3>2.8 Git 全流程 <span class="hk">Magit</span> <span class="feature">★ 本轮新键位</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+Shift+G 源代码管理面板</td><td class="key"><span class="kbd-seq"><kbd>C-S-g</kbd></span> 或 <span class="kbd-seq"><kbd>C-c g s</kbd></span></td><td class="cmd">Magit 状态页开在屏幕底部：未跟踪 / 未暂存 / 已暂存分组清单</td></tr>
+        <tr><td class="you">文件旁 +/− 增删标记</td><td class="key">自动（边缘标记）</td><td class="cmd">diff-hl 在行号旁实时标增删改，暂存提交后自动刷新</td></tr>
+        <tr><td class="you">单个文件 Stage（+ 号）</td><td class="key"><span class="kbd-seq"><kbd>C-c g S</kbd></span></td><td class="cmd">暂存当前文件（异步执行，不卡界面）</td></tr>
+        <tr><td class="you">整目录 Stage <span class="feature">★</span></td><td class="key"><span class="kbd-seq"><kbd>C-c g a</kbd></span>（目录感知）</td><td class="cmd">Dired / 文件面板里光标在目录上即暂存整个目录；普通文件里暂存其所在目录；面板内快捷键 <span class="kbd-seq"><kbd>C-c s</kbd></span></td></tr>
+        <tr><td class="you">Discard Changes（放弃修改）</td><td class="key"><span class="kbd-seq"><kbd>C-c g D</kbd></span></td><td class="cmd">丢弃当前文件全部未提交修改，带二次确认</td></tr>
+        <tr><td class="you">Stash / Pop</td><td class="key"><span class="kbd-seq"><kbd>C-c g #</kbd></span> / <span class="kbd-seq"><kbd>C-c g @</kbd></span></td><td class="cmd">贮藏 / 恢复最近一次贮藏</td></tr>
+        <tr><td class="you">git blame</td><td class="key"><span class="kbd-seq"><kbd>C-c g b</kbd></span></td><td class="cmd">逐行追责到人与提交</td></tr>
+        <tr><td class="you">文件历史</td><td class="key"><span class="kbd-seq"><kbd>C-c g l</kbd></span>（日志）<span class="kbd-seq"><kbd>C-c g d</kbd></span>（diff）</td><td class="cmd">只看当前文件的历史提交 / 未提交差异</td></tr>
+        <tr><td class="you">逐块浏览改动</td><td class="key"><span class="kbd-seq"><kbd>C-c g n</kbd></span> / <span class="kbd-seq"><kbd>p</kbd></span> 跳块，<span class="kbd-seq"><kbd>C-c g R</kbd></span> 还原块</td><td class="cmd">在改动块之间穿梭，还原单个 hunk</td></tr>
+        <tr><td class="you">cherry-pick 等</td><td class="key"><span class="kbd-seq"><kbd>C-c g y</kbd></span>（拣选）<span class="kbd-seq"><kbd>o</kbd></span>（待推送预览）</td><td class="cmd">另有 <span class="kbd-seq"><kbd>C-c g X</kbd></span> 删修订、<span class="kbd-seq"><kbd>O</kbd></span> 本地全部工作</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 style="margin-top:26px">Magit 状态页内（单键速查）</h3>
+    <p style="margin:4px 0 8px;color:var(--fg-muted);font-size:14.5px">
+      <span class="kbd-seq"><kbd>C-S-g</kbd></span> 打开状态页后，光标移到对应条目上按：
+      <span class="kbd-seq"><kbd>?</kbd></span> 可弹出全部命令面板，
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>k</kbd></span> 再按任意键可查实时行为。
+    </p>
+    <div class="scrollwrap">
+    <table class="prefix">
+      <tbody>
+        <tr><td><span class="kbd-seq"><kbd>s</kbd></span></td><td>暂存光标处文件（弹补全，可多选）</td><td><span class="kbd-seq"><kbd>S</kbd></span></td><td>暂存全部已修改文件</td></tr>
+        <tr><td><span class="kbd-seq"><kbd>u</kbd></span> / <span class="kbd-seq"><kbd>U</kbd></span></td><td>取消暂存光标处文件 / 全部取消</td><td><span class="kbd-seq"><kbd>TAB</kbd></span></td><td>折叠 / 展开分组（目录折叠为单条目）</td></tr>
+        <tr><td><span class="kbd-seq"><kbd>c c</kbd></span></td><td>提交：写完信息 <span class="kbd-seq"><kbd>C-c C-c</kbd></span> 确认</td><td><span class="kbd-seq"><kbd>P u</kbd></span></td><td>推送到上游</td></tr>
+        <tr><td><span class="kbd-seq"><kbd>z z</kbd></span></td><td>贮藏当前修改</td><td><span class="kbd-seq"><kbd>k</kbd></span></td><td>丢弃光标条目改动（带确认）</td></tr>
+        <tr><td><span class="kbd-seq"><kbd>RET</kbd></span></td><td>打开光标处文件（投放到上方主编辑窗口）</td><td><span class="kbd-seq"><kbd>g</kbd></span></td><td>刷新状态页</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：Magit 把 Git 的「状态机」变成「清单」</span>
+      <p>Git 命令行难在你要<b>记得下一步是什么</b>；Magit 状态页把整个仓库状态摊开成
+      分组清单，操作围绕「光标在哪一行」展开——光标在未暂存文件上按
+      <span class="kbd-seq"><kbd>s</kbd></span> 暂存、在已暂存上按
+      <span class="kbd-seq"><kbd>u</kbd></span> 取消、在 hunk 上按
+      <span class="kbd-seq"><kbd>k</kbd></span> 丢弃。上下文即参数，几乎没有要背的东西。</p>
+      <p>唯一易混点：<span class="kbd-seq"><kbd>TAB</kbd></span> 只是折叠分组；
+      状态页内 <span class="kbd-seq"><kbd>s</kbd></span> 的补全候选只列单个文件——
+      <b>整目录暂存</b>请用 <span class="kbd-seq"><kbd>C-c g a</kbd></span>（目录感知）
+      或文件面板里的 <span class="kbd-seq"><kbd>C-c s</kbd></span>。</p>
+    </aside>
+    <pre class="code"><code><span class="cmt">;; 一次完整的提交循环（全程不碰鼠标）</span>
+<span class="pfx">C-S-g</span>            <span class="cmt">; 打开底部 Magit 状态页：改动按分组铺开</span>
+<span class="pfx">C-c g a</span>          <span class="cmt">; 在文件面板目录行上：整个目录一次暂存（目录感知）</span>
+<span class="pfx">c c</span>  写提交信息    <span class="cmt">; 上方主编辑窗口打开 COMMIT_EDITMSG</span>
+<span class="pfx">C-c C-c</span>          <span class="cmt">; 确认提交，状态页自动刷新</span>
+<span class="pfx">P u</span>              <span class="cmt">; 推送到上游，q 退出状态页</span></code></pre>
+  </article>
+
+  <!-- 2.9 标签与缓冲区 -->
+  <article class="card" id="vs-tabs">
+    <h3>2.9 标签页与缓冲区 <span class="hk">Tabs &amp; Buffers</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+Tab / Ctrl+Shift+Tab 切标签</td><td class="key"><span class="kbd-seq"><kbd>C-&lt;tab&gt;</kbd></span> / <span class="kbd-seq"><kbd>C-S-&lt;tab&gt;</kbd></span></td><td class="cmd">与下一行的 <span class="kbd-seq"><kbd>C-&lt;prior&gt;</kbd></span> / <span class="kbd-seq"><kbd>C-&lt;next&gt;</kbd></span> 绑定同一命令</td></tr>
+        <tr><td class="you">Ctrl+PgDn 下一标签</td><td class="key"><span class="kbd-seq"><kbd>C-&lt;next&gt;</kbd></span> / <span class="kbd-seq"><kbd>C-&lt;prior&gt;</kbd></span></td><td class="cmd">下一 / 上一个标签（注意带 Ctrl：裸 <span class="kbd-seq"><kbd>&lt;prior&gt;</kbd></span> 是像素滚动）</td></tr>
+        <tr><td class="you">移动标签位置</td><td class="key"><span class="kbd-seq"><kbd>C-x M-&lt;left&gt;</kbd></span> / <span class="kbd-seq"><kbd>C-x M-&lt;right&gt;</kbd></span></td><td class="cmd">当前标签左移 / 右移</td></tr>
+        <tr><td class="you">Ctrl+W 关闭标签</td><td class="key"><span class="kbd-seq"><kbd>C-S-w</kbd></span> 或 <span class="kbd-seq"><kbd>C-x k</kbd></span></td><td class="cmd">关闭缓冲区并收起窗口</td></tr>
+        <tr><td class="you">—（列出所有打开项）</td><td class="key"><span class="kbd-seq"><kbd>C-x b</kbd></span>（切换）<span class="kbd-seq"><kbd>C-x C-b</kbd></span>（管理）</td><td class="cmd">ibuffer：按模式分组，可批量保存 / 关闭</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：缓冲区比标签页更「多」也更轻</span>
+      <p>打开一个文件就有一个缓冲区，但<b>不是每个缓冲区都值得占一个标签位</b>——
+      本配置把终端、Magit、文件面板这类工具缓冲区自动排除在标签栏外，
+      标签栏里永远是「你正在编辑的内容」。缓冲区多了不用关：
+      <span class="kbd-seq"><kbd>C-x p k</kbd></span> 一键清掉整个项目的。</p>
+    </aside>
+  </article>
+
+  <!-- 2.10 设置与帮助 -->
+  <article class="card" id="vs-help">
+    <h3>2.10 设置、帮助与开关 <span class="hk">Settings &amp; Help</span></h3>
+    <div class="scrollwrap">
+    <table class="vs">
+      <thead><tr><th>Zed / VSCode</th><th>本配置</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td class="you">Ctrl+, 打开设置</td><td class="key"><span class="kbd-seq"><kbd>C-,</kbd></span> 或 <span class="kbd-seq"><kbd>C-c h c</kbd></span></td><td class="cmd">打开 <code>emacs.org</code>——设置即文档，文档即代码</td></tr>
+        <tr><td class="you">Ctrl+Shift+P 命令面板</td><td class="key"><span class="kbd-seq"><kbd>C-S-p</kbd></span> / <span class="kbd-seq"><kbd>M-x</kbd></span></td><td class="cmd">flex 模糊匹配 + 历史频次排序</td></tr>
+        <tr><td class="you">键盘快捷键表</td><td class="key"><span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>?</kbd></span></td><td class="cmd">本配置全局中文速查表，按 <span class="kbd-seq"><kbd>q</kbd></span> 退出</td></tr>
+        <tr><td class="you">搜索文档</td><td class="key"><span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>k/f/v/b</kbd></span></td><td class="cmd">按键 / 函数 / 变量 / 当前键位表四件套（本配置 C-h 已挪作左移）</td></tr>
+        <tr><td class="you">—（各面板开关）</td><td class="key"><span class="kbd-seq"><kbd>C-c t</kbd></span> 前缀</td><td class="cmd">l 行号、w 折行、c 列宽线、f 诊断、s 拼写、r 只读、v 不可见字符</td></tr>
+        <tr><td class="you">Zen / 专注模式</td><td class="key"><span class="kbd-seq"><kbd>C-c o o</kbd></span></td><td class="cmd">Olivetti 居中窄栏写作模式</td></tr>
+        <tr><td class="you">全屏切换</td><td class="key"><span class="kbd-seq"><kbd>&lt;f11&gt;</kbd></span></td><td class="cmd"><code>toggle-frame-fullscreen</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <aside class="idea">
+      <span class="t">Emacs 的思路：这份配置本身就是一本可执行的书</span>
+      <p><span class="kbd-seq"><kbd>C-,</kbd></span> 打开的 <code>emacs.org</code> 里，
+      每段代码上方都写着「为什么这样设计」。想知道某个行为的来龙去脉，
+      先在这份文档里搜——改它、重启 daemon，配置即时生效。
+      想改某个具体行为又不知从何下手？
+      <span class="kbd-seq"><kbd>M-x</kbd></span> 输入 <code>customize-group</code> 回车浏览。</p>
+    </aside>
+  </article>
+</section>
+
+<!-- ==================== § 3 独有提效 ==================== -->
+<section id="power">
+  <h2><span class="no">§3</span>Emacs 独有的提效武器</h2>
+  <p class="lead">
+    这些能力在其他编辑器里要么没有、要么残缺。它们才是迁移的「回报」——每一个都值得专门练一周。
+  </p>
+
+  <article class="card">
+    <h3>前缀参数 C-u：给任何命令加「数量 / 变体」</h3>
+    <p>
+      按住 <span class="kbd-seq"><kbd>C-u</kbd></span> 再输入数字或直接跟命令，等于给命令传一个参数。
+      最直观的例子在本配置里：
+    </p>
+    <pre class="code"><code><span class="pfx">C-c i f</span>      <span class="cmt">; 插入当前文件名：notes.org</span>
+<span class="pfx">C-u C-c i f</span>  <span class="cmt">; 插入相对项目根的路径：docs/notes.org（写文档引用时）</span></code></pre>
+    <p>
+      它是通用机制：删 4 个词 <span class="kbd-seq"><kbd>C-u 4 M-d</kbd></span>、
+      当前窗口增高 30 行 <span class="kbd-seq"><kbd>C-u 30 C-x ^</kbd></span>
+      （内置 <code>enlarge-window</code>）——任何接收参数的命令都吃这一套。
+    </p>
+  </article>
+
+  <article class="card">
+    <h3>剪贴环 kill-ring：复制过的东西永不丢失</h3>
+    <p>
+      每一次复制 / 删除都进入一个环形历史。粘贴后立刻按
+      <span class="kbd-seq"><kbd>M-y</kbd></span> 可换成「上一次复制的内容」，连按逐条向前翻。
+      典型场景：从 A 处复制、B 处复制、到 C 处粘贴时发现想要的是 A——不用回去重选，
+      <span class="kbd-seq"><kbd>C-S-v</kbd></span> 后连按 <span class="kbd-seq"><kbd>M-y</kbd></span> 即可。
+    </p>
+  </article>
+
+  <article class="card">
+    <h3>矩形与寄存器 C-x r：以「块」和「位置」思考</h3>
+    <p>
+      竖选一列区域（把 mark 和 point 放在不同行不同列即可）后，
+      <span class="kbd-seq"><kbd>C-x r t</kbd></span> 在每行行首插入同样文字（批量加注释、加引号）、
+      <span class="kbd-seq"><kbd>C-x r d</kbd></span> 删掉整列——多光标能干的列编辑它都能干，
+      而且不占光标。寄存器则用 <span class="kbd-seq"><kbd>C-x r SPC</kbd></span>
+      存当前位置、<span class="kbd-seq"><kbd>C-x r j</kbd></span> 随时跳回，
+      在大文件里两点往返（已开启选择预览，跳前先看一眼目标）。
+      <span style="color:var(--fg-faint)">（此族为 Emacs 内置原语）</span>
+    </p>
+  </article>
+
+  <article class="card">
+    <h3>repeat-mode：连续微调不用重按前缀</h3>
+    <p>
+      本配置已开启 repeat-mode：内置的连续型命令（调窗、缩放、翻页等）执行一次后，
+      直接按后续单键即可连续重复，不必反复按完整前缀。调窗宽度时
+      <span class="kbd-seq"><kbd>C-x</kbd> <kbd>}</kbd></span> 一次，之后连按
+      <span class="kbd-seq"><kbd>}</kbd></span> 逐列加宽，松手即停。
+    </p>
+  </article>
+
+  <article class="card">
+    <h3>M-/ 词内补全：不用任何语言服务</h3>
+    <p>
+      <span class="kbd-seq"><kbd>M-/</kbd></span>（dabbrev）在当前缓冲区（及同模式缓冲区）里找
+      同前缀的单词循环补全——写长变量名、中文文档里重复的术语，比输入法还快，
+      且完全不依赖 LSP。配置已降噪：不会弹出扫描进度打扰你。
+    </p>
+  </article>
+
+  <article class="card">
+    <h3>守护进程模型：Emacs 永远「已经开着」</h3>
+    <p>
+      Emacs 以 daemon 常驻后台：图形窗口（<code>emacsclient -c</code>）和终端界面
+      （<code>emacsclient -t</code>）是同一个会话的两个脸——终端里开着的文件，
+      回到桌面图形窗口还在原处；启动「新窗口」接近零耗时。这在 Zed / VSCode 里
+      没有对应物，是 daemon 化 Emacs 的核心红利。
+    </p>
+  </article>
+</section>
+
+<!-- ==================== § 4 速查表 ==================== -->
+<section id="cheat">
+  <h2><span class="no">§4</span>键位速查表</h2>
+  <p class="lead">
+    全部键位按场景分组，支持实时过滤——输入如 <code>magit</code>、<code>替换</code>、
+    <code>C-c g</code> 试试。数据由 JS 从下方内嵌数组渲染，离线可用。
+  </p>
+  <div class="cheat-controls">
+    <input id="cheatFilter" type="search" placeholder="过滤：键位、描述、命令或分组名（如 C-c g / 替换 / magit）…" autocomplete="off">
+    <span class="count" id="cheatCount"></span>
+  </div>
+  <div id="cheatNoResult">没有匹配的键位。试试更短的关键词，或换个说法（如「查找」→「搜索」）。</div>
+  <div class="scrollwrap">
+    <table class="cheat" id="cheatTable">
+      <thead><tr><th style="width:170px">分组</th><th style="width:200px">键位</th><th>描述</th></tr></thead>
+      <tbody id="cheatBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ==================== § 5 学习路径 ==================== -->
+<section id="path">
+  <h2><span class="no">§5</span>建议的学习路径</h2>
+  <p class="lead">不要试图一次背下所有键位。按下面的顺序，每阶段只专注一件事。</p>
+  <ol class="path">
+    <li>
+      <h4>第一周：只用手上已有的习惯</h4>
+      <p>全程用 §0 表里的「同键区」工作：<span class="kbd-seq"><kbd>C-s</kbd></span> 保存、
+      <span class="kbd-seq"><kbd>C-p</kbd></span> 找文件、<span class="kbd-seq"><kbd>C-S-f</kbd></span> 查找、
+      <span class="kbd-seq"><kbd>C-`</kbd></span> 终端。唯一要新学的动作：卡住就按
+      <span class="kbd-seq"><kbd>C-g</kbd></span>。</p>
+    </li>
+    <li>
+      <h4>第二周：养成「停顿看弹窗」的肌肉记忆</h4>
+      <p>每次想找功能，先按对应前缀（Git 找 <span class="kbd-seq"><kbd>C-c g</kbd></span>、
+      窗口找 <span class="kbd-seq"><kbd>C-c w</kbd></span>）停半秒看 which-key 的中文菜单，
+      而不是去搜网页。这周结束时你已经「会用」所有功能，只是还不快。</p>
+    </li>
+    <li>
+      <h4>第三周：把搜索替换升级成递进链</h4>
+      <p>刻意练习 isearch 会话内的升级动作：<span class="kbd-seq"><kbd>M-s o</kbd></span> 转列表、
+      <span class="kbd-seq"><kbd>M-%</kbd></span> 转替换、<span class="kbd-seq"><kbd>C-w</kbd></span> 取词。
+      再用一次 <span class="kbd-seq"><kbd>C-c e R</kbd></span> 多文件 diff 预览替换，
+      你会开始理解为什么老用户离不开它。</p>
+    </li>
+    <li>
+      <h4>第四周：Magit 接管全部 Git 操作</h4>
+      <p>一周内禁止自己敲 <code>git add</code>：状态页 <span class="kbd-seq"><kbd>C-S-g</kbd></span>、
+      目录暂存 <span class="kbd-seq"><kbd>C-c g a</kbd></span>、提交 <span class="kbd-seq"><kbd>c c</kbd></span>、
+      推送 <span class="kbd-seq"><kbd>P u</kbd></span>。第四天开始你会感觉到「清单式操作」比命令行快。</p>
+    </li>
+    <li>
+      <h4>之后：读配置，改配置</h4>
+      <p><span class="kbd-seq"><kbd>C-,</kbd></span> 打开 <code>emacs.org</code>，
+      从你最在意的功能域读起（每个域开头都有设计说明）。改完
+      <code>herd restart emacs-daemon</code> 即生效——把自己的工作流长进编辑器里，
+      才是这次迁移的终点，也是 Emacs 的意义。</p>
+    </li>
+  </ol>
+
+  <h3>延伸资源</h3>
+  <ul class="refs">
+    <li><a href="https://www.masteringemacs.org/">Mastering Emacs</a> <span class="what">— 搜索替换、缓冲区机制讲得最系统的博客；读它的 isearch 系列可与本手册 §2.2 互相印证</span></li>
+    <li><a href="https://systemcrafters.net/">System Crafters</a> <span class="what">— 从零构建 Emacs 配置的视频教程体系，想深入理解这份配置的组织方式时看</span></li>
+    <li><a href="https://www.gnu.org/software/emacs/tour/">GNU Emacs Tour</a> <span class="what">— 官方十分钟导览，补齐本手册没讲的基础概念（kill/yank 术语等）</span></li>
+    <li><a href="https://www.gnu.org/software/emacs/manual/">Emacs 手册（内置）</a> <span class="what">— Emacs 内按 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>i</kbd></span> 即可离线阅读完整 Info 手册</span></li>
+    <li><a href="https://github.com/emacs-magit/magit">Magit 官方文档</a> <span class="what">— 状态页里按 <span class="kbd-seq"><kbd>?</kbd></span> 弹出的命令面板本身就是最好的 cheatsheet</span></li>
+    <li>本仓库 <code>AGENTS.md</code> 与 <code>emacs.org</code> <span class="what">— 配置的架构契约、8 大域加载顺序与每个功能的设计取舍</span></li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  <div>本手册为静态单文件网页，离线可用、无外部依赖；配色跟随系统深浅模式。</div>
+  <div>全部键位于 2026-09 与 <code>emacs.org</code> 配置真理源逐域核对
+  （<code>scripts/configctl show</code> 提取）。</div>
+</footer>
+
+<button id="toTop" aria-label="返回顶部">↑</button>
+
+<script>
+/* ============================================================
+   速查表数据：{g: 分组, k: 键位, d: 描述（含命令名，供过滤）}
+   与 emacs.org 各域 custom/bind 声明一致
+   ============================================================ */
+var CHEAT = [
+  /* —— 文件与项目 —— */
+  {g:"文件与项目", k:"C-s", d:"保存文件 save-buffer（失焦 1 秒后也会自动保存）"},
+  {g:"文件与项目", k:"C-S-s", d:"另存为 write-file"},
+  {g:"文件与项目", k:"C-o", d:"打开任意文件 find-file"},
+  {g:"文件与项目", k:"C-x C-f", d:"打开文件（感知光标处路径）ffap"},
+  {g:"文件与项目", k:"C-p / C-S-a", d:"项目内查找文件 project-find-file"},
+  {g:"文件与项目", k:"C-S-r / C-x C-r", d:"最近文件 recentf-open"},
+  {g:"文件与项目", k:"C-S-t / C-x T", d:"重开已关闭文件"},
+  {g:"文件与项目", k:"C-x p p", d:"切换项目（d 目录 / f 文件 / r 搜索 / a 其他）"},
+  {g:"文件与项目", k:"C-x p o", d:"打开项目目录并注册"},
+  {g:"文件与项目", k:"C-x p f", d:"查找项目文件"},
+  {g:"文件与项目", k:"C-x p b", d:"项目内切换缓冲区"},
+  {g:"文件与项目", k:"C-x p k", d:"关闭项目全部缓冲区"},
+  {g:"文件与项目", k:"C-x p D", d:"项目根 Dired"},
+  {g:"文件与项目", k:"C-x p O", d:"目录浏览 dired-jump"},
+  {g:"文件与项目", k:"C-x p S", d:"保存本项目缓冲区"},
+  {g:"文件与项目", k:"C-, / C-c h c", d:"打开设置（emacs.org 配置真理源）"},
+  {g:"文件与项目", k:"C-x p m", d:"worktree 对应缓冲区"},
+
+  /* —— 搜索与替换 —— */
+  {g:"搜索与替换", k:"C-S-f / M-s i", d:"文件内查找（选中即搜索词）isearch"},
+  {g:"搜索与替换", k:"RET / S-RET", d:"isearch 会话内：下一个 / 上一个匹配"},
+  {g:"搜索与替换", k:"ESC（终端 ESC ESC）", d:"isearch 停在当前匹配退出；C-g 回起点"},
+  {g:"搜索与替换", k:"C-w", d:"isearch 会话内取光标处词入搜索串"},
+  {g:"搜索与替换", k:"M-%", d:"isearch 会话内转替换"},
+  {g:"搜索与替换", k:"M-s o", d:"isearch 会话内转 occur 结果列表"},
+  {g:"搜索与替换", k:"M-s h", d:"isearch 会话内永久高亮匹配族"},
+  {g:"搜索与替换", k:"C-S-h / C-c e r", d:"文件内替换（diff 预览）replace-regexp-as-diff"},
+  {g:"搜索与替换", k:"C-x p s / M-s p", d:"项目全文搜索（ripgrep）project-find-regexp"},
+  {g:"搜索与替换", k:"M-s R / C-x p r", d:"项目范围替换 project-query-replace-regexp"},
+  {g:"搜索与替换", k:"C-c e R", d:"多文件正则替换预览"},
+  {g:"搜索与替换", k:"M-s l", d:"当前缓冲区搜索 occur"},
+  {g:"搜索与替换", k:"M-s m", d:"多缓冲区搜索 multi-occur"},
+  {g:"搜索与替换", k:"M-s e", d:"符号搜索 xref-find-apropos"},
+  {g:"搜索与替换", k:"e / C-c C-c", d:"grep 结果缓冲区内：就地编辑 / 批量写回"},
+
+  /* —— 编辑与文本 —— */
+  {g:"编辑与文本", k:"C-a", d:"全选 mark-whole-buffer"},
+  {g:"编辑与文本", k:"C-/ ", d:"行注释 comment-line（块注释 C-S-/）"},
+  {g:"编辑与文本", k:"C-S-c", d:"智能复制：选区或整行 copy-dwim"},
+  {g:"编辑与文本", k:"C-S-x", d:"智能剪切：选区或整行 cut-dwim"},
+  {g:"编辑与文本", k:"C-S-v", d:"粘贴 yank"},
+  {g:"编辑与文本", k:"M-y", d:"从剪贴环选择粘贴 yank-from-kill-ring"},
+  {g:"编辑与文本", k:"C-S-k / C-c e k", d:"删除整行 kill-whole-line"},
+  {g:"编辑与文本", k:"C-<backspace> / M-DEL", d:"删到词首 backward-kill-word（内置）"},
+  {g:"编辑与文本", k:"M-d", d:"删到词尾 kill-word（内置）"},
+  {g:"编辑与文本", k:"C-S-d / C-c e D", d:"复制当前行/选区 duplicate-dwim（终端备用 C-c e D）"},
+  {g:"编辑与文本", k:"C-S-↑ / C-S-↓", d:"上移 / 下移当前行"},
+  {g:"编辑与文本", k:"C-RET / C-S-RET", d:"下方 / 上方开行并缩进"},
+  {g:"编辑与文本", k:"<home>", d:"智能行首（缩进与绝对行首循环）"},
+  {g:"编辑与文本", k:"<backtab>", d:"反向缩进（选区或当前行）"},
+  {g:"编辑与文本", k:"C-z / C-S-z", d:"撤销 / 重做"},
+  {g:"编辑与文本", k:"C-c e u", d:"撤销树 vundo"},
+  {g:"编辑与文本", k:"C-c e . / C-c e ,", d:"上一处 / 下一处修改点"},
+  {g:"编辑与文本", k:"C-c e U / L / C", d:"转大写 / 小写 / 首字母大写"},
+  {g:"编辑与文本", k:"C-c e F / C-c e f", d:"转全角 / 转半角"},
+  {g:"编辑与文本", k:"C-c e q", d:"取消段落填充 unfill-paragraph"},
+  {g:"编辑与文本", k:"C-c e t", d:"展开模板 tempel-expand"},
+  {g:"编辑与文本", k:"C-c i f", d:"插入文件名（C-u 前缀：相对项目根路径）"},
+  {g:"编辑与文本", k:"C-c i u", d:"插入 Unicode 字符 insert-char"},
+
+  /* —— 多光标与选区 —— */
+  {g:"多光标与选区", k:"C-d", d:"选中下一个匹配词 mc/mark-next-like-this-word"},
+  {g:"多光标与选区", k:"C-c e n / C-c e p", d:"标记下一个 / 上一个匹配"},
+  {g:"多光标与选区", k:"C-c e s", d:"跳过下一个匹配（VSCode Ctrl+K Ctrl+D）"},
+  {g:"多光标与选区", k:"C-S-l / C-c e a", d:"标记全部匹配"},
+  {g:"多光标与选区", k:"C-c e d", d:"函数内标记全部匹配"},
+  {g:"多光标与选区", k:"C-c e l", d:"选中区域每行一个光标 mc/edit-lines"},
+  {g:"多光标与选区", k:"C-M-↓ / C-M-↑", d:"下方 / 上方行追加光标（终端 C-c e ↓/↑）"},
+  {g:"多光标与选区", k:"M-Click", d:"点击处追加光标（GUI）"},
+  {g:"多光标与选区", k:"C-c e x / X", d:"扩展 / 收缩语义选区（M-S-→/← 同义）"},
+  {g:"多光标与选区", k:"C-g", d:"退出多光标，回到单光标"},
+
+  /* —— 代码与导航 —— */
+  {g:"代码与导航", k:"<f12> / C-c c d", d:"跳转到定义 xref-find-definitions"},
+  {g:"代码与导航", k:"S-<f12> / M-g r", d:"查找引用 xref-find-references"},
+  {g:"代码与导航", k:"<f2> / C-c c n", d:"重命名符号（LSP）或文件 rename-dwim"},
+  {g:"代码与导航", k:"C-. / C-c c a", d:"快速修复 eglot-code-actions"},
+  {g:"代码与导航", k:"C-S-o / C-c c i", d:"文件符号大纲 imenu"},
+  {g:"代码与导航", k:"C-t", d:"工作区符号搜索"},
+  {g:"代码与导航", k:"M-g g", d:"跳转到行 goto-line"},
+  {g:"代码与导航", k:"M-g j", d:"屏幕内字符跳转 avy"},
+  {g:"代码与导航", k:"M-g b / M-g f", d:"后退 / 前进（xref 历史；鼠标侧键同义）"},
+  {g:"代码与导航", k:"<f8> / S-<f8>", d:"下一个 / 上一个错误"},
+  {g:"代码与导航", k:"M-g n / M-g p", d:"下一个 / 上一个诊断（Flymake）"},
+  {g:"代码与导航", k:"M-g l / C-S-m / C-c c k", d:"诊断错误列表面板"},
+  {g:"代码与导航", k:"M-g h", d:"符号文档缓冲区 eldoc"},
+  {g:"代码与导航", k:"C-S-[ / C-S-]", d:"折叠 / 展开代码块（C-c c z 更多）"},
+  {g:"代码与导航", k:"M-S-f / C-c c f", d:"格式化缓冲区（保存时自动格式化）"},
+  {g:"代码与导航", k:"TAB", d:"接受行内幽灵补全；M-n / M-p 换候选"},
+  {g:"代码与导航", k:"M-/", d:"词内补全 dabbrev-expand"},
+  {g:"代码与导航", k:"C-c c c", d:"手动触发补全 completion-at-point"},
+  {g:"代码与导航", k:"<f5> / <f9>", d:"开始调试（Dape）/ 切换断点"},
+  {g:"代码与导航", k:"C-S-b / C-c c G c", d:"项目构建 project-compile"},
+  {g:"代码与导航", k:"C-c c G r", d:"重新编译 recompile"},
+  {g:"代码与导航", k:"C-c c G d / C-c c G e", d:"GDB / DAP 调试"},
+  {g:"代码与导航", k:"C-c c b / C-c c m", d:"书签跳转 / 设置书签"},
+  {g:"代码与导航", k:"C-c c j", d:"跳转到匹配括号"},
+  {g:"代码与导航", k:"C-c c x d / i / t", d:"跳转声明 / 实现 / 类型定义"},
+
+  /* —— 窗口与面板 —— */
+  {g:"窗口与面板", k:"C-b", d:"文件面板开关（左侧 Dired）"},
+  {g:"窗口与面板", k:"C-S-e / C-c w f", d:"聚焦文件面板"},
+  {g:"窗口与面板", k:"C-c w d", d:"面板定位当前文件（Reveal）"},
+  {g:"窗口与面板", k:"C-` / C-c w t", d:"终端面板（底部 1/3，自动 cd 项目根）"},
+  {g:"窗口与面板", k:"C-c w a", d:"Agent 面板（右侧）"},
+  {g:"窗口与面板", k:"C-c w T", d:"三面板总开关（Zed docks 式收放）"},
+  {g:"窗口与面板", k:"C-S-g", d:"Git 状态面板（Magit）"},
+  {g:"窗口与面板", k:"C-S-m", d:"诊断面板"},
+  {g:"窗口与面板", k:"C-S-u", d:"消息输出面板 *Messages*"},
+  {g:"窗口与面板", k:"C-\\", d:"向右分屏并聚焦新窗口"},
+  {g:"窗口与面板", k:"C-c w 2 / C-c w 3", d:"上下 / 左右分屏（同 C-x 2 / C-x 3）"},
+  {g:"窗口与面板", k:"C-c w 0 / C-c w 1", d:"关闭当前窗口 / 只保留当前（同 C-x 0 / C-x 1）"},
+  {g:"窗口与面板", k:"M-方向键", d:"窗口间切换（终端备用 C-c w h/j/k/l）"},
+  {g:"窗口与面板", k:"C-c w ← / →", d:"窗口布局逆时针 / 顺时针旋转"},
+  {g:"窗口与面板", k:"C-c w ↑ / ↓", d:"上下 / 左右镜像布局"},
+  {g:"窗口与面板", k:"C-c w x", d:"转置窗口分割"},
+  {g:"窗口与面板", k:"C-c w o / O", d:"轮转 / 逆向轮转窗口内容"},
+  {g:"窗口与面板", k:"C-c w c / C", d:"合并窗口为组 / 恢复分组"},
+  {g:"窗口与面板", k:"C-c w s / S", d:"拆分窗口到新 Frame / 合并 Frame"},
+  {g:"窗口与面板", k:"C-c w =", d:"均衡窗口大小 balance-windows"},
+  {g:"窗口与面板", k:"C-c w u / C-c w r", d:"撤销 / 重做窗口变更（winner）"},
+  {g:"窗口与面板", k:"C-= / C-- / C-0", d:"放大 / 缩小 / 重置字号"},
+  {g:"窗口与面板", k:"<f11>", d:"切换全屏"},
+  {g:"窗口与面板", k:"C-S-n", d:"新建 Frame（OS 窗口）"},
+  {g:"窗口与面板", k:"拖分隔线（GUI）", d:"鼠标拖拽调窗；C-mouse-2 在分隔处新分屏"},
+  {g:"窗口与面板", k:"S-<f10> / <menu> / 右键", d:"打开右键菜单（含窗口步进调窗子菜单）"},
+
+  /* —— 终端 —— */
+  {g:"终端", k:"C-`", d:"打开/聚焦终端（C-u 前缀：当前文件目录）"},
+  {g:"终端", k:"C-x #", d:"提交 emacsclient 接管的编辑（如 git commit 信息）server-edit"},
+
+  /* —— Git —— */
+  {g:"Git", k:"C-S-g / C-c g s", d:"Magit 状态面板"},
+  {g:"Git", k:"C-c g S", d:"暂存当前文件（异步）"},
+  {g:"Git", k:"C-c g a", d:"目录感知暂存：Dired 目录行暂存整目录"},
+  {g:"Git", k:"C-c s（Dired 内）", d:"暂存光标处目录/文件直达键"},
+  {g:"Git", k:"C-c g D", d:"丢弃当前文件全部未提交修改（带确认）"},
+  {g:"Git", k:"C-c g # / C-c g @", d:"保存贮藏 / 恢复贮藏"},
+  {g:"Git", k:"C-c g b", d:"当前文件 blame 追责"},
+  {g:"Git", k:"C-c g l", d:"当前文件历史日志"},
+  {g:"Git", k:"C-c g d", d:"当前文件未提交差异"},
+  {g:"Git", k:"C-c g n / C-c g p", d:"下一个 / 上一个改动块（diff-hl）"},
+  {g:"Git", k:"C-c g R", d:"还原当前改动块"},
+  {g:"Git", k:"C-c g y", d:"拣选提交 cherry-pick"},
+  {g:"Git", k:"C-c g X", d:"删除修订"},
+  {g:"Git", k:"C-c g o / C-c g O", d:"预览待推送提交 / 本地全部工作"},
+
+  /* —— Magit 状态页内 —— */
+  {g:"Magit 状态页内", k:"s / S", d:"暂存光标处文件（可多选）/ 暂存全部修改"},
+  {g:"Magit 状态页内", k:"u / U", d:"取消暂存光标处文件 / 全部取消"},
+  {g:"Magit 状态页内", k:"c c → C-c C-c", d:"提交：写信息后确认"},
+  {g:"Magit 状态页内", k:"P u", d:"推送到上游"},
+  {g:"Magit 状态页内", k:"z z", d:"贮藏当前修改"},
+  {g:"Magit 状态页内", k:"k", d:"丢弃光标条目改动（带确认）"},
+  {g:"Magit 状态页内", k:"TAB", d:"折叠 / 展开分组"},
+  {g:"Magit 状态页内", k:"RET", d:"打开光标处文件（进主编辑窗口）"},
+  {g:"Magit 状态页内", k:"g / ? / q", d:"刷新 / 全部命令面板 / 退出"},
+
+  /* —— 标签与缓冲区 —— */
+  {g:"标签与缓冲区", k:"C-<tab> / C-S-<tab>", d:"下一个 / 上一个标签（C-<prior>/<next> 同义）"},
+  {g:"标签与缓冲区", k:"C-x t n / C-x t p", d:"下一个 / 上一个标签"},
+  {g:"标签与缓冲区", k:"C-x M-← / C-x M-→", d:"标签左移 / 右移"},
+  {g:"标签与缓冲区", k:"C-x b", d:"切换缓冲区"},
+  {g:"标签与缓冲区", k:"C-x C-b / C-x B", d:"缓冲区列表 ibuffer"},
+  {g:"标签与缓冲区", k:"C-S-w / C-x k", d:"关闭当前缓冲区（并收起窗口）"},
+  {g:"标签与缓冲区", k:"C-x K", d:"关闭指定缓冲区"},
+
+  /* —— 开关 —— */
+  {g:"开关 C-c t", k:"C-c t l", d:"行号显示"},
+  {g:"开关 C-c t", k:"C-c t w", d:"软折行"},
+  {g:"开关 C-c t", k:"C-c t c", d:"列宽指示线"},
+  {g:"开关 C-c t", k:"C-c t f", d:"语法诊断 Flymake"},
+  {g:"开关 C-c t", k:"C-c t s", d:"拼写检查 Flyspell"},
+  {g:"开关 C-c t", k:"C-c t r", d:"只读模式"},
+  {g:"开关 C-c t", k:"C-c t v", d:"显示不可见文本"},
+  {g:"开关 C-c t", k:"C-c t d", d:"错误调试 toggle-debug-on-error"},
+
+  /* —— 帮助与退出 —— */
+  {g:"帮助与退出", k:"<f1> ?", d:"本配置全局快捷键中文速查表"},
+  {g:"帮助与退出", k:"<f1> k / f / v", d:"查按键 / 查函数 / 查变量（本配置 C-h 已挪作左移，帮助前缀在 <f1>）"},
+  {g:"帮助与退出", k:"<f1> b", d:"列出当前所有键位绑定"},
+  {g:"帮助与退出", k:"<f1> i", d:"阅读内置 Info 手册"},
+  {g:"帮助与退出", k:"C-c h d", d:"打开仪表盘 dashboard"},
+  {g:"帮助与退出", k:"C-c q f / o", d:"关闭当前 / 其他 Frame"},
+  {g:"帮助与退出", k:"C-c q q", d:"保存并退出 Emacs"},
+
+  /* —— Org 与知识库 —— */
+  {g:"Org 与知识库", k:"C-c o a", d:"议程视图 org-agenda"},
+  {g:"Org 与知识库", k:"C-c o o", d:"专注写作（居中窄栏）olivetti"},
+  {g:"Org 与知识库", k:"C-c o i", d:"插入代码块结构模板"},
+  {g:"Org 与知识库", k:"C-c o f", d:"格式化全部代码块"},
+  {g:"Org 与知识库", k:"C-c o c c", d:"统一 Capture 快速记录入口"},
+  {g:"Org 与知识库", k:"C-c o c i / o / g", d:"开始计时 / 停止计时 / 跳到当前计时"},
+  {g:"Org 与知识库", k:"C-c o r f / i / l", d:"Roam：查找笔记 / 插入链接 / 反链面板"},
+  {g:"Org 与知识库", k:"C-c o k c / s", d:"知识库：捕获经验卡 / 搜索经验"},
+
+  /* —— 生活应用 —— */
+  {g:"生活应用", k:"C-c a a a / C-c a a t", d:"Agent Shell 打开 / 切换"},
+  {g:"生活应用", k:"C-c a d d / n", d:"DSH 会话列表 / 新建会话"},
+  {g:"生活应用", k:"C-c a t", d:"Telegram（Telega）"},
+  {g:"生活应用", k:"C-c a f f", d:"RSS 阅读器（Newsticker）"},
+  {g:"生活应用", k:"C-c a x x", d:"Guix 包管理图形界面"}
+];
+
+/* ---------------- 渲染与过滤 ---------------- */
+var esc = function (s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+};
+var kbdHtml = function (s) {
+  /* s 已经过 mark() 转义（含 <mark> 高亮标签），此处只包键帽、不再 esc，
+     否则 &lt;f12&gt; 会被二次转义成字面乱码且高亮失效 */
+  return s.split(" / ").map(function (part) {
+    return '<span class="kbd-seq"><kbd>' + part + "</kbd></span>";
+  }).join('<span style="opacity:.55"> / </span>');
+};
+/* 高亮：对已转义文本按「过滤词逐个 OR」一次替换，大小写不敏感，
+   与过滤逻辑的拆词 AND 语义配套；单趟 replace 避免嵌套 <mark> */
+var hi = function (text, terms) {
+  var out = esc(text);
+  if (!terms.length) { return out; }
+  var pattern = terms.map(function (t) {
+    return t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }).join("|");
+  return out.replace(new RegExp(pattern, "gi"), function (m) {
+    return "<mark>" + m + "</mark>";
+  });
+};
+
+var body = document.getElementById("cheatBody");
+var filterInput = document.getElementById("cheatFilter");
+var countEl = document.getElementById("cheatCount");
+var noResult = document.getElementById("cheatNoResult");
+
+function render(needle) {
+  var terms = needle ? needle.toLowerCase().split(/\s+/).filter(Boolean) : [];
+  var html = "";
+  var shown = 0, lastGroup = null;
+  for (var i = 0; i < CHEAT.length; i++) {
+    var row = CHEAT[i];
+    var hay = (row.g + " " + row.k + " " + row.d).toLowerCase();
+    var hit = true;
+    for (var t = 0; t < terms.length; t++) {
+      if (hay.indexOf(terms[t]) < 0) { hit = false; break; }
+    }
+    if (!hit) { continue; }
+    shown++;
+    if (row.g !== lastGroup) {
+      html += '<tr class="grouphow"><td colspan="3">' + esc(row.g) + "</td></tr>";
+      lastGroup = row.g;
+    }
+    html += "<tr><td class='g'>" + esc(row.g) + "</td><td>" +
+            kbdHtml(hi(row.k, terms)) + "</td><td class='d'>" +
+            hi(row.d, terms) + "</td></tr>";
+  }
+  body.innerHTML = html;
+  countEl.textContent = shown + " / " + CHEAT.length + " 条";
+  noResult.style.display = shown === 0 ? "block" : "none";
+}
+
+filterInput.addEventListener("input", function () {
+  render(filterInput.value.trim());
+});
+render("");
+
+/* ---------------- 导航高亮（IntersectionObserver） ---------------- */
+var navLinks = Array.prototype.slice.call(
+  document.querySelectorAll("nav.topbar a.navlink"));
+var sections = navLinks.map(function (a) {
+  return document.querySelector(a.getAttribute("href"));
+});
+var observer = new IntersectionObserver(function (entries) {
+  entries.forEach(function (entry) {
+    if (!entry.isIntersecting) { return; }
+    navLinks.forEach(function (a, i) {
+      a.classList.toggle("active", sections[i] === entry.target);
+    });
+  });
+}, { rootMargin: "-30% 0px -60% 0px" });
+sections.forEach(function (s) { if (s) { observer.observe(s); } });
+
+/* ---------------- 返回顶部 ---------------- */
+var toTop = document.getElementById("toTop");
+window.addEventListener("scroll", function () {
+  toTop.classList.toggle("show", window.scrollY > 600);
+}, { passive: true });
+toTop.addEventListener("click", function () {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+</script>
+</body>
+</html>

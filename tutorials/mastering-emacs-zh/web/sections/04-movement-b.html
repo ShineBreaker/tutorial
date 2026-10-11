@@ -1,0 +1,827 @@
+<section class="ch" id="ch-04-movement-b" data-stage="基础" data-min="45">
+  <h2 class="ch-title">四、移动理论（二）：基本移动、书签寄存器、选区</h2>
+  <p class="ch-lead">这一章把 Emacs 的移动命令按「语法单元」重新排了一遍：字符、词、行、句、段、S 表达式。你会弄清方向键为什么不值得停在上面、<em>前缀参数</em>（数字前缀，敲在命令前面表示「做 n 次」的按键）怎么让任何一个移动命令都变成「可重复」的，以及最反直觉的那件事——Emacs 没有独立的「选区模式」，选区是 point 和 mark 两点之间那一段，所以必须「先设 mark，再移动」。最后是书签（bookmark，跨会话保存的跳转点）、寄存器（register，一个字符名的小仓库）和矩形选择。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>Emacs 里「移动」是密度最高的操作，没有之一。一个熟练用户 80% 的按键是在移动和删除，全是本节这一套键。所以这一节值得你读慢一点、抄一遍速查表。</p>
+  </div>
+
+  <h3>一、为什么 Emacs 的移动要按「语法单元」组织</h3>
+
+  <p>任何编辑器都能让你把光标往右挪一格。但 Emacs 的设计前提是：<strong>你几乎永远不应该用鼠标</strong>。这不是宗教，是算术——在键盘上，从主键区（<code>asdf jkl;</code> 这排，两只手的默认落点）挪到方向键区，路上要花的时间乘以每天几千次，是一笔很大的账。所以 Emacs 把所有移动都改写成「主键区就能敲的组合键 + 数字前缀」，代价是初学者要背，回报是后期速度碾压鼠标流。</p>
+
+  <p>为了能用数字前缀，命令就必须能被参数化。所以 Emacs 不提供「右移一格」这种命令，而是提供一个通用的<strong>语法单元</strong>（syntactic unit，指一组有结构的字符，比如一个词、一行、一个括号对），再让前缀参数去数它：</p>
+
+  <ul>
+    <li>字符（character）——最小单位，只在「需要精确偏一两个字」时用。</li>
+    <li>词（word）——由<strong>语法表</strong>（syntax table，一张「每个字符属于哪一类」的表）在当前 buffer 里现算出来的，不是固定规则。</li>
+    <li>行（line）——分逻辑行和屏幕行两套，Emacs 23.1 起默认按屏幕行走。</li>
+    <li>句（sentence）、段（paragraph）——给中文、英文散文用的。</li>
+    <li>S 表达式（sexp，Lisp 里平衡表达式的简称）——程序员的主力。</li>
+  </ul>
+
+  <p>读到这里只要记住一件事：<strong>Emacs 的移动命令几乎全部接受数字前缀，而且负数前缀会反过来</strong>。敲 <kbd>C</kbd><kbd>-</kbd><kbd>3</kbd> <kbd>M</kbd><kbd>f</kbd> 就是「往前跳三个词的反方向」——即往后三个词。这条规则对字符、词、行、句、段、括号全都成立（少数命令例外，下面会逐个标出来），所以你只需要学一次。</p>
+
+  <h3>二、方向键：可以先用，但别停在这儿</h3>
+
+  <p>Emacs 完整支持键盘上的方向键，而且映射得很符合直觉：</p>
+
+  <div class="keys">
+    <h4>本节按键（导航键）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></td><td><code>left-char</code> / <code>right-char</code> / <code>previous-line</code> / <code>next-line</code></td><td>按字符、按行移动</td></tr>
+        <tr><td><kbd>C</kbd><kbd>←</kbd> <kbd>C</kbd><kbd>→</kbd></td><td><code>left-word</code> / <code>right-word</code></td><td>按词移动（注意：这组键按<strong>显示方向</strong>走，在从右往左的段落里会和 <kbd>M</kbd><kbd>b</kbd> / <kbd>M</kbd><kbd>f</kbd> 反过来）</td></tr>
+        <tr><td><kbd>PageUp</kbd> <kbd>PageDown</kbd></td><td><code>scroll-down-command</code> / <code>scroll-up-command</code></td><td>翻页</td></tr>
+        <tr><td><kbd>Home</kbd> <kbd>End</kbd></td><td><code>move-beginning-of-line</code> / <code>move-end-of-line</code></td><td>行首 / 行尾</td></tr>
+        <tr><td><kbd>Insert</kbd></td><td><code>overwrite-mode</code></td><td>按 <kbd>Insert</kbd> 会切换覆盖模式</td></tr>
+        <tr><td><kbd>Delete</kbd></td><td><code>delete-forward-char</code></td><td>删掉光标后一个字符</td></tr>
+        <tr><td><kbd>Backspace</kbd> / <kbd>DEL</kbd></td><td><code>delete-backward-char</code></td><td>删掉光标前一个字符</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>我在本机 Emacs 32.0.50 上逐条查过绑定，结果如下（用 <code>(key-binding (kbd "…"))</code> 查的）。方向键、<kbd>Home</kbd>/<kbd>End</kbd>、翻页键确实都绑到了上面这些命令，行为和「<code>C</code> 加或减修饰键」的版本一致，但有两处值得注意。</p>
+
+  <p>第一处，方向键绑的<strong>不是</strong> <code>forward-char</code> / <code>backward-char</code>，而是一对专门为双向文本设计的命令 <code>left-char</code> / <code>right-char</code>。它们平时和 <kbd>C</kbd><kbd>f</kbd> / <kbd>C</kbd><kbd>b</kbd> 行为一样，但当光标所在段落是<strong>从右往左</strong>（阿拉伯语、希伯来语）时，它们会按屏幕上看到的方向走，而不是按 buffer 里的逻辑顺序。逐词移动同理：<kbd>C</kbd><kbd>←</kbd> 绑的是 <code>left-word</code>，<kbd>C</kbd><kbd>→</kbd> 绑的是 <code>right-word</code>。你写中文英文用不到这个区别，但知道方向键和 <kbd>M</kbd><kbd>f</kbd> 不是同一个命令，将来排版双向文本时会省事。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>终端里的 <kbd>Delete</kbd> 键行为<strong>不一定</strong>是删后面的字符。Emacs 靠 <code>normal-erase-is-backspace-mode</code> 这个次模式来区分 <kbd>Backspace</kbd> 和 <kbd>Delete</kbd>：正常情况下 <kbd>Delete</kbd> 删后面、<kbd>Backspace</kbd> 删前面；但如果 Emacs 判断你的键盘/终端发过来的键位编码不对，两个键可能都变成删前面。查 Emacs 的说法：<kbd>M</kbd><kbd>x</kbd> <code>normal-erase-is-backspace-mode</code>（手册节点 <em>If &lt;DEL&gt; Fails to Delete</em>），切换一下就对了。写进配置文件永久生效：<code>(normal-erase-is-backspace-mode 1)</code>。</p>
+  </div>
+
+  <p>第二处，<kbd>Prior</kbd>（Page Up）绑的是 <code>scroll-down-command</code>，<kbd>Next</kbd>（Page Down）绑的是 <code>scroll-up-command</code>。原因是 Emacs 的「向上/向下滚动」指的是<em>文字</em>在窗口里移动的方向，不是你在看什么方向。这是老术语，Emacs 沿用了，改不动了（手册 <em>Scrolling</em> 一节专门解释了这个约定）。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>翻页时窗口会保留 <code>next-screen-context-lines</code> 行重叠内容（默认值 <code>2</code>，我用 <code>emacs --batch -Q --eval</code> 实测确认），这样你翻回去还能看到上一屏的最后两行。觉得两行太少就 <kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> 然后输 <code>next-screen-context-lines</code> 改成 3 或 4。</p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>如果你在终端里用 bash、python 交互解释器、psql、任何基于 GNU readline 的程序，那些程序的默认键位就是 Emacs 键位：<kbd>M</kbd><kbd>f</kbd> 前进一词，<kbd>M</kbd><kbd>b</kbd> 后退一词，<kbd>C</kbd><kbd>a</kbd> 行首，<kbd>C</kbd><kbd>e</kbd> 行尾，<kbd>C</kbd><kbd>k</kbd> 杀到行尾。也就是说这一章的肌肉有一半你已经在用了——只是 shell 里没有 mark 和 region，所以感觉不到完整版。</p>
+  </div>
+
+  <h3>三、按字符移动：<kbd>C</kbd><kbd>-f</kbd> <kbd>C</kbd><kbd>-b</kbd> <kbd>C</kbd><kbd>-p</kbd> <kbd>C</kbd><kbd>-n</kbd></h3>
+
+  <p>第一次看到 Emacs 用 <kbd>C</kbd><kbd>f</kbd> 表示「前进一个字符」，多数人会觉得别扭——为什么不直接用 <kbd>C</kbd><kbd>d</kbd>（delete）或者某个不冲突的键？答案是留位：<strong>这套键位是一整族</strong>，每个修饰键管一档粒度，你只要认得 <code>C-</code> = 字符、<code>M-</code> = 词、<code>C-M-</code> = 结构，整张表就自洽了：</p>
+
+  <ul>
+    <li><code>C-</code> 这一档：字符、句、行（<kbd>C</kbd><kbd>a</kbd> / <kbd>C</kbd><kbd>e</kbd> / <kbd>C</kbd><kbd>k</kbd>）</li>
+    <li><code>M-</code> 这一档：词、句、段（<kbd>M</kbd><kbd>d</kbd> / <kbd>M</kbd><kbd>-</kbd><kbd>DEL</kbd> / <kbd>M</kbd><kbd>t</kbd>）</li>
+    <li><code>C-M-</code> 这一档：结构（<kbd>C</kbd><kbd>M</kbd><kbd>f</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>b</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>k</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd>）</li>
+    <li>字母本身取首字母：<code>f</code>orward、<code>b</code>ackward、<code>p</code>revious、<code>n</code>ext。</li>
+  </ul>
+
+  <p>字符移动（character movement）本身是<strong>最慢</strong>的移动方式，因为它的速度上限是键盘的重复键速度。它只在一种情况下是最高效：你想在词里偏一两个字的时候。除此之外一律不要用。</p>
+
+  <div class="keys">
+    <h4>本节按键（字符与行）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>f</kbd></td><td><code>forward-char</code></td><td>前进一个字符</td></tr>
+        <tr><td><kbd>C</kbd><kbd>b</kbd></td><td><code>backward-char</code></td><td>后退一个字符</td></tr>
+        <tr><td><kbd>C</kbd><kbd>p</kbd></td><td><code>previous-line</code></td><td>上一行（保持列位置）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>n</kbd></td><td><code>next-line</code></td><td>下一行（保持列位置）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>a</kbd></td><td><code>move-beginning-of-line</code></td><td>行首</td></tr>
+        <tr><td><kbd>C</kbd><kbd>e</kbd></td><td><code>move-end-of-line</code></td><td>行尾</td></tr>
+        <tr><td><kbd>M</kbd><kbd>m</kbd></td><td><code>back-to-indentation</code></td><td>跳到本行第一个非空白字符（缩进后第一列）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> ＋下一键</td><td><code>negative-argument</code></td><td>负前缀：把后面的命令反向或减量。<strong>后面必须再跟一个键</strong>，比如 <kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>f</kbd> 就是「往回跳一个词」</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><kbd>M</kbd><kbd>m</kbd> 是这一节最该立刻内化的一个键。它的行为是：先到行首，再向右走到第一个不是空格或 Tab 的字符。效果对比很清楚：</p>
+
+  <pre class="term"><code>function foo() {
+    return 42;▌
+}
+
+按 M-m 之后：
+
+function foo() {
+    ▌return 42;
+}</code></pre>
+
+  <p>在有缩进的行上，<kbd>M</kbd><kbd>m</kbd> 就是 <kbd>C</kbd><kbd>a</kbd>；在没有缩进的行上两者等价。所以<strong>大多数情况下用 <kbd>M</kbd><kbd>m</kbd> 代替 <kbd>C</kbd><kbd>a</kbd>，永远不吃亏</strong>——它和 <kbd>M</kbd><kbd>f</kbd>、<kbd>M</kbd><kbd>b</kbd>、<kbd>M</kbd><kbd>d</kbd> 一样都在右手的 <code>M</code> 键上，一只手就能连着敲「跳到行首第一个词 → 操作这个词」。</p>
+
+  <h3>四、行、屏幕行与折行：三个容易混的名词</h3>
+
+  <p>Emacs 默认把过长的行按窗口宽度折断显示。一行长文本会占屏幕上好几行。这时候「一行」到底是哪一行？三个名字，三个意思：</p>
+
+  <ul>
+    <li><strong>逻辑行</strong>（logical line）——buffer 里真实的、由换行符结尾的一行。</li>
+    <li><strong>视觉行 / 屏幕行</strong>（visual line / screen line）——屏幕上你看到的一行。手册说这两个词可以互换，区别只在「有没有折行」。</li>
+    <li>历史包袱：早期 Emacs 的 <kbd>C</kbd><kbd>p</kbd>/<kbd>C</kbd><kbd>n</kbd> 按逻辑行走，导致光标上下跳时会跳过折行的中间部分。当年这引发了大量争议，结果是<strong>几乎所有人都改了</strong>。</li>
+  </ul>
+
+  <p>结论很简单：<strong>Emacs 23.1 起，<kbd>C</kbd><kbd>p</kbd> 和 <kbd>C</kbd><kbd>n</kbd> 默认按屏幕行走</strong>。我查了 Emacs 32.0.50 上 <code>line-move-visual</code> 的默认值，确实是 <code>t</code>。要恢复老行为，把 <code>line-move-visual</code> 设成 <code>nil</code>（<kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> 然后输这个变量名）。</p>
+
+  <p>但 <kbd>C</kbd><kbd>a</kbd>、<kbd>C</kbd><kbd>e</kbd> 这些仍然按<strong>逻辑行</strong>工作——手动册里明确写了这点：<em>Unlike C-n and C-p, most of the Emacs commands that work on lines work on logical lines.</em></p>
+
+  <p>如果你希望 <kbd>C</kbd><kbd>a</kbd> 也认屏幕行，就要开 <strong>Visual Line mode</strong>（<code>visual-line-mode</code>，按词边界折行的次模式）。我实测它开了之后改写了三个键：</p>
+
+  <pre class="el"><code>C-a  →  beginning-of-visual-line
+C-e  →  end-of-visual-line
+C-k  →  kill-visual-line</code></pre>
+
+  <p>同时它会关掉截断，模式行上会显示 <code>wrap</code> 字样。开启方式：<kbd>M</kbd><kbd>x</kbd> <code>global-visual-line-mode</code>（全局）或 <kbd>M</kbd><kbd>x</kbd> <code>visual-line-mode</code>（只对当前 buffer）。写进配置文件则是 <code>(global-visual-line-mode 1)</code>。不想要折行、想看到完整的长行，就用 <kbd>M</kbd><kbd>x</kbd> <code>toggle-truncate-lines</code> 切换截断（truncation）——这个词有点误导：它不是「砍掉文本」，只是屏幕上用右边框截断，文本还在 buffer 里。</p>
+
+  <h4>行号与列号</h4>
+
+  <p>Emacs 默认不开行号（<code>display-line-numbers-mode</code> 默认 <code>nil</code>，我实测确认）。今天要开就敲 <kbd>M</kbd><kbd>x</kbd> <code>display-line-numbers-mode</code>——它是一个<strong>全局次模式</strong>（global minor mode，一个小写单词，开关一次影响所有 buffer），所以 <kbd>M</kbd><kbd>x</kbd> 直接调用就是全局效果。写进配置：<code>(display-line-numbers-mode 1)</code>。行号的样式（绝对 / 相对 / 两者混合）用 <kbd>M</kbd><kbd>x</kbd> <code>customize-group</code> 输 <code>display-line-numbers</code> 调，核心变量是 <code>display-line-numbers-type</code>。</p>
+
+  <p>只想在模式行（mode line，屏幕最下面那行状态栏）看当前行号，就开 <code>line-number-mode</code>（默认已开）和 <code>column-number-mode</code>（默认关闭）。列号从 0 开始数，行号从 1 开始——这是历史遗留，习惯就好。</p>
+
+  <div class="keys">
+    <h4>本节按键（折行与行号）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>visual-line-mode</code></td><td><code>visual-line-mode</code></td><td>本 buffer 切换按词折行，并让 <kbd>C</kbd><kbd>a</kbd>/<kbd>C</kbd><kbd>e</kbd>/<kbd>C</kbd><kbd>k</kbd> 认屏幕行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>global-visual-line-mode</code></td><td><code>global-visual-line-mode</code></td><td>全局切换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>toggle-truncate-lines</code></td><td><code>toggle-truncate-lines</code></td><td>本 buffer 切换「截断显示长行」</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>display-line-numbers-mode</code></td><td><code>display-line-numbers-mode</code></td><td>全局开关行号</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>line-number-mode</code></td><td><code>line-number-mode</code></td><td>模式行显示当前行号</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>column-number-mode</code></td><td><code>column-number-mode</code></td><td>模式行显示当前列号</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <details class="deep">
+    <summary>进阶：中日韩混排时的折行</summary>
+    <p>Emacs 自带两个更好的方案，都不用装包。</p>
+    <ul>
+      <li><code>word-wrap-whitespace-mode</code>（次模式）——在「空白字符」之外，再加上一批可以折行的字符。加哪几个由选项 <code>word-wrap-whitespace-characters</code> 决定，它的默认值是一串 Unicode 空白（含全角空格 U+3000）和零宽空格。中文里全角空格本来就常被当分隔用，这个模式通常就够。</li>
+      <li><code>word-wrap-by-category</code>——按字符的语法<strong>类别</strong>决定能不能折行，而不是只看空白。默认值是 <code>nil</code>（关着）；设成非 <code>nil</code> 后 Emacs 可以在任意类别边界折行，汉字友好得多。它有三个取值：<code>set</code> 是标准禁则处理（遵守「行首不出现 <code>，</code><code>。</code>，行尾不出现 <code>《</code><code>」</code>」的中文排版规则），<code>raw</code> 跳过禁则（写代码时用这个，免得格式化长行时缩进被折断），<code>variable</code> 则由变量 <code>kinsoku-justify</code> 决定要不要做禁则。</li>
+    </ul>
+    <p>标准禁则处理由 Emacs 自带的 <code>kinsoku.el</code> 提供。想改禁则规则：<kbd>M</kbd><kbd>x</kbd> <code>customize-group</code> 输 <code>kinsoku</code>。想看某个字符属于哪一类：<kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>=</kbd>，看报告里的 category 段（Emacs 手册 <em>Visual Line Mode</em> 一节举的就是这个用法）。</p>
+  </details>
+
+  <h3>五、按词移动：<kbd>M</kbd><kbd>f</kbd> <kbd>M</kbd><kbd>b</kbd> 与语法表</h3>
+
+  <p>按词移动是日常用得最多的移动，键位就是字符移动把 <code>C-</code> 换成 <code>M-</code>：</p>
+
+  <div class="keys">
+    <h4>本节按键（词）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>f</kbd></td><td><code>forward-word</code></td><td>前进一个词</td></tr>
+        <tr><td><kbd>M</kbd><kbd>b</kbd></td><td><code>backward-word</code></td><td>后退一个词</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd><kbd>M</kbd><kbd>f</kbd></td><td><code>forward-word</code>（负参数）</td><td>反向走：当作 <kbd>M</kbd><kbd>b</kbd> 用</td></tr>
+        <tr><td><kbd>M</kbd><kbd>@</kbd></td><td><code>mark-word</code></td><td>把 mark 放到下一个词尾（不移动 point）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>subword-mode</code></td><td><code>subword-mode</code></td><td>把 CamelCase 当成多个词</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>superword-mode</code></td><td><code>superword-mode</code></td><td>把 <code>snake_case</code> 当成一个词</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>glasses-mode</code></td><td><code>glasses-mode</code></td><td>把 <code>CamelCase</code> 显示成 <code>Camel_Case</code>（只影响显示）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>「词」到底是什么？语法表说了算</h4>
+
+  <p>多数人以为词就是「用空白隔开的一串字符」。在 Emacs 里不完全对。每个 <strong>主模式</strong>（major mode，一种语言/文件类型对应的编辑模式，如 <code>python-mode</code>）都有一张 <strong>语法表</strong>（syntax table），它给每一个字符（包括 Unicode 码点）标一个「语法类」：词构成字符（<code>?w</code>）、标点（<code>?.</code>）、括号（<code>?(</code> <code>?)</code>）、引号（<code>?\"</code>）、注释起始符（<code>&lt;</code>）等等。词移动完全按这张表算。</p>
+
+  <p>所以同一个字符串在不同主模式里，「词」的切法可以完全不同。最干净的例子是 <code>a.b.c</code>：在 <code>fundamental-mode</code>（最基础的文本模式）里，<code>.</code> 的语法类是标点（<code>?.</code>），而 Emacs 跳过标点，所以 <kbd>M</kbd><kbd>f</kbd> 一次跳过整个 <code>a.b.c</code>——它算<strong>一个词</strong>；到了 <code>python-mode</code> 里，主模式把 <code>.</code> 标成了表达式的一部分，<kbd>M</kbd><kbd>f</kbd> 就只走 <code>a</code>、<code>b</code>、<code>c</code> 三步。我用 <code>(char-syntax ?.)</code> 和逐步 <code>forward-word</code> 在 Emacs 32.0.50 上分别试过 <code>fundamental-mode</code>、<code>python-mode</code> 和 <code>emacs-lisp-mode</code>，结果确实如此。<strong>这就是为什么同一个键在不同文件里感觉不一样</strong>——不是你记错了，是模式改写了语法表。</p>
+
+  <p>想看你当前 buffer 的语法表，敲 <kbd>C</kbd><kbd>h</kbd> <kbd>s</kbd>（<code>describe-syntax</code>），会开一个帮助 buffer 列出所有字符的类别。这是 Emacs 少有的、其他编辑器做不到的事：<strong>你可以直接看到并修改 Emacs 判断「词」和「注释」的依据</strong>。移动不灵时先查这里。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>中日韩读者注意两件事。</p>
+    <p>第一，Emacs 默认把汉字判为<strong>词构成字符</strong>——我实测 <code>(char-syntax ?这)</code> 返回 <code>?w</code>。所以 <kbd>M</kbd><kbd>f</kbd> 在中文里是按「连续汉字串」跳的。顺便，汉字之间的<strong>全角空格</strong>（U+3000）在语法上是空白，所以「汉字　空格　汉字」会被切成两个词——写中文时如果想让它连成一个词，把全角空格换成普通空格或者直接去掉。</p>
+    <p>第二，词移动<strong>还看字符所属的文字体系</strong>（<code>char-script-table</code>，判定一个字符属于汉字、拉丁、假名、阿拉伯等哪一「文字」），不同文字体系之间也构成词边界。这不是新加的功能，手册 <em>Motion by Words</em> 一节就是这么描述 <code>forward-word</code> 的。我在 Emacs 32.0.50 上实测 <code>中文abc混排</code>：<kbd>M</kbd><kbd>f</kbd> 先停在 <code>中文</code> 之后，再停在 <code>abc</code> 之后，最后停在 <code>混排</code> 之后——汉字和拉丁字母分开成词，正是你想要的效果。全角句号 <code>。</code> 的语法类是 <code>?.</code>（标点），不是词字符。</p>
+  </div>
+
+  <h4>词移动是<strong>不对称</strong>的</h4>
+
+  <p>这是新手最容易被绊倒的一点，务必理解而不是死记。规则是：<strong>Emacs 会跳过移动方向上紧跟在 point 后面、但不属于词的字符</strong>（标点、符号），直到遇见真正的词字符为止。结果是 <kbd>M</kbd><kbd>f</kbd> 之后接 <kbd>M</kbd><kbd>b</kbd>，<strong>不会</strong>回到原位。</p>
+
+  <p>我用 buffer 内容 <code>Hello, World.</code> 在 Emacs 32.0.50 上实测了每一步（下面的 <code>│</code> 表示 point）：</p>
+
+  <pre class="term"><code>起点在 position 1（Hello 的 H 之前）
+  M-f  →  Hello,│ World.        落在 position 6，即 o 之后、逗号之前
+  M-f  →  Hello, World│.        落在 position 13，跳过了逗号和空格
+  M-b  →  Hello, │World.        落在 position 8，跳过了句点，停在 W 之前
+  M-f  →  Hello, World│.        落在 position 13 —— 没有回到 8
+
+从行尾（position 14）出发：
+  M-b  →  Hello, │World.        落在 position 8
+  M-f  →  Hello, World│.        落在 position 13，也不是行尾</code></pre>
+
+  <p>为什么 Emacs 要这么设计？因为如果不这样，代码里的每个符号都会变成一个「词」，<kbd>M</kbd><kbd>f</kbd> 就变成了一个没有任何用处的逐字符移动。规则的实际效果是：<strong>你连续敲 <kbd>M</kbd><kbd>b</kbd>，会一个一个退过文本里的词，顺手跳过沿途的括号、逗号、下划线</strong>。代码里到处都是这种东西，这是唯一合理的行为。</p>
+
+  <p>再看一个你真会在源码里遇到的例子，buffer 内容 <code>print(add_two(num_table[10]))</code>，point 在行尾：</p>
+
+  <pre class="term"><code>  print(add_two(num_table[10]))▌
+  M-b → print(add_two(num_table[▌10]))
+  M-b → print(add_two(num_▌table[10]))    ← 停在 table 前，不是 num_table 前
+
+往回走一步再往前：
+  M-f → print(add_two(num_table▌[10]))</code></pre>
+
+  <p>看到不对称在这里怎么帮你：<kbd>M</kbd><kbd>b</kbd> 之后紧接 <kbd>M</kbd><kbd>d</kbd>（<code>kill-word</code>，杀到词尾），你会干净地杀掉 <code>10</code>，不会碰到后面的 <code>]))</code>。移动和编辑共用同一套不对称规则，这正是它能用的原因。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>别指望 <kbd>M</kbd><kbd>b</kbd> 和 <kbd>M</kbd><kbd>f</kbd> 互为逆操作。要精确回到某个位置，用 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 交换 point 和 mark（见第十一节），或者干脆记一个位置用寄存器。</p>
+  </div>
+
+  <h4>CamelCase 与 snake_case</h4>
+
+  <p>如果你写 Java、C#、Objective-C 这类用 <code>CamelCase</code> 命名的语言，Emacs 自带两个次模式（minor mode，叠加在主模式之上的行为开关）来调整词的定义：</p>
+
+  <ul>
+    <li><code>subword-mode</code>——把 <code>GtkWidget</code> 当成 <code>Gtk</code> 和 <code>Widget</code> 两个词，手册叫这种混合大小写的符号为 <em>nomenclature</em>。开了之后 <kbd>M</kbd><kbd>f</kbd>、<kbd>M</kbd><kbd>d</kbd>、<kbd>M</kbd><kbd>t</kbd>（<code>transpose-words</code>，交换两个词）都会在驼峰边界停下。</li>
+    <li><code>superword-mode</code>——反过来，把 <code>this_is_a_symbol</code> 当成一个词，因为它把符号类字符（symbol syntax，通常包括下划线）算作词的一部分。</li>
+  </ul>
+
+  <p>两者都是 Emacs 自带的（不用装包），但<strong>默认关闭</strong>（我实测 Emacs 32.0.50 上 <code>subword-mode</code>、<code>superword-mode</code>、<code>glasses-mode</code> 默认都是 <code>nil</code>），而且都是 buffer 局部的。要全局打开：</p>
+
+  <pre class="el"><code>(global-subword-mode 1)
+;; 如果你还常写 snake_case：
+(global-superword-mode 1)</code></pre>
+
+  <p><code>superword-mode</code> 有个坑：它依赖主模式把 <code>_</code> 判成符号类字符（<code>?_</code>），有些模式没设，就不起作用。另外知道它们的来历有助于你判断新版本行为：<code>superword-mode</code> 是 <strong>Emacs 24</strong> 新增的（NEWS.24 明确记录）；<code>subword-mode</code> 在 <strong>Emacs 25</strong> 被重写过——重写后它不再靠语法表，而是给词移动装了一层钩子，<kbd>M</kbd><kbd>f</kbd>、<kbd>M</kbd><kbd>d</kbd> 这些直接依赖 <code>forward-word</code> 的命令全都跟着按驼峰边界走。如果你的 Elisp 代码需要「不受 Subword mode 影响」的严格词移动，Emacs 25 起请改用新提供的 <code>forward-word-strictly</code> / <code>backward-word-strictly</code>（这是 NEWS.25 的迁移建议）。</p>
+
+  <p>还有个小玩意 <code>glasses-mode</code>：它只在<strong>显示</strong>上给 CamelCase 中间插一道虚拟下划线（<code>Camel_Case</code>），不改动 buffer 里的任何字符。原文作者个人很喜欢，但这属于口味问题。</p>
+
+  <h3>六、按平衡表达式移动：<kbd>C</kbd><kbd>-M</kbd> 这一族</h3>
+
+  <p>如果你写代码，这可能整章最有价值的一节。</p>
+
+  <p><strong>S 表达式</strong>（sexp）是 Lisp 术语，指「平衡表达式」（balanced expression）：一个从头到尾<strong>配对</strong>的结构。Emacs 认为这些是平衡的：</p>
+
+  <ul>
+    <li><strong>字符串</strong>——以 <code>"</code> 或 <code>'</code> 开始并结束，可以跨行。</li>
+    <li><strong>括号类字符</strong>——<code>(</code> <code>)</code>、<code>[</code> <code>]</code>、<code>{</code> <code>}</code>、<code>&lt;</code> <code>&gt;</code>。具体哪几个算，由主模式在语法表里定义。</li>
+    <li>单个符号、单个数字。</li>
+  </ul>
+
+  <p>键位还是那套助记法，修饰键换成 <code>C-M-</code>：</p>
+
+  <div class="keys">
+    <h4>本节按键（平衡表达式与括号结构）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>f</kbd></td><td><code>forward-sexp</code></td><td>前进一个平衡表达式</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>b</kbd></td><td><code>backward-sexp</code></td><td>后退一个平衡表达式</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>d</kbd></td><td><code>down-list</code></td><td>向下钻进最近的未匹配左括号</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd></td><td><code>backward-up-list</code></td><td>向上退出一层括号（在字符串里会跳到引号）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>n</kbd></td><td><code>forward-list</code></td><td>横向走到同层下一个括号组之后</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>p</kbd></td><td><code>backward-list</code></td><td>横向走到同层上一个括号组之前</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>k</kbd></td><td><code>kill-sexp</code></td><td>杀掉光标处的平衡表达式（编辑章详讲）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>&lt;SPC&gt;</kbd></td><td><code>mark-sexp</code></td><td>把 mark 放到下一个平衡表达式之后（别名 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>@</kbd>）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>t</kbd></td><td><code>transpose-sexps</code></td><td>交换前后两个平衡表达式</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>四个方向：前、后、下、上、左右</h4>
+
+  <p><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>f</kbd> 跳过一个完整的平衡表达式。在 Python 字典里按一次，光标会从 <code>{</code> 前面直接飞到 <code>}</code> 后面——因为 Emacs 知道 <code>{}</code> 是配对的。</p>
+
+  <p>想「钻进」括号里逐层处理，就用下面这四个。它们的设计是：<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>d</kbd> 往下钻一层，<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> 往回退一层，<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>n</kbd> 和 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>p</kbd> 在<strong>同一层</strong>左右横移。</p>
+
+  <p>下面是我在 <code>emacs-lisp-mode</code> 里对 buffer <code>(+ (* 5 2) (- 10 10))</code> 逐步实测的结果（`│` 是 point）：</p>
+
+  <pre class="term"><code>起点（第二个字符）      (+│ (* 5 2) (- 10 10))
+C-M-d  向下钻一层        (+ (│* 5 2) (- 10 10))
+C-M-u  退回上一层        (+ (│* 5 2) (- 10 10))   ← 停在左括号上，不是括号里
+C-M-n  右移一个括号组    (+ (* 5 2)│ (- 10 10))
+C-M-n  再右移一个        (+ (* 5 2) (- 10 10)│)
+C-M-n  再来一次          报错：这一层已经没有更多括号组了
+C-M-u  退出外层          │(+ (* 5 2) (- 10 10))
+C-M-n  进入外层          (+ (* 5 2) (- 10 10))│</code></pre>
+
+  <p>两点要注意：<strong>（1）</strong> 括号命令在字符串和注释里结果不可靠，手册明说了；<strong>（2）</strong> 它和词命令一样不对称——<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> 退出去时会把 point 留在<strong>左括号上</strong>，不是括号内部的第一个位置。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>这些命令不是 Lisp 专属。在 Python 里，字典、列表、函数调用的参数、元组全是大括号小括号；括号命令照样工作。原文作者的说法是：大多数语言里你都会频繁遇到平衡表达式，所以这套命令在所有语言里都值得学。唯一的前提是你的主模式在语法表里正确标了括号——如果某个语言的 <code>C-M-f</code> 跳不过去，那是那个模式的问题，不是你命令敲错了。</p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> 现在也能从字符串里跳到开头的引号（手册确认：<em>move out of enclosing strings as well</em>）。</p>
+    <p>真正让它值回票价的是和 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>k</kbd>（<code>kill-sexp</code>）的组合。<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> 回到上一层，<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>k</kbd> 删掉刚钻出来的那个表达式。实测 buffer <code>(+ (* 5 2) (- 10 10))</code>，point 在 <code>5</code> 上：</p>
+    <pre class="term"><code>起点（point 在 5 上）
+  (+ (* █5 2) (- 10 10))
+C-M-u 后（point 停在 4，即左括号之前）
+  (+ █(* 5 2) (- 10 10))
+C-M-k 后（point 仍在 4，buffer 里 (+) 后面有两个空格）
+  (+ █ (- 10 10))</code></pre>
+    <p>两键删掉一整个嵌套调用，而且不会碰到外层括号（我实测：<code>kill-sexp</code> 从 4 开始删掉 4–10 这七个字符 <code>(* 5 2)</code>，留下的 <code>(+ </code> 和 <code> (- 10 10))</code> 各自拼接，所以 <code>+</code> 后面有两个空格）。大范围重构代码时这是最高效的一招。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>有些终端发不出 <kbd>C</kbd><kbd>M</kbd> 这个组合。最可靠的绕法是<strong>用 <kbd>M</kbd><kbd>x</kbd> 调命令名</strong>：<kbd>M</kbd><kbd>x</kbd> 然后输入 <code>forward-sexp</code> 回车，功能完全一样，只是慢一点。这是我的经验性做法，不是官方文档里的说法——遇到发不出去的组合键，先想到这招。</p>
+  </div>
+
+  <h3>七、按句、段、定义和页移动</h3>
+
+  <p>这四个单元是给「读」用的，不是给「跳」用的。键位仍然服从助记法：句用 <code>M-</code>，定义用 <code>C-M-</code>。</p>
+
+  <div class="keys">
+    <h4>本节按键（句、段、定义、页）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>a</kbd></td><td><code>backward-sentence</code></td><td>回到本句开头（<code>a</code> 对应 <kbd>C</kbd><kbd>a</kbd>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>e</kbd></td><td><code>forward-sentence</code></td><td>跳到本句结尾（<code>e</code> 对应 <kbd>C</kbd><kbd>e</kbd>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>{</kbd></td><td><code>backward-paragraph</code></td><td>回到上一段开头</td></tr>
+        <tr><td><kbd>M</kbd><kbd>}</kbd></td><td><code>forward-paragraph</code></td><td>跳到下一段结尾</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>a</kbd></td><td><code>beginning-of-defun</code></td><td>跳到当前定义的开头</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>e</kbd></td><td><code>end-of-defun</code></td><td>跳到当前定义的结尾</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>[</kbd></td><td><code>backward-page</code></td><td>移到上一个页分隔符之后</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>]</kbd></td><td><code>forward-page</code></td><td>越过下一个页分隔符</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>p</kbd></td><td><code>mark-page</code></td><td>把整页设成 region</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>l</kbd></td><td><code>count-lines-page</code></td><td>统计本页行数，并报告光标前后各有多少行。结果显示在回显区</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>l</kbd></td><td><code>downcase-region</code></td><td><strong>把选区全部转成小写</strong>。和上一行只差一个 <kbd>C</kbd>——<kbd>C</kbd><kbd>x</kbd> <kbd>l</kbd> 是<strong>一个</strong>字母，<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>l</kbd> 是<strong>两个</strong>。本书作者在 Emacs 32.0.50 上逐个查过：<code>(key-binding (kbd "C-x l"))</code> 返回 <code>count-lines-page</code>，<code>(key-binding (kbd "C-x C-l"))</code> 返回 <code>downcase-region</code></td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>what-page</code></td><td><code>what-page</code></td><td>显示当前是第几页第几行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>paragraph-indent-minor-mode</code></td><td><code>paragraph-indent-minor-mode</code></td><td>让「有缩进的行」也算段落分隔</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>句子：Emacs 假设你句号后打两个空格</h4>
+
+  <p>句子的定义由三个变量决定，手册的措辞很直白：<em>The sentence commands assume that you follow the American typographers' convention of putting two spaces at the end of a sentence.</em> 这样 Emacs 才能区分「句号结束句子」和「句号是缩写的一部分」。</p>
+
+  <ul>
+    <li><code>sentence-end-double-space</code>（默认 <code>t</code>）——非 nil 表示一个空格不结束句子。设成 <code>nil</code> 则单空格即断句，但就没法识别缩写了。手册明确建议保留双空格习惯。</li>
+    <li><code>sentence-end-without-period</code>（默认 <code>nil</code>）——设成 <code>t</code> 表示句子可以没有句号就结束（泰语等）。</li>
+    <li><code>sentence-end-without-space</code>——「后面不跟空格也能断句的字符集合」。<strong>这个默认值对中文读者很重要：我实测 Emacs 32.0.50 的值是 <code>。．？！</code></strong>，也就是全角句号、全角点、问号、叹号。也就是说在中文文本里，<kbd>M</kbd><kbd>e</kbd> 遇到 <code>。</code> 就能正确断句，不需要你打任何空格。</li>
+  </ul>
+
+  <p>另外句子的边界就是段的边界——段落开始或结束的地方必然也是句子开始或结束的地方。句命令在编程模式里同样有用，因为主模式可以重定义「句子」：在 C 模式里一个「句子」就是一个完整语句（<code>int x = 5;</code>），在 JS 模式里可以是一条完整语句。它比 sexp 大、比 defun 小，正好填上中间那层。</p>
+
+  <h4>段落：定义在一堆正则里</h4>
+
+  <p>段落的精确边界由两个正则变量控制。我实测了 Emacs 32.0.50 在基础模式下的默认值：</p>
+
+  <pre class="el"><code>paragraph-start     "\\|[ \t]*$"   ; 开启或分隔段落
+paragraph-separate  "[ \t]*$"     ; 只作分隔（本身不算段落内容）</code></pre>
+
+  <p>用 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd>（<code>describe-variable</code>）输变量名可以随时看真实值和说明。实用结论：</p>
+
+  <ul>
+    <li>默认把<strong>空行</strong>当段落分隔。在编程模式里程序员也常用空行把逻辑块分开，所以 <kbd>M</kbd><kbd>{</kbd> / <kbd>M</kbd><kbd>}</kbd> 在代码里同样好用——沿着空行跳，一跳一块。</li>
+    <li>缩进行在 <code>text-mode</code> 里<strong>不是</strong>段落分隔。想要缩进也算分隔，开 <code>paragraph-indent-minor-mode</code>（<kbd>M</kbd><kbd>x</kbd> 调用）。</li>
+    <li>这两个正则匹配的是<strong>左边距处的文本</strong>，不一定在行首，所以别用 <code>^</code> 锚定，否则遇上带 margin 的文件就失效。</li>
+  </ul>
+
+  <h4>定义（defun）：跳到函数边界</h4>
+
+  <p><strong>defun</strong> 是 LISP 缩写，意思是「定义函数」。在 Emacs 里它是个泛称：编程模式里通常指函数、类，或两者；在别的模式里可能是章节（比如 reStructuredText 模式里 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>a</kbd> 跳到小节开头）。</p>
+
+  <p><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>a</kbd> 的用处很实在：想改函数名或参数列表，一键跳到定义行。反复按 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>a</kbd> 会一路往上跳到外层块，直到文件最外层。注意它和 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>e</kbd> 不是严格互逆：函数尾和下一个函数头之间常有注释和空行，两者位置不一定重合。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>新版 Emacs 补上了这块的老缺口。<strong>Emacs 29 起</strong>陆续内置了一批基于 tree-sitter 解析的主模式（NEWS.29 的「New major modes based on the tree-sitter library」是起点，Emacs 30 又加了 Elixir、HEEx 等），这些模式多了一个变量 <code>treesit-defun-tactic</code>。默认 <code>nested</code> 表示找<strong>最内层</strong>的定义；设成 <code>top-level</code> 就找<strong>最外层</strong>的（更适合在大文件里跳）；设成 <code>parent-first</code> 则总是先试着往外跳，没有外层才去找前后相邻的定义。C 模式里 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>h</kbd> 会被替换成 <code>c-mark-function</code>，它会额外把参数表、函数名、返回类型一起包进去——这是主模式按语言调整键位行为的典型例子。</p>
+  </div>
+
+  <h4>页：Emacs 的「页」和打印意义的页无关</h4>
+
+  <p>Emacs 的页就是被 <code>page-delimiter</code>（默认正则 <code>^\f</code>，即行首的换页控制符 <code>^L</code>；我实测 Emacs 32.0.50 的默认值确实是这个）隔开的两段文本。文本文件里几乎没有 <code>^L</code>，所以这几条命令基本用不上。但它们值得知道存在，因为个别格式（PostScript 片段、LaTeX 中间文件、某些日志）会真的用到。想手动插一个 <code>^L</code>：<kbd>C</kbd><kbd>q</kbd> <kbd>C</kbd><kbd>l</kbd>。搬整页的标准做法是 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>p</kbd> 把当前页设成 region，再 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>w</kbd> 杀掉它，然后到别处 <kbd>C</kbd><kbd>y</kbd> 粘上。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>这组键<strong>不是</strong> <kbd>C</kbd><kbd>-</kbd><kbd>[</kbd> / <kbd>C</kbd><kbd>-</kbd><kbd>]</kbd>。我在 Emacs 32.0.50 上查过：<code>backward-page</code> 和 <code>forward-page</code> 绑的是 <kbd>C</kbd><kbd>x</kbd> <kbd>[</kbd> 和 <kbd>C</kbd><kbd>x</kbd> <kbd>]</kbd>（<code>(where-is-internal 'backward-page)</code> 返回 <code>(C-x [)</code>）；而 <kbd>C</kbd><kbd>-</kbd><kbd>[</kbd> 在 Emacs 里是个 <code>ESC-prefix</code> 嵌套键表，<kbd>C</kbd><kbd>-</kbd><kbd>]</kbd> 绑的是 <code>abort-recursive-edit</code>，都跟翻页无关。手册 <em>Pages</em> 一节列的也是 <kbd>C</kbd><kbd>x</kbd> <kbd>[</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>]</kbd>。</p>
+  </div>
+
+  <p>另一个实用技巧：不知道某个命令叫什么的时候，<kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd>（<code>apropos-command</code>，按名字片段搜命令）输 <code>page</code> 会列出所有含 page 的命令（原文作者当年输的是 <code>page$</code>，只留以 page 结尾的）。掌握「怎么向 Emacs 提问」比记住具体命令更重要——<kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 查函数、<kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 查变量、<kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 查当前模式、<kbd>C</kbd><kbd>h</kbd> <kbd>s</kbd> 查语法表、<kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 查按键绑定，这六个是 Emacs 自助能力的全部。我用 <code>(key-binding (kbd "…"))</code> 逐条查过它们在 Emacs 32.0.50 上确实都还绑着。</p>
+
+  <h3>八、滚动：<kbd>C</kbd><kbd>v</kbd> <kbd>M</kbd><kbd>v</kbd> 那一族</h3>
+
+  <p>滚动（scrolling）是「换一块显示内容」，移动是「换光标位置」。Emacs 的滚动命令会尽量带着 point 一起走。</p>
+
+  <div class="keys">
+    <h4>本节按键（滚动）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>v</kbd></td><td><code>scroll-up-command</code></td><td>向下翻近一屏（文字向上走）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>v</kbd></td><td><code>scroll-down-command</code></td><td>向上翻近一屏</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>v</kbd></td><td><code>scroll-other-window</code></td><td><strong>滚动另一个窗口</strong>（不动当前窗口）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>S</kbd><kbd>v</kbd></td><td><code>scroll-other-window-down</code></td><td>反向滚动另一个窗口</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>-</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>v</kbd></td><td><code>scroll-other-window</code>（负参数）</td><td>反向滚动另一个窗口（更好的按键姿势）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>l</kbd></td><td><code>recenter-top-bottom</code></td><td>把当前行滚到窗口正中；反复按依次变成最上、最下</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd></td><td><code>scroll-left</code></td><td>窗口整体向左滚一屏宽</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>&gt;</kbd></td><td><code>scroll-right</code></td><td>窗口整体向右滚（会回到正常显示）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>&lt;</kbd><kbd>prior&gt;</kbd></td><td><code>scroll-right</code></td><td>同 <kbd>C</kbd><kbd>x</kbd> <kbd>&gt;</kbd></td></tr>
+        <tr><td><kbd>C</kbd><kbd>&lt;</kbd><kbd>next&gt;</kbd></td><td><code>scroll-left</code></td><td>同 <kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>v</kbd>（<code>scroll-other-window</code>）是别的编辑器基本都没有的能力：你在一边写代码，一边开着一个 help buffer 或编译日志，不用切窗口就能把那边滚上去。原文作者说他几乎为此放弃了 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>S</kbd><kbd>v</kbd>，因为那个键要同时按住三个修饰键，手指姿势太别扭，他改用 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>-</kbd>（负参数）加 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>v</kbd> 来反向滚动。</p>
+    <p>顺带解释「维持节奏」这件事：负参数键 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>-</kbd> 和滚动键 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>v</kbd> 用的修饰键是同一组，所以你的手不用在两套姿势之间挪。这是 Emacs 键位设计里很典型的一层考虑——不是每个键都最合理，但<strong>成族设计的键位更省手</strong>。</p>
+  </div>
+
+  <p><kbd>C</kbd><kbd>l</kbd> 这一族我单独说一句，因为它的命令名变过：现在 <kbd>C</kbd><kbd>l</kbd> 绑的是 <code>recenter-top-bottom</code>，不是老书里写的 <code>recenter</code>。我在 Emacs 32.0.50 上查 <code>(key-binding (kbd "C-l"))</code> 返回 <code>recenter-top-bottom</code>，而 <code>(where-is-internal 'recenter)</code> 返回 <code>nil</code>——也就是说 <code>recenter</code> 这个函数还在，但<strong>已经没有默认绑定了</strong>，<kbd>M</kbd><kbd>x</kbd> 调它也只会把当前行居中一次，没有「反复按变最上/最下」的效果。你要的是现代行为就用 <code>recenter-top-bottom</code>。</p>
+
+  <p>横向滚动（<kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>&gt;</kbd>）只在长行不折行时有用，比如 CSV、日志。鼠标滚轮在图形界面里当然能用；在终端里能不能用取决于你的终端支不支持鼠标事件上报（Emacs 26 起终端也支持滚轮了，但要看终端和 Emacs 的具体组合），所以这两条键盘键位仍然值得记住。自动横向滚动由 <code>auto-hscroll-mode</code> 控制：<code>t</code> 时整个窗口一起滚（这样窗口里每一行的左右部分都对齐，好看），<code>current-line</code>（有意思的取值）时只有光标那一行滚，设成 <code>nil</code> 则完全关掉自动横向滚动。我实测 Emacs 32.0.50 的默认值是 <code>t</code>。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>按住 <kbd>C</kbd><kbd>v</kbd> 让键盘自动重复时，Emacs 有时会来不及重绘：画面卡住不动，输入也像没反应。原因是滚动时要做语法着色（fontification）。两个解法：<code>(setq fast-but-imprecise-scrolling t)</code> 让它跳过着色；或者更推荐的 <code>(setq jit-lock-defer-time 0.2)</code>，让着色延迟一点点做，效果平滑而且颜色是对的。</p>
+  </div>
+
+  <h3>九、跳到缓冲区首尾，以及它顺手留下的面包屑</h3>
+
+  <p>最后两个最基本的移动：<kbd>M</kbd><kbd>&lt;</kbd>（<code>beginning-of-buffer</code>）和 <kbd>M</kbd><kbd>&gt;</kbd>（<code>end-of-buffer</code>）。图形界面里 <kbd>C</kbd><kbd>&lt;</kbd><kbd>Home</kbd> 和 <kbd>C</kbd><kbd>&lt;</kbd><kbd>End</kbd> 也能用（我实测确实绑到了同样的命令），但终端里这两个键常常不发出来，还是用 <kbd>M</kbd><kbd>&lt;</kbd> / <kbd>M</kbd><kbd>&gt;</kbd> 保险。</p>
+
+  <p>关键细节在这里：<strong>这两个命令会自动在你来的位置留下一个 mark</strong>。我查了 Emacs 32.0.50 上 <code>beginning-of-buffer</code> 和 <code>end-of-buffer</code> 的文档字符串，原话是 <em>Push mark at previous position</em>（例外：带 <kbd>C</kbd><kbd>u</kbd> 前缀时不推，或者 Transient Mark mode 开着且 mark 已激活时不推）。</p>
+
+  <p>所以你按 <kbd>M</kbd><kbd>&lt;</kbd> 冲到文件头之后，敲 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 就能弹回刚才的位置。<kbd>C</kbd><kbd>u</kbd> 在这里是「把这个命令变个味」——普通 <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 是「设 mark」，带 <kbd>C</kbd><kbd>u</kbd> 是「跳到 mark」。</p>
+
+  <p>这就是下一节的伏笔：<strong>mark 不是一个单纯的「选区锚点」，它是 Emacs 的面包屑系统。</strong></p>
+
+  <h3>十、书签与寄存器：一个管持久，一个管临时</h3>
+
+  <p>这两个机制经常被一起讲，但它们的设计意图正好相反：</p>
+
+  <ul>
+    <li><strong>书签</strong>（bookmark）——<em>永久</em>。有名字，自动保存到磁盘，下次启动还在。用来标记「我常去的地方」：常开的文件、常看的文档位置。</li>
+    <li><strong>寄存器</strong>（register）——<em>临时</em>。只有<strong>一个字符</strong>的名字，Emacs 关闭就没了。用来在一件事当中临时存一段文本、一个位置、一个窗口布局。</li>
+  </ul>
+
+  <h4>书签</h4>
+
+  <div class="keys">
+    <h4>本节按键（书签）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>m</kbd></td><td><code>bookmark-set</code></td><td>在当前文件当前位置设书签（默认名取文件名）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>M</kbd></td><td><code>bookmark-set-no-overwrite</code></td><td>同上，但同名书签已存在时报错而不覆盖</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>b</kbd></td><td><code>bookmark-jump</code></td><td>跳到指定书签</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>l</kbd></td><td><code>bookmark-bmenu-list</code></td><td>列出全部书签（也可 <kbd>M</kbd><kbd>x</kbd> <code>list-bookmarks</code>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>bookmark-save</code></td><td><code>bookmark-save</code></td><td>立刻把书签写盘</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>bookmark-delete</code></td><td><code>bookmark-delete</code></td><td>删掉一个书签</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>书签不只对文件有效。Emacs 手册本身、任何 <strong>buffer</strong>（Emacs 里的编辑单元，打开的每份内容都算）里的位置都能设书签，所以「我常读的那一节」和「我常改的那个文件」在同一个列表里，一视同仁。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原书写这本书时，书签文件在 <code>~/.emacs.d/bookmarks</code>。<strong>今天默认路径不一样了</strong>。我在本机 Emacs 32.0.50 上实测 <code>bookmark-default-file</code> 的值是 <code>~/.config/emacs/bookmarks.eld</code>——多了一个 <code>.eld</code> 后缀，而且目录从 <code>~/.emacs.d/</code> 挪到了 <code>~/.config/emacs/</code>（跟随 XDG 规范）。</p>
+    <p>变的是哪一步：我查了 Emacs 的源码。<strong>Emacs 30 及更早</strong>，<code>bookmark-default-file</code> 的默认值是 <code>(locate-user-emacs-file "bookmarks" ".emacs.bmk")</code>；<strong>Emacs 31.1 起</strong>改成了 <code>(locate-user-emacs-file '("bookmarks.eld" "bookmarks") ".emacs.bmk")</code>——先试带 <code>.eld</code> 的新名字，找不到才退回旧名字，这样升级后老书签不会丢。对应地，这个变量的 <code>:version</code> 标记写着 <code>31.1</code>。所以你在 Emacs 30 上看到的是 <code>~/.config/emacs/bookmarks</code>（XDG 目录迁移是更早的事，和 <code>.eld</code> 无关），在 31.1 及以后看到的是 <code>bookmarks.eld</code>。</p>
+    <p>值可能随你的系统（有无 <code>XDG_CONFIG_HOME</code>）不同。要确认自己机器上的实际值，敲 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输 <code>bookmark-default-file</code>。书签文件是纯文本（Elisp 的 s-表达式列表），实在要手动编辑或从另一台机器合并也不是不行——但多数情况下你只需要知道它在哪。</p>
+  </div>
+
+  <p>另外两个值得知道的机制。<strong>其一，<code>bookmark-save-flag</code> 决定什么时候自动写盘，它的默认值是 <code>t</code>，不是 <code>nil</code></strong>（我实测 Emacs 32.0.50 就是 <code>t</code>，并核对了源码里的说明）——<code>t</code> 的含义是「Emacs 退出时保存」。所以如果你崩溃过、丢过书签，想让它每次改动都立刻落盘，把这个变量设成 <code>1</code>（<code>nil</code> 才是彻底不自动保存，只在你显式 <kbd>M</kbd><kbd>x</kbd> <code>bookmark-save</code> 时才写）。</p>
+
+  <p><strong>其二，书签会连同上下文一起存</strong>——<code>bookmark-search-size</code>（默认 <code>16</code>，源码里的说明是「记录在书签两侧的上下文字符串长度」）控制每侧存多少字符。文件被小改过之后，跳回来仍然能靠这段上下文重新定位。</p>
+
+  <h4>寄存器</h4>
+
+  <p>寄存器是一个<strong>单字符</strong>的存储格。名字可以是字母、区分大小写（<code>a</code> 和 <code>A</code> 是两个寄存器）、数字，甚至 <code>C-d</code> 这种（用 <kbd>C</kbd><kbd>q</kbd> 再敲 <kbd>C</kbd><kbd>d</kbd> 输出来）。这几点是官方手册 <em>Registers</em> 一节明写的。</p>
+
+  <p>Emacs 提示你输寄存器名时会弹一个预览窗口，列出现有寄存器及其内容。这个弹窗的行为由两个变量控制：</p>
+
+  <ul>
+    <li><code>register-preview-delay</code>——延迟多少秒弹出来，<strong>默认 <code>1</code></strong>（我实测确认）。设成 <code>nil</code> 就完全不自动弹，但提示时按 <kbd>C</kbd><kbd>h</kbd> 或 <kbd>F1</kbd> 还是能手动叫出来。</li>
+    <li><code>register-use-preview</code>——预览风格，<strong>默认 <code>traditional</code></strong>，也就是「延迟弹、不能导航、敲个字母就选中」的老行为。想要那套<strong>立即弹出、可用 <kbd>C</kbd><kbd>n</kbd> / <kbd>C</kbd><kbd>p</kbd> 或上下键在寄存器之间导航、选中了要按回车才确认</strong>的新界面，把它设成 <code>t</code>；设成 <code>insist</code> 是 <code>t</code> 的加强版（再按一次同名字母就能退出 minibuffer，不用按回车）；设成 <code>never</code> 则彻底关掉预览。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><code>register-use-preview</code> 是 <strong>Emacs 30.1</strong> 才有的新变量（NEWS.30.1 的原话是「A new mode of prompting for register names and showing preview」，并说明默认值 <code>traditional</code> 保留了 Emacs 29 及更早的行为）。手册里把 <code>traditional</code> 描述成「Emacs 29 and before」的形态——所以<strong>如果你在 29 上找不到这个变量，不是你记错了，是它那时还不存在</strong>。另一个新界面带来的好处：<code>t</code> 模式下预览会按命令过滤，比如 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd> 的预览里只显示「能插入 buffer 的」寄存器，窗口布局、位置这类塞不进来的就不显示了。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键（寄存器）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>s</kbd></td><td><code>copy-to-register</code></td><td>把当前 region 存进寄存器（最常用）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd></td><td><code>insert-register</code></td><td>把寄存器内容插入到 point</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>j</kbd></td><td><code>jump-to-register</code></td><td>跳到寄存器记录的位置</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>SPC</kbd></td><td><code>point-to-register</code></td><td>把 point 位置存进寄存器</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>n</kbd></td><td><code>number-to-register</code></td><td>把数字存进寄存器（默认存 0）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>+</kbd></td><td><code>increment-register</code></td><td>寄存器里的数字加 1（可用数字前缀加别的数）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>w</kbd></td><td><code>window-configuration-to-register</code></td><td>存窗口布局</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>f</kbd></td><td><code>frameset-to-register</code></td><td>存 frame 布局</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>F</kbd></td><td><code>file-to-register</code></td><td>存当前文件路径</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>B</kbd></td><td><code>buffer-to-register</code></td><td>存当前 buffer 名</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>view-register</code></td><td><code>view-register</code></td><td>查看某个寄存器里存了什么</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>用法上最实用的两条是 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>s</kbd> 和 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd>：先把一段模板或代码块存进寄存器（比如 <code>a</code>），之后在任何地方敲 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd> <kbd>a</kbd> 就能插入。相比 kill ring（杀死环，最近杀死内容的循环队列），寄存器的好处是<strong>它不会被下一次 kill 冲掉</strong>——它是你明确指定要长期留着的东西。</p>
+
+  <p><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd> 插完之后 point 停在插入文本<strong>之后</strong>；给它一个 <kbd>C</kbd><kbd>u</kbd> 前缀则停在<strong>之前</strong>，这个细节在连续插入多段时很有用。</p>
+
+  <p>存位置用 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>SPC</kbd>，回来用 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>j</kbd>。注意这里有个历史遗留的不对称：<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd> 碰上存位置的寄存器不会跳过去，而是把内部位置编号插进文本，毫无意义。记住用 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>j</kbd> 就好。</p>
+
+  <p>数字寄存器配合键盘宏（keyboard macro，录制回放一串按键，见第 13 章）很顺手：<kbd>C</kbd><kbd>u</kbd> <kbd>1</kbd><kbd>0</kbd><kbd>0</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>n</kbd> <kbd>a</kbd> 存 100，<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>+</kbd> <kbd>a</kbd> 加一，<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd> <kbd>a</kbd> 插回 buffer。反复编号的场合（改带编号的条目、批量重编号）这招很直接。</p>
+
+  <h3>十一、选区与 region：先设 mark，再移动</h3>
+
+  <p>这一节是全章最反直觉的地方，也是 Emacs 与所有其他编辑器分歧最大的地方。</p>
+
+  <p><strong>region</strong>（区域）是 <strong>point 和 mark 之间的那段文本</strong>，就这么多。Emacs 里没有一个「选择模式」，也没有「光标锚点 vs 活动端」这种概念。point 和 mark 都是位置，region 就是它们之间，<strong>谁在前谁在后都无所谓</strong>。这和按住 <kbd>S</kbd>（Shift）再按方向键的模型是不同的——Emacs 也有 Shift 选择（见下一节），但那只是建在 point/mark 之上的一个便利层。</p>
+
+  <p>所以流程永远是三步，没有例外：</p>
+
+  <ol>
+    <li>把光标移到选区的一端。</li>
+    <li>设 mark（<kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd>）。回显区（echo area，屏幕底部弹消息的那一行）会显示 <code>Mark set</code>。</li>
+    <li>用任意移动命令走到另一端，region 跟着 point 实时增长、高亮。</li>
+  </ol>
+
+  <p>然后跑你要的命令。做完之后 region 自动失效，高亮消失。</p>
+
+  <p>动手试一遍，记住手感：打开任意文件，光标停在某个词中间，按 <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd>（你会看到 <code>Mark set</code>），然后连按几下 <kbd>M</kbd><kbd>f</kbd> 和 <kbd>M</kbd><kbd>b</kbd>，看着高亮一块一块地长长短短。再按一次 <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd>，高亮消失。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>要「只记一个位置，以后回来」时，得按<strong>两次</strong> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd>：第一下设 mark 并激活 region，第二下取消激活。第一次取消激活会顺带把原来的 mark 压进 mark ring（面包屑环），所以这个位置不会丢，之后 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 照样能弹回来。</p>
+    <p>只想取消 region 的话，按 <kbd>C</kbd><kbd>g</kbd>（<code>keyboard-quit</code>，那个万能的「算了」键）也完全可以，效果和再按一次 <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 一样。</p>
+  </div>
+
+  <h4>mark ring：可以一直往回退的面包屑</h4>
+
+  <p>每个 buffer 都有一个 <strong>mark ring</strong>（面包屑环，<code>mark-ring-max</code> 默认 16 条，我实测确认）。任何设 mark 的动作——不管是你手按的 <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd>，还是命令顺手留下的（比如 <kbd>M</kbd><kbd>&lt;</kbd>、<kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd>，还有 <kbd>C</kbd><kbd>y</kbd> 插入文本后把 mark 放在插入起点）——都会把旧位置压进这个环。</p>
+
+  <p><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 就是顺着这个环往回走：第一次跳到 mark 所在位置，再按一次跳到环里的上一条，再按跳更前一条。走过的位置不会被丢，而是被重新放到环尾，所以你可以在两个地方之间来回弹。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>另有一个<strong>全局</strong> mark ring，专门记跨 buffer 的位置。<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>@</kbd>（<code>pop-global-mark</code>，我实测过这个绑定）跳到全局环的最新一条并把环轮转，连续按可以一路退回你之前待过的那些 buffer 的那些位置。这比 mark ring 强的地方是<strong>它跨 buffer</strong>——普通 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 永远在当前 buffer 里走。两条路都值得按一按。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键（region 与 mark）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd></td><td><code>set-mark-command</code></td><td>设 mark 并激活 region；再按一次取消激活</td></tr>
+        <tr><td><kbd>C</kbd><kbd>@</kbd></td><td><code>set-mark-command</code></td><td>同上（<kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 在终端里通常发成这个字符）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd></td><td><code>set-mark-command</code>（带参数）</td><td>跳到 mark；连按沿 mark ring 往回退</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>@</kbd></td><td><code>pop-global-mark</code></td><td>沿全局 mark ring 跨 buffer 回退</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd></td><td><code>exchange-point-and-mark</code></td><td>交换 point 和 mark，并重新激活 region</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td><code>keyboard-quit</code></td><td>取消 region / 中断当前命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd></td><td><code>exchange-point-and-mark</code>（带参数）</td><td>只交换位置，不激活 region</td></tr>
+        <tr><td><kbd>S</kbd><kbd>&lt;</kbd> <kbd>S</kbd><kbd>&gt;</kbd> <kbd>S</kbd><kbd>↑</kbd> <kbd>↓</kbd></td><td>各移动命令加 Shift 修饰</td><td>按住 Shift 移动 = 设 mark 后移动（其他编辑器的方式）；由变量 <code>shift-select-mode</code> 提供，默认开</td></tr>
+        <tr><td><kbd>S</kbd><kbd>-</kbd><kbd>C</kbd><kbd>f</kbd> 等</td><td>同上</td><td>Emacs 自己的移动命令也能加 Shift 做选择</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 是个很妙的小工具：它把 point 和 mark 对调，然后<strong>重新点亮 region</strong>。所以当你做完一个操作、region 灭了，但还惦记着刚才那块区域时，按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 就能把它原样找回来。手动册还给了个额外用法：<kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd>（带前缀参数）只交换位置不点亮，于是它就变成了「跳到 mark」的另一种写法。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>有一批命令（名字里带 <code>region</code> 的那些，比如 <code>upcase-region</code>、<code>kill-region</code>）<strong>根本不检查 region 是否激活</strong>，只管 point 和 mark 之间的东西。所以你可能压根没设过 mark，它照样会拿「point 和上次设 mark 的位置」当输入去操作。这就是 <code>mark-even-if-inactive</code> 这个变量默认为 <code>t</code> 的原因（我实测过默认值），手动册为了向后兼容保留了这个行为。想让这类命令在 mark 没激活时直接报错，把这个变量设成 <code>nil</code>。</p>
+    <p>另一批命令走的是另一条路：<code>M</code><kbd>-</kbd><kbd>%</kbd>（<code>query-replace</code>）这类命令<strong>会</strong>检查 region 激活没激活，激活了就只替换区域内。这个差异是历史积累的，不是设计出来的统一规则，记住「有的查有的不查」就行。</p>
+  </div>
+
+  <h3>十二、兼容性选择模式：像其他编辑器一样用 Emacs</h3>
+
+  <p>Emacs 提供三个开关，让它的选择行为贴近别的编辑器。原文作者的建议是：先用着，慢慢戒。我的建议是：<code>delete-selection-mode</code> 值得开着，另外两个看你。</p>
+
+  <div class="keys">
+    <h4>本节按键（兼容性模式）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>delete-selection-mode</code></td><td><code>delete-selection-mode</code></td><td>region 激活时直接打字 = 先删掉选中内容（<strong>默认关</strong>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>delete-selection-local-mode</code></td><td><code>delete-selection-local-mode</code></td><td>同上，但只对当前 buffer 生效（Emacs 31 新增）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> <code>shift-select-mode</code></td><td><code>shift-select-mode</code>（变量）</td><td>Shift 选择模式（<strong>默认开</strong>，Emacs 23.1 起）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>cua-mode</code></td><td><code>cua-mode</code></td><td>把 <kbd>C</kbd><kbd>x</kbd>/<kbd>C</kbd><kbd>c</kbd>/<kbd>C</kbd><kbd>v</kbd>/<kbd>C</kbd><kbd>z</kbd> 改成剪切/复制/粘贴/撤销（<strong>默认关</strong>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>transient-mark-mode</code></td><td><code>transient-mark-mode</code></td><td>关掉 region 高亮，回退到 Emacs 早期的「无高亮」行为</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>delete-selection-mode</h4>
+
+  <p>默认情况下，Emacs 里你在激活的 region 上直接打字，是<strong>把字插在 point 前面，然后取消高亮</strong>，选中内容还在。很多人第一反应是「这是 Emacs 有 bug」，其实只是原生行为。其他编辑器都是「直接输入替换选中」。这个次模式补上这个差别，代价几乎没有：写进配置 <code>(delete-selection-mode 1)</code>。</p>
+
+  <p>Emacs 29 之后还有个更细的旋钮 <code>delete-selection-temporary-region</code>（默认 <code>nil</code>，我实测确认）：设成 <code>t</code> 就只对「临时 region」——鼠标拖出来的、或 Shift 选择出来的、或在关掉 transient-mark-mode 时用 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 弄出来的——才替换；设成 <code>selection</code> 则连 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 那种也不替换，只剩鼠标和 Shift。默认 <code>nil</code> 意味着全都不限，最接近别的编辑器。</p>
+
+  <h4>shift-select-mode</h4>
+
+  <p>按住 Shift 移动会自动设 mark 并扩展 region——这就是你在 VS Code 里熟悉的那一套。它<strong>默认就是开的</strong>（<code>shift-select-mode</code> 默认 <code>t</code>，我从 Emacs 23.1 起就是这个默认值，NEWS.23 有明确记录）。我实测 <code>shift-select-mode</code> <strong>不是一个命令</strong>，只是个变量——所以 <kbd>M</kbd><kbd>x</kbd> <code>shift-select-mode</code> 会报错，要改得用 <kbd>M</kbd><kbd>x</kbd> <code>customize-option</code>，或者在配置里写 <code>(setq shift-select-mode nil)</code>。</p>
+
+  <p>Shift 选择出来的 mark 行为略有不同：<strong>之后任何不带 Shift 的移动命令都会取消 region</strong>。所以你 Shift 选到一半，觉得方向不对按了个 <kbd>C</kbd><kbd>f</kbd>，高亮就没了。（Emacs 28 起把 <code>shift-select-mode</code> 扩展出了第三种取值 <code>permanent</code>：设成它以后，不带 Shift 的移动也会<strong>扩展</strong>而不是取消 region，想脱身得先按 <kbd>C</kbd><kbd>g</kbd>。喜欢连续选的人可以试。）</p>
+
+  <p>另外注意，Shift 选择只在那个键<strong>本身没被绑到别的命令</strong>时才生效。你要是把 <kbd>S</kbd><kbd>-</kbd><kbd>C</kbd><kbd>f</kbd> 重新绑了东西，它就不再做选择——<kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd>（即 <kbd>C</kbd><kbd>@</kbd>）在 Emacs 32 里就默认绑给了 <code>set-mark-command</code>，所以 Emacs 的 <code>C-@</code> 是设 mark 而不是「移到行首」（那是 Unix readline 的老约定，两者不同）。</p>
+
+  <h4>cua-mode</h4>
+
+  <p><strong>CUA</strong> 是 IBM 的 Common User Access，一套老式终端交互规范。CUA 模式把 Emacs 改成那套键：<kbd>C</kbd><kbd>z</kbd> 撤销、<kbd>C</kbd><kbd>x</kbd> 剪切、<kbd>C</kbd><kbd>c</kbd> 复制、<kbd>C</kbd><kbd>v</kbd> 粘贴。</p>
+
+  <p>默认关闭，因为它和 Emacs 自己的 <kbd>C</kbd><kbd>x</kbd>、<kbd>C</kbd><kbd>c</kbd> 前缀键直接冲突。开启后（我实测 <code>cua-mode</code> 默认 <code>nil</code>）有个明确规则：<strong><kbd>C</kbd><kbd>x</kbd> 和 <kbd>C</kbd><kbd>c</kbd> 只有在 region 激活时才执行剪切/复制，否则仍然当普通前缀键</strong>。但代价有三个，手册明说：</p>
+
+  <ol>
+    <li>region 激活时想发前缀键 <kbd>C</kbd><kbd>x</kbd>，必须<strong>快速连按两下</strong>（比如 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd>）。</li>
+    <li>想敲 <kbd>C</kbd><kbd>x</kbd> 加别的键时，<strong>两个键必须极快地连着敲</strong>，否则会被当成剪切。</li>
+    <li>或者干脆用 <kbd>C</kbd><kbd>S</kbd><kbd>x</kbd> 代替 <kbd>C</kbd><kbd>x</kbd>、<kbd>C</kbd><kbd>S</kbd><kbd>c</kbd> 代替 <kbd>C</kbd><kbd>c</kbd>。</li>
+  </ol>
+
+  <p>CUA 模式还会顺手开 <code>delete-selection-mode</code>，并提供一套带可见矩形高亮的矩形支持（<kbd>C</kbd><kbd>&lt;</kbd><kbd>RET</kbd> 开始画矩形，<kbd>RET</kbd> 跳到下一个角）。如果你只想要矩形、不要改 <kbd>C</kbd><kbd>x</kbd> 系列，有单独的 <code>cua-rectangle-mark-mode</code>，或者用下一节的 <kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd><kbd>SPC</kbd>。想只要 CUA 的其他特性但保留标准绑定，把 <code>cua-enable-cua-keys</code> 设成 <code>nil</code>。</p>
+
+  <details class="deep">
+    <summary>进阶：关掉 Transient Mark Mode 之后</summary>
+    <p><strong>Transient Mark mode</strong>（TMM）是「设 mark 就点亮高亮」这个行为的正式名字。它是交互式 Emacs 里默认开启的次模式，可以用 <kbd>M</kbd><kbd>x</kbd> <code>transient-mark-mode</code> 切换。</p>
+    <p>TMM 出现得很晚。在它之前 Emacs 根本没有选区高亮——你设了 mark 也看不出来，得自己记着位置在哪。这本书第 32–34 页讲的正是那段历史：Emacs 早期连 region 概念都没有，像 <code>replace-string</code> 这种命令一律从 point 处理到 buffer 末尾；你只能先用 <strong>narrowing</strong>（<code>shrink-window</code> 类命令，临时把 buffer 缩到只剩要改的那一段）来限制命令的作用范围——今天除了专门用途很少再用 narrowing，但知道这段历史能解释 Emacs 里一些「怎么这么绕」的设计。</p>
+    <p>关掉 TMM 之后：<kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 不再高亮；<kbd>M</kbd><kbd>-</kbd><kbd>%</kbd> 之类的命令不再认 region，一律处理到 buffer 末尾。补救办法是<strong>临时</strong>开启 TMM：连按两次 <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd>，或者 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd>。我实测 Emacs 32 里 <code>transient-mark-mode</code> 的默认值是 <code>nil</code>，但那只是因为 batch 模式不算「交互式会话」；在 GUI 或终端里正常启动 Emacs 它是开的，模式行上会显示 <code>Transient Mark</code>。</p>
+  </details>
+
+  <h3>十三、矩形选择</h3>
+
+  <p>Emacs 有两组矩形功能：<code>rectangle-mark-mode</code>（<strong>次模式</strong>，改变 region 的形状）和一组 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> 前缀命令（<strong>不依赖模式</strong>，随时能用）。这一节讲模式，命令留到编辑章。</p>
+
+  <div class="keys">
+    <h4>本节按键（矩形）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd><kbd>SPC</kbd></td><td><code>rectangle-mark-mode</code></td><td>切换矩形 mode</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>k</kbd></td><td><code>kill-rectangle</code></td><td>删掉矩形内容并存为「最近杀死的矩形」</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>d</kbd></td><td><code>delete-rectangle</code></td><td>删掉矩形内容（不存）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>y</kbd></td><td><code>yank-rectangle</code></td><td>把最近杀死的矩形粘到 point</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>M</kbd><kbd>-</kbd><kbd>w</kbd></td><td><code>copy-rectangle-as-kill</code></td><td>把矩形存为「最近杀死的矩形」但不删</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>o</kbd></td><td><code>open-rectangle</code></td><td>把矩形内容往右推，腾出空白</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>c</kbd></td><td><code>clear-rectangle</code></td><td>用空格覆盖矩形</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>t</kbd></td><td><code>string-rectangle</code></td><td>用字符串替换矩形每一行的对应部分</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>N</kbd></td><td><code>rectangle-number-lines</code></td><td>在矩形左边缘插入行号</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>r</kbd></td><td><code>copy-rectangle-to-register</code></td><td>把矩形存进寄存器</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd></td><td><code>rectangle-exchange-point-and-mark</code></td><td>在矩形模式下：轮流跳到矩形四个角</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>默认情况下 region 是连续的：mark 在哪、point 走到哪，高亮就是一条蛇形。开了 <kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd><kbd>SPC</kbd> 之后，高亮变成一个矩形，<strong>mark 是左上角，point 是右下角</strong>。此时 <kbd>C</kbd><kbd>f</kbd>、<kbd>C</kbd><kbd>n</kbd> 这些会扩展矩形的命令也跟着按矩形方式走，普通杀死/粘贴命令也作用于矩形。</p>
+
+  <p>这个模式有个很实用的隐藏功能：<strong>在矩形模式下按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 会在矩形的四个角之间轮转</strong>（<code>rectangle-exchange-point-and-mark</code>，手动册确认）。拖出矩形后想改尺寸，不必重新拖一遍——按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 把角挪到想要的角上即可。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>这个模式只在 region 激活期间有效，一旦 region 失效就自动退回连续模式。另外注意 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> 这一族是<strong>独立</strong>的：不需要开 mode，mark 处于一边、point 处于对角，它照样按矩形处理。所以「改表格、对齐代码块列、给多行加前缀」这类活，开不开 mode 都能做。</p>
+  </div>
+
+  <h3>十四、按语法单元设 mark：Emacs 原生的「选择」</h3>
+
+  <p>前面说过 <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 加移动是三段式，节奏上确实碎。Emacs 为此准备了一整套<strong>按语法单元直接设 mark</strong> 的命令，它们一步到位把整个对象框起来：</p>
+
+  <div class="keys">
+    <h4>本节按键（按单元设 mark）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>@</kbd></td><td><code>mark-word</code></td><td>把 mark 放到下一个词尾（<strong>不动 point</strong>）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>@</kbd></td><td><code>mark-sexp</code></td><td>把 mark 放到下一个平衡表达式之后（<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 的别名）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>h</kbd></td><td><code>mark-paragraph</code></td><td>框住当前（或下一段）段落：point 到段首，mark 到段尾</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>h</kbd></td><td><code>mark-defun</code></td><td>框住当前（或下一个）定义</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd></td><td><code>mark-whole-buffer</code></td><td>框住整个 buffer：point 到开头，mark 到结尾</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>p</kbd></td><td><code>mark-page</code></td><td>框住当前页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd></td><td><code>set-mark-command</code></td><td>设 mark；再按一次取消 region</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td><code>keyboard-quit</code></td><td>取消 region</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>这套命令有两个共同的、非常重要的性质：</p>
+
+  <p><strong>（1）能连着敲，一段一段往外扩。</strong> 这是 <code>mark-word</code> 的文档字符串里写明的行为，我也在 Emacs 32 上核对过：反复调用 <kbd>M</kbd><kbd>@</kbd> 会把 region 每次扩大一个词；<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>@</kbd> 每次扩一个平衡表达式。带数字前缀就一次扩 n 个（<kbd>M</kbd><kbd>-</kbd><kbd>2</kbd> <kbd>M</kbd><kbd>@</kbd> 选两个词），负数就往反方向扩。还有个细节：<strong>如果 mark 已经在 point 前面，<kbd>M</kbd><kbd>@</kbd> 会往回退而不是往前扩</strong>；想改方向就 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd>。所以你可以「<kbd>M</kbd><kbd>@</kbd> 扩三次 → <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 换向 → <kbd>M</kbd><kbd>@</kbd> 往回扩两次」这么用。</p>
+
+  <p><strong>（2）主模式可以改写它们。</strong> 手动册举了个例子：在 reStructuredText 里，<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>h</kbd>（<code>mark-defun</code>）会选中一整章——文本文件里没有 defun，模式作者理所当然地把它重新定义了。C 模式里 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>h</kbd> 换成 <code>c-mark-function</code>，会把参数表也包进去。这不是 hack，是主模式的标准职责。所以当你发现某个 mark 命令在你用的语言里行为怪怪的，先 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 看看当前模式给这个键绑了什么。</p>
+
+  <p>哪个该记？原文作者的建议很克制：<kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd>（整篇）、<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>h</kbd>（整个定义）、<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>&lt;</kbd><kbd>SPC</kbd>（一个表达式，遇到词时行为和 <kbd>M</kbd><kbd>@</kbd> 差不多）这三个先记住，<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>p</kbd> 可以先不管。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>「选一块然后杀掉」这件事，在 Emacs 里往往<strong>不需要先选</strong>——直接用 <strong>kill 命令</strong>（按语法单元删除，第 6、7 章详讲）更快：<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>k</kbd> 杀表达式、<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> 退回一层再 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>k</kbd> 杀外层，比「设 mark + 移动 + 杀」少两次按键。先学会 kill，mark 主要用在「选一块做非破坏性操作」上（转大写、缩进、替换、保存到寄存器）。</p>
+  </div>
+
+  <h3>十五、六条规则</h3>
+
+  <ol>
+    <li><strong>region 就是 point 和 mark 之间的那段文本</strong>，谁在前谁在后都算。矩形 mode 会换掉它的边界，你可以 <kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd><kbd>SPC</kbd> 来回切着看差别。</li>
+    <li><strong><kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 激活 region</strong>（设 mark 并点亮），再按一次取消。</li>
+    <li><strong>激活的 region 跟着 point 走</strong>，但你一旦执行了非移动命令（比如打了字、杀了东西），它就自动失效。</li>
+    <li><strong>mark 有双重身份</strong>：既是选区锚点，也是可以用 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 回去的面包屑。很多命令会顺手帮你设 mark，连按 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 就在 mark ring 里一路后退。</li>
+    <li><strong><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 交换 point 和 mark 并重新点亮</strong>，是你找回上一块选区的快捷方式。</li>
+    <li><strong>有些命令根本不看 region 是不是激活的</strong>，照样动手（小心）。根源是 Transient Mark mode 是后加的，而老命令的行为必须保持不变。</li>
+  </ol>
+
+  <div class="keys">
+    <h4>本章按键总表</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>f</kbd> <kbd>C</kbd><kbd>b</kbd> <kbd>C</kbd><kbd>n</kbd> <kbd>C</kbd><kbd>p</kbd></td><td><code>forward-char</code> 等</td><td>字符移动</td></tr>
+        <tr><td><kbd>C</kbd><kbd>a</kbd> <kbd>C</kbd><kbd>e</kbd> <kbd>M</kbd><kbd>m</kbd></td><td><code>move-beginning-of-line</code> 等</td><td>行首 / 行尾 / 缩进后首列</td></tr>
+        <tr><td><kbd>M</kbd><kbd>f</kbd> <kbd>M</kbd><kbd>b</kbd></td><td><code>forward-word</code> / <code>backward-word</code></td><td>词移动</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>f</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>b</kbd></td><td><code>forward-sexp</code> / <code>backward-sexp</code></td><td>平衡表达式移动</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>d</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>n</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>p</kbd></td><td><code>down-list</code> 等</td><td>括号结构：下 / 上 / 右 / 左</td></tr>
+        <tr><td><kbd>M</kbd><kbd>a</kbd> <kbd>M</kbd><kbd>e</kbd></td><td><code>backward-sentence</code> / <code>forward-sentence</code></td><td>句首 / 句尾</td></tr>
+        <tr><td><kbd>M</kbd><kbd>{</kbd> <kbd>M</kbd><kbd>}</kbd></td><td><code>backward-paragraph</code> / <code>forward-paragraph</code></td><td>段首 / 段尾</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>a</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>e</kbd></td><td><code>beginning-of-defun</code> / <code>end-of-defun</code></td><td>定义开头 / 结尾</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>[</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>]</kbd></td><td><code>backward-page</code> / <code>forward-page</code></td><td>上一页 / 下一页边界</td></tr>
+        <tr><td><kbd>C</kbd><kbd>v</kbd> <kbd>M</kbd><kbd>v</kbd></td><td><code>scroll-up-command</code> / <code>scroll-down-command</code></td><td>翻屏</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>v</kbd></td><td><code>scroll-other-window</code></td><td>滚另一个窗口</td></tr>
+        <tr><td><kbd>C</kbd><kbd>l</kbd></td><td><code>recenter-top-bottom</code></td><td>当前行居中</td></tr>
+        <tr><td><kbd>M</kbd><kbd>&lt;</kbd> <kbd>M</kbd><kbd>&gt;</kbd></td><td><code>beginning-of-buffer</code> / <code>end-of-buffer</code></td><td>buffer 开头 / 结尾（自动留 mark）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd></td><td><code>set-mark-command</code></td><td>设 / 取消 mark</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd></td><td><code>set-mark-command</code>（带参数）</td><td>跳回 mark / 沿 mark ring 后退</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>@</kbd></td><td><code>pop-global-mark</code></td><td>跨 buffer 后退</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd></td><td><code>exchange-point-and-mark</code></td><td>交换 point/mark 并点亮</td></tr>
+        <tr><td><kbd>M</kbd><kbd>@</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>@</kbd> <kbd>M</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>p</kbd></td><td><code>mark-word</code> 等</td><td>按语法单元设 mark</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>m</kbd> <kbd>b</kbd> <kbd>l</kbd></td><td><code>bookmark-set</code> / <code>bookmark-jump</code> / <code>list-bookmarks</code></td><td>书签：设 / 跳 / 列出</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>s</kbd> <kbd>i</kbd> <kbd>j</kbd> <kbd>SPC</kbd> <kbd>n</kbd> <kbd>+</kbd></td><td><code>copy-to-register</code> 等</td><td>寄存器：存 / 插 / 跳 / 存位置 / 存数 / 加一</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd><kbd>SPC</kbd></td><td><code>rectangle-mark-mode</code></td><td>矩形选择模式</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> <kbd>v</kbd> <kbd>m</kbd> <kbd>s</kbd> <kbd>a</kbd> <kbd>k</kbd></td><td><code>describe-function</code> 等</td><td>查函数 / 变量 / 模式 / 语法表 / 命令 / 按键</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>练习</h3>
+
+  <div class="drill" data-answer="M-f 后退方向用负参数：M-- M-f，命令名 forward-word">
+    <p class="drill-q"><b>练习 1</b>　你已经用 <kbd>M</kbd><kbd>f</kbd> 往前走了一个词，想退回一个词。Emacs 里前缀参数怎么帮你不用换键？命令名是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>敲 <kbd>M</kbd><kbd>-</kbd>（<code>negative-argument</code>）再 <kbd>M</kbd><kbd>f</kbd>，即 <kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>f</kbd>，等于 <kbd>M</kbd><kbd>b</kbd>。命令名 <code>forward-word</code>——<code>forward-word</code> 的文档字符串明确写了「COUNT 为负则向后移动」。<kbd>M</kbd><kbd>-</kbd> 也可以写成 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>-</kbd>，两者等价（<code>M--</code> 与 <code>C-M--</code> 都绑到 <code>negative-argument</code>，我实测确认）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-M-u 停在左括号上；再 C-M-n 走到该层最后一个括号组之后">
+    <p class="drill-q"><b>练习 2</b>　在 buffer <code>(+ (* 5 2) (- 10 10))</code> 里，point 在第二个字符 <code>+</code> 上。你按 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> 之后 point 会停在哪？再按一次 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>n</kbd> 呢？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd>（<code>backward-up-list</code>）会退到<strong>最外层左括号上</strong>，也就是 position 1，光标在 <code>(</code> 之前。然后 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>n</kbd> 会横向走到这一层唯一的那个括号组<strong>之后</strong>，也就是最后一个 <code>)</code> 的后面（position 22）。注意 <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> 不会把 point 放在括号内部，而是放在左括号上——这是「不对称」的又一处体现。我在 Emacs 32.0.50 的 <code>emacs-lisp-mode</code> 里逐步实测过这个序列。</p></div>
+  </div>
+
+  <div class="drill" data-answer="不对称：M-b 跳过句点停在 W 前（position 8），再 M-f 停在 d 之后（position 13）而不是回到 8">
+    <p class="drill-q"><b>练习 3</b>　buffer 内容是 <code>Hello, World.</code>，point 在行尾（position 14）。先按一次 <kbd>M</kbd><kbd>b</kbd>，再按一次 <kbd>M</kbd><kbd>f</kbd>。两次之后 point 在哪？为什么不是回到行尾？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>我在 Emacs 32.0.50 上逐步实测过：<kbd>M</kbd><kbd>b</kbd> 从 14 跳到 <strong>position 8</strong>（<code>W</code> 之前），再 <kbd>M</kbd><kbd>f</kbd> 跳到 <strong>position 13</strong>（<code>d</code> 之后）。<strong>没有回到 14</strong>。</p>
+    <p>原因是不对称。第一步往回走时，point 后面紧挨着的 13 号字符是句点 <code>.</code>，不是词字符，Emacs 跳过它继续回退，直到 <code>W</code> 前才停。第二步往前走时，从 8 出发遇到的是 <code>World</code> 这个词，落在最后一个字母之后就不再往前了——<em>句点不会再被当作「词尾之后要处理的东西」</em>。两次移动用的是同一套「跳过非词字符」规则，但起点不同，落点自然不同。</p>
+    <p>反例更能说明问题：如果 point 一开始在 position 8，按 <kbd>M</kbd><kbd>b</kbd> 会一路退到 <strong>position 1</strong>（<code>Hello</code> 之前，因为往回路上 7 号是空格、6 号是逗号，都被跳过），再按 <kbd>M</kbd><kbd>f</kbd> 只到 <strong>position 6</strong>（<code>Hello</code> 之后），离原来的 8 还差得远。结论不变：<kbd>M</kbd><kbd>f</kbd> 和 <kbd>M</kbd><kbd>b</kbd> 互不为逆操作，要精确回去请用 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-@ (mark-word) 把词整个框起来；再按 C-x C-u (upcase-region)；命令跑完 region 自动失效、高亮消失">
+    <p class="drill-q"><b>练习 4</b>　你要把当前这一个单词转成大写。完整的三步分别是什么？做完之后 region 状态如何？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>第一步：<kbd>M</kbd><kbd>@</kbd>（<code>mark-word</code>）一步把整个词框起来——它把 mark 放到词尾，point 不动。第二步：跑命令 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>u</kbd>（<code>upcase-region</code>）。第三步：什么都不用做——命令执行完 mark 自动失效，高亮消失。</p>
+    <p>如果用经典三段式也可以：<kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> → <kbd>M</kbd><kbd>f</kbd> → <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>u</kbd>。两种写法都要会，第二种是理解 region 怎么工作的基础。</p></div>
+  </div>
+
+  <div class="drill" data-answer="mark ring；命令（push-mark）自动压入；C-x C-@ 走全局 mark ring">
+    <p class="drill-q"><b>练习 5</b>　你在文件里跳来跳去，忘了刚才读到哪了。按 <kbd>M</kbd><kbd>&lt;</kbd> 之前那个位置是怎么被记住的？「那串面包屑」叫什么？<kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 之后还能退回上一个 buffer 的位置吗？该按什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>&lt;</kbd>（<code>beginning-of-buffer</code>）会<strong>自动 push mark</strong>——<code>beginning-of-buffer</code> 和 <code>end-of-buffer</code> 的文档字符串都写着 <em>Push mark at previous position</em>，我用 <code>(documentation 'beginning-of-buffer)</code> 查过。同样会顺手压 mark 的还有 <kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd>、<kbd>C</kbd><kbd>y</kbd> 等一大批命令。那串面包屑叫 <strong>mark ring</strong>，每个 buffer 各有一个，默认存 16 条（<code>mark-ring-max</code>）。</p>
+    <p>普通 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> <strong>不能</strong>跨 buffer——手动册明说它「永远留在同一个 buffer 里」。要跨 buffer 得用<strong>全局 mark ring</strong>，按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>@</kbd>（<code>pop-global-mark</code>），它会跳到全局环最新的一条并把环轮转，连按就能一路退回你待过的那些 buffer（我实测过这个绑定确实是 <code>pop-global-mark</code>）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x r s 存，C-x r i 插；需先有激活的 region；shift-select-mode 是变量不是命令">
+    <p class="drill-q"><b>练习 6</b>　你选中了一段 SQL 模板，想存起来以后到处插。用哪两个键？<code>delete-selection-mode</code> 和 <code>shift-select-mode</code> 这两个「兼容性模式」，哪一个默认开着？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>存用 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>s</kbd>（<code>copy-to-register</code>，会问你「存进哪个寄存器」，输个单字符如 <code>a</code>），插用 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd> <kbd>a</kbd>（<code>insert-register</code>）。存之前必须有激活的 region。用寄存器而不是 kill ring 的好处是它不会被下一次 kill 覆盖掉。</p>
+    <p>默认开的是 <code>shift-select-mode</code>（Emacs 23.1 起默认为 <code>t</code>，我实测确认）。<code>delete-selection-mode</code> <strong>默认关闭</strong>，需要你写 <code>(delete-selection-mode 1)</code> 或 <kbd>M</kbd><kbd>x</kbd> 手动开。</p>
+    <p>补充一个常见困惑：<code>shift-select-mode</code> 只是个<strong>变量</strong>，不是命令——我实测 <code>(fboundp 'shift-select-mode)</code> 返回 <code>nil</code>，所以 <kbd>M</kbd><kbd>x</kbd> <code>shift-select-mode</code> 会报错，要改得用 <kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> 或者在配置里 <code>(setq shift-select-mode nil)</code>。<code>delete-selection-mode</code> 则确实是命令，<kbd>M</kbd><kbd>x</kbd> 直接调。</p></div>
+  </div>
+
+  <div class="drill" data-answer="window-configuration-to-register / frameset-to-register；不过布局管理更该用 winner-mode 和 tab-bar-mode">
+    <p class="drill-q"><b>练习 7</b>　你想把当前精心排好的窗口布局存下来，之后一条命令恢复。存和恢复分别是哪两个键？原文作者为什么说这个功能不太值得记？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>存：<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>w</kbd>（<code>window-configuration-to-register</code>）。恢复：<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>j</kbd>（<code>jump-to-register</code>）。frame 层面还有 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>f</kbd>（<code>frameset-to-register</code>，我实测过绑定），<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>i</kbd> 就是「插入」专用，恢复布局要用 <kbd>j</kbd>。</p>
+    <p>原文作者说不值得记的理由是：窗口布局有更好的工具——<code>winner-mode</code>（记住你的窗口操作并让你「赢回来」）和 Tab Bar Mode（标签页栏）。寄存器里存布局是一次性的快照，不追踪你之后做了什么。这条属于「知道了就好」的知识。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x SPC 切到矩形 mode；再按一次切回；只对激活的 region 有效">
+    <p class="drill-q"><b>练习 8</b>　你已经用 <kbd>C</kbd><kbd>&lt;</kbd><kbd>SPC</kbd> 选好了一块区域，想改成矩形选择。按哪个键？改完之后按同一个键会怎样？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd><kbd>SPC</kbd>（<code>rectangle-mark-mode</code>）。高亮会从连续的一条变成矩形，mark 是左上角、point 是右下角；此时 <kbd>C</kbd><kbd>f</kbd>、<kbd>C</kbd><kbd>n</kbd> 这些扩展 region 的命令也按矩形走，普通 kill/yank 也作用于矩形。</p>
+    <p>再按一次 <kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd><kbd>SPC</kbd> 就切回连续模式。另外两个要点：这个模式<strong>只在 region 激活期间有效</strong>，region 一失效自动回连续；矩形模式下按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 会在矩形四个角之间轮转（命令是 <code>rectangle-exchange-point-and-mark</code>，我查过 Emacs 32 手册确认），这样不用重拖就能改矩形尺寸。</p></div>
+  </div>
+
+  <div class="drill" data-answer="line-move-visual 默认 t（Emacs 23.1 起）；visual-line-mode 额外把 C-a/C-e/C-k 改成视觉行版本">
+    <p class="drill-q"><b>练习 9</b>　一个长行折成三屏行。Emacs 23.1 之后（含 30、31、32） <kbd>C</kbd><kbd>p</kbd> <kbd>C</kbd><kbd>n</kbd> 默认按哪种行走？<kbd>C</kbd><kbd>a</kbd> <kbd>C</kbd><kbd>e</kbd> 呢？想让它们全部按屏幕行走，该开什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>p</kbd> <kbd>C</kbd><kbd>n</kbd> <strong>默认按屏幕行（visual line）走</strong>——变量 <code>line-move-visual</code> 默认值是 <code>t</code>，我从 Emacs 23.1 起就是这个默认（NEWS.23 明确记录了这次改动），我也实测确认了 Emacs 32.0.50 的默认值。要恢复老的逻辑行行为，把 <code>line-move-visual</code> 设成 <code>nil</code>。</p>
+    <p><kbd>C</kbd><kbd>a</kbd> 和 <kbd>C</kbd><kbd>e</kbd> <strong>仍然按逻辑行走</strong>——手动册原文：<em>Unlike C-n and C-p, most of the Emacs commands that work on lines work on logical lines.</em></p>
+    <p>想让它们也认屏幕行，开 <code>visual-line-mode</code>（<kbd>M</kbd><kbd>x</kbd> <code>visual-line-mode</code>，或全局版 <code>global-visual-line-mode</code>，配置里写 <code>(global-visual-line-mode 1)</code>）。我实测它会把 <kbd>C</kbd><kbd>a</kbd>、<kbd>C</kbd><kbd>e</kbd>、<kbd>C</kbd><kbd>k</kbd> 分别改绑成 <code>beginning-of-visual-line</code>、<code>end-of-visual-line</code>、<code>kill-visual-line</code>，同时关掉截断、模式行显示 <code>wrap</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-M-u C-M-k；先退回一层再杀掉那层的表达式，不碰外层括号">
+    <p class="drill-q"><b>练习 10</b>　光标在 Python 的 <code>result = foo(bar(1, 2), 3)</code> 里 <code>bar</code> 后面那层括号内部。想删掉 <code>bar(1, 2)</code> 这个调用但保留外层的 <code>foo(...)</code>，用哪两个键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd>（<code>backward-up-list</code>）先退回一层，<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>k</kbd>（<code>kill-sexp</code>）再把这一层的平衡表达式杀掉。我实测过这个组合：buffer <code>(+ (* 5 2) (- 10 10))</code>，point 在 <code>5</code> 上，<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>k</kbd> 之后变成 <code>(+ █ (- 10 10))</code>（<code>█</code> 处的 point 位置编号是 4，<code>+</code> 后面因此有两个空格）——正好删掉 <code>(* 5 2)</code>，外层括号完好。</p>
+    <p>原理是：<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>u</kbd> 把 point 退到当前这一层的左括号上，<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>k</kbd> 杀掉「<kbd>C</kbd><kbd>-</kbd><kbd>M</kbd><kbd>f</kbd> 会经过的那一段」，也就是刚钻出来的那整个表达式。破坏性操作建议先 <kbd>C</kbd><kbd>/</kbd>（<code>undo</code>）。</p></div>
+  </div>
+</section>

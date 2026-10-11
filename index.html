@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中文教程合集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9A%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --fg: #1c1e21;
+    --muted: #5c6470;
+    --card-bg: #ffffff;
+    --border: #dde1e6;
+    --accent: #0969da;
+    --accent-soft: rgba(9, 105, 218, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171a;
+      --fg: #e6e8eb;
+      --muted: #9aa4b0;
+      --card-bg: #1e2227;
+      --border: #2d333b;
+      --accent: #58a6ff;
+      --accent-soft: rgba(88, 166, 255, 0.1);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.7;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 3rem;
+  }
+  header h1 {
+    margin: 0 0 0.5rem;
+    font-size: 1.75rem;
+    line-height: 1.3;
+  }
+  header p {
+    margin: 0 0 2rem;
+    color: var(--muted);
+  }
+  .cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
+    gap: 1rem;
+  }
+  .cards a {
+    display: block;
+    height: 100%;
+    padding: 1.25rem 1.375rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .cards a:hover { border-color: var(--accent); }
+  .cards a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .cards h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.0625rem;
+    line-height: 1.45;
+    color: var(--accent);
+  }
+  .cards p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+  footer {
+    margin-top: 2.5rem;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>中文教程合集</h1>
+    <p>多套网页教程的静态站，选择一套开始阅读。</p>
+  </header>
+  <nav aria-label="教程导航">
+    <ul class="cards">
+      <li>
+        <a href="claude-code-tutorial/">
+          <h2>Agent 是如何工作的 · 跟着 claude-code 源码学 Agent / TypeScript / JavaScript</h2>
+          <p>《Agent 解剖学：跟着 claude-code 源码学 Agent/TS/JS》交互式教学单页站（10 章 + 可单步 Agent 模拟器），零依赖原生 ES Modules，无构建。</p>
+        </a>
+      </li>
+      <li>
+        <a href="master-emacs-in-21-days/">
+          <h2>21 天精通 Emacs · 互动教程</h2>
+          <p>《Master Emacs in 21 Days》21 天互动 Emacs 中文教程（纯静态单页应用）：全部内容由 window.DAYS/window.Glossary 全局变量经 &lt;script&gt; 标签加载，无构建、无后端、无 fetch 依赖。</p>
+        </a>
+      </li>
+      <li>
+        <a href="mastering-emacs-zh/">
+          <h2>Emacs 精读本 · Mastering Emacs 中文版</h2>
+          <p>《Mastering Emacs》中文精读本：单文件、移动端优先、全内联零外链的交互式 HTML 教材（18 章），由 web/sections/*.html 片段经 tools/build.py 注入 web/template.html 占位符拼接生成 dist/mastering-emacs-zh.html。</p>
+        </a>
+      </li>
+      <li>
+        <a href="migration-guide.html">
+          <h2>从 Zed / VSCode 到 Emacs · 编辑器迁移手册</h2>
+          <p>《从 Zed / VSCode 到 Emacs · 编辑器迁移手册》单文件 HTML 教程页（92909 字节，样式与脚本全部内联，速查表数据内嵌于 JS 数组），完全自包含、离线可用，无需构建。</p>
+        </a>
+      </li>
+    </ul>
+  </nav>
+  <footer>纯静态站点，由 scripts/assemble.py 组装、GitHub Actions 自动部署。</footer>
+</main>
+</body>
+</html>

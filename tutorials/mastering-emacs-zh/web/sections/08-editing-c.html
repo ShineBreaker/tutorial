@@ -1,0 +1,773 @@
+<section class="ch" id="ch-08-editing-c" data-stage="精通" data-min="45">
+  <h2 class="ch-title">八、编辑理论（三）：键盘宏、文本展开、缩进、排序对齐</h2>
+  <p class="ch-lead">前两章的编辑动作都是一次性的：这一次你按了十一次键，下一次还得再按十一次。这一章讲 Emacs 真正开始替你干活的地方。<strong>键盘宏</strong>让你把手工操作录下来、反复回放、绑键、最后改写成写进配置文件的 Elisp；<strong>文本展开</strong>（abbrev、hippie-expand、代码片段）让你少打字；<strong>缩进、排序、对齐</strong>把格式交给程序而不是手指。读完这一章，你手上有第一个属于自己的 Emacs 工具。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>本章的命令与默认值，除非特别标注，都是我在本机 <strong>Emacs 32.0.50</strong>（emacs-next 开发版）上用 <code>emacs --batch -Q</code> 实测绑定与变量值得到的。凡原书写错或今天的 Emacs 已改的地方，当场标出；凡我查不到的，也当场说明。</p>
+  </div>
+
+  <h3>本章地图</h3>
+  <ol>
+    <li><strong>键盘宏</strong>：<kbd>F3</kbd> <kbd>F4</kbd> 起步，<kbd>C-x</kbd> <kbd>C-k</kbd> 前缀是控制室，<code>M-x insert-kbd-macro</code> 把宏变成 Elisp。</li>
+    <li><strong>文本展开</strong>：abbrev、dabbrev、hippie-expand、YASnippet、skeleton、autoinsert。</li>
+    <li><strong>缩进</strong>：<kbd>TAB</kbd> 到底做了什么，区域怎么缩进，制表符怎么换空格。</li>
+    <li><strong>排序</strong>：<code>sort.el</code> 的七个命令，含处理 CSV 的 <code>M-x sort-regexp-fields</code>。</li>
+    <li><strong>对齐</strong>：<code>align.el</code> 的五条命令，以及做数据表该用的 <code>table.el</code> 与矩形。</li>
+    <li><strong>零碎但有用的命令</strong>：<kbd>M</kbd><kbd>z</kbd>（按字符删）、<kbd>M</kbd><kbd>$</kbd> 与 Flyspell（拼写）、<kbd>C-q</kbd>（字面插入控制字符）。</li>
+  </ol>
+
+  <h3>一、键盘宏：Emacs 的「录下来，再替你做」</h3>
+
+  <h4>1.1 这是什么，为什么它值钱</h4>
+  <p><strong>键盘宏</strong>（keyboard macro）就是把一串按键与命令记录下来、之后原样或带参数重复执行。先和 <strong>Elisp 宏</strong>（macro，一个求值时展开的 Lisp 模板）划清界限——两者除了名字像，毫无关系。Emacs 里它对应的函数基本都以 <code>kmacro-</code> 开头（<strong>kmacro</strong> = keyboard macro 的缩写）。</p>
+  <p>多数编辑器都有「录制宏」，Emacs 的特殊之处是<strong>几乎一切都能录</strong>：它记录的是「触发了哪个命令、修饰键与参数是什么」，不是死字符。所以你可以在录制中用 <kbd>M-x</kbd> 调任意命令、用 <code>query-replace</code>（第六章）做带确认的替换、甚至嵌套调用另一个宏——这是后文「把宏改写成 Elisp」的底气。</p>
+
+  <div class="keys">
+    <h4>本节按键：录制与回放</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>F3</kbd></td><td><code>kmacro-start-macro-or-insert-counter</code></td><td>开始录制；录制中再按则插入计数器</td></tr>
+        <tr><td><kbd>F4</kbd></td><td><code>kmacro-end-or-call-macro</code></td><td>结束录制；不在录制中则回放最近宏</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>(</kbd></td><td><code>kmacro-start-macro</code></td><td>开始录制（传统键位）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>)</kbd></td><td><code>kmacro-end-macro</code></td><td>结束录制（传统键位）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>e</kbd></td><td><code>kmacro-end-and-call-macro</code></td><td>结束录制并立刻回放</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>k</kbd></td><td><code>kmacro-keymap</code></td><td>宏功能前缀，下一整表都在它下面</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td><code>keyboard-quit</code></td><td>中止录制或回放</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><kbd>F3</kbd> 与 <kbd>F4</kbd> 在 stock Emacs 里默认绑定（我用 <code>(lookup-key global-map [f3])</code> 查到的，返回 <code>kmacro-start-macro-or-insert-counter</code>；<code>[f4]</code> 返回 <code>kmacro-end-or-call-macro</code>）。传统的 <kbd>C-x</kbd> <kbd>(</kbd> / <kbd>C-x</kbd> <kbd>)</kbd> / <kbd>C-x</kbd> <kbd>e</kbd> 是给没有独立功能键的老终端用户留的等价入口，命令名一一对应。</p>
+  <div class="callout note">
+    <b>要点</b>
+    <p><kbd>C</kbd><kbd>g</kbd> 在今天的 Emacs 里绑的命令叫 <code>keyboard-quit</code>，不是 <code>quit</code>。老手册（包括原书）写「<code>C-g</code>（<code>quit</code>）」——<code>quit</code> 这个命令在 32.0.50 上已经不存在，<code>(fboundp 'quit)</code> 返回 <code>nil</code>。这不影响使用：<kbd>C</kbd><kbd>g</kbd> 的作用没变，只是它现在跑的命令换了名字。</p>
+  </div>
+
+  <h4>1.2 最小闭环</h4>
+  <ol>
+    <li>光标放到目标位置，按 <kbd>F3</kbd>。<strong>模式行</strong>（mode line，底部显示文件名与模式名的那一行）右侧出现 <code>Def</code>，表示正在定义宏。</li>
+    <li>像平时一样做你的编辑。</li>
+    <li>按 <kbd>F4</kbd>。宏被结束、存进<strong>宏环</strong>，并立刻在光标处执行一遍。</li>
+    <li>继续按 <kbd>F4</kbd>，每按一次执行一遍。</li>
+  </ol>
+  <p>想知道宏被录成了什么？在 <kbd>F4</kbd> 之前执行 <code>M-x edit-kbd-macro</code>，它开一个临时 buffer，按「一行一个命令调用」的格式打印宏——例如 <code>(forward-line 1)</code>、<code>(insert "foo")</code>。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>录制中按 <kbd>C</kbd><kbd>g</kbd> 会<strong>中止录制</strong>；回放中任何错误（signal error）也会自动停止。最常见的误报是 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> / <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>p</kbd>（<code>next-error</code> / <code>previous-error</code>，跳到下/上一个错误）——到了错误列表末尾就报错。这其实是特性：录一个调用 <code>next-error</code> 的宏，再反复回放，它会在列表走完时自己停下。</p>
+  </div>
+
+  <h4>1.3 前缀参数：让同一个宏干不同的活</h4>
+  <ul>
+    <li><kbd>C</kbd><kbd>u</kbd> <kbd>F3</kbd>：<strong>追加</strong>到上一个宏末尾。录到一半发现少一步时最舒服。</li>
+    <li><kbd>C</kbd><kbd>u</kbd> <kbd>F4</kbd>：<strong>回放宏环里的第二个宏</strong>（内部调用 <code>kmacro-call-ring-2nd</code>）。我逐个版本核对过：Emacs 26.3、28.2、29.4、30.2 到 32.0.50 一路都是这个行为，从没变过。</li>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>k</kbd> <kbd>C</kbd><kbd>t</kbd>（<code>kmacro-swap-ring</code>）才是<strong>交换宏环头两个元素</strong>。<strong>没有</strong>哪个版本的 <kbd>C</kbd><kbd>u</kbd> <kbd>F4</kbd> 能做这件事。</li>
+    <li><kbd>M-3</kbd> <kbd>F4</kbd>：把宏<strong>执行 3 遍</strong>。</li>
+    <li><kbd>M-5</kbd> <kbd>F3</kbd>：开始录制并把<strong>计数器初值设为 5</strong>。</li>
+    <li><kbd>M-0</kbd> <kbd>F4</kbd>（或 <kbd>C</kbd><kbd>u</kbd> <kbd>0</kbd> <kbd>F4</kbd>）：<strong>一直重复到出错为止</strong>。跑到缓冲区末尾、或第一行不匹配时自动停。</li>
+  </ul>
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>「跑到出错为止」在批处理里极常用：先用 <kbd>C-x</kbd> <kbd>r</kbd> <kbd>m</kbd>（<code>rgrep</code>，跨文件递归 grep）找出待改文件，在 <code>*grep*</code> buffer 里录一个只改一行的宏，然后 <kbd>M-0</kbd> <kbd>F4</kbd> 一次跑完整个列表。</p>
+  </div>
+
+  <h4>1.4 宏环</h4>
+  <p>Emacs 有好几样这样的环形历史：<strong>kill ring</strong>（第六章）、撤销历史、minibuffer 历史。<strong>宏环</strong>（macro ring）属于同一类——每录一个新宏，旧宏自动往后排，不会丢。环长由 <code>kmacro-ring-max</code> 控制，默认 <strong>8</strong>。环只活在内存里，<strong>退出 Emacs 就没有了</strong>；要长期保存见 1.8。</p>
+
+  <h4>1.5 计数器：让宏自动编号</h4>
+  <p>开始录制时计数器初始化为 <strong>0</strong>。录制中每次按 <kbd>F3</kbd>，插入当前值并加一；回放时每次都插入并递增同一个计数器。下面这个例子把「初值」和「增量」分开演示：</p>
+  <pre class="term"><code>M-5 F3  x  M-2 F3  y  F4  F4  F4  F4
+插入结果：  x5yx7yx9yx11y</code></pre>
+  <p>读法：<kbd>M-5</kbd> <kbd>F3</kbd> 设初值 5；输入 <code>x</code>；<kbd>M-2</kbd> <kbd>F3</kbd> 插入 5 并把计数器 +2（变 7）；输入 <code>y</code>；<kbd>F4</kbd> 结束并执行，再按三次，每次插入当前值再 +2，于是得到 5、7、9、11。计数器只在两种情况下重置：你显式设置它，或开始录一个<strong>新</strong>宏；多次回放之间它是保持的。</p>
+  <ul>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>k</kbd> <kbd>C</kbd><kbd>a</kbd>（<code>kmacro-add-counter</code>）：给计数器加一个数，给负数即减。</li>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>k</kbd> <kbd>C</kbd><kbd>c</kbd>（<code>kmacro-set-counter</code>）：<strong>直接设</strong>成某值，不是相对增减。</li>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>k</kbd> <kbd>C</kbd><kbd>i</kbd>（<code>kmacro-insert-counter</code>）：插入计数器并加一。</li>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>k</kbd> <kbd>C</kbd><kbd>f</kbd>（<code>kmacro-set-format</code>）：给计数器设<strong>格式串</strong>（format string，一种用 <code>%d</code>、<code>%05d</code> 描述输出形状的字符串，<kbd>M-h</kbd> <kbd>f</kbd> 看说明）。<code>%05d</code> 打成 <code>00007</code>，<code>item-%d</code> 打成 <code>item-7</code>。提示时<strong>不必自己加引号</strong>。</li>
+  </ul>
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原书写「<kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>TAB</kbd> 插入计数器」，这是对的，但要知道原因：Emacs 键记法里 <kbd>TAB</kbd> 与 <code>C-i</code> 是<strong>同一个字符</strong>（ASCII 9），键表里实际登记的是 <code>C-i</code> 那一项，所以 <kbd>M-x</kbd> 查帮助显示的是 <code>kmacro-insert-counter</code> 挂在 <kbd>C</kbd><kbd>i</kbd> 上。两种敲法完全等价。</p>
+    <p>另一个坑：给 <kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-i</kbd> 或 <kbd>F3</kbd> 加 <kbd>C-u</kbd>，插入的是<strong>上一次的数字且不递增</strong>，连续插入同一编号时用得上。</p>
+  </div>
+
+  <details class="deep">
+    <summary>进阶：计数器与寄存器联动（Emacs 30 新增，极冷门）</summary>
+    <p>原书成书时这批命令还没有，现在都在 <code>kmacro-keymap</code> 里（我读过 <code>lisp/kmacro.el</code> 的键表定义）：<kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-r</kbd> <kbd>s</kbd>（<code>kmacro-reg-save-counter</code>，存进寄存器）、<kbd>C-r</kbd> <kbd>l</kbd>（<code>kmacro-reg-load-counter</code>，用寄存器设计数器）、<kbd>C-r</kbd> <kbd>a</kbd> <kbd>=</kbd> / <kbd>&lt;</kbd> / <kbd>&gt;</kbd>（<code>kmacro-reg-add-counter-equal</code> / <code>-less</code> / <code>-greater</code>，比较寄存器与计数器后按前缀增量相加）；<kbd>C-q</kbd> <kbd>=</kbd> / <kbd>&lt;</kbd> / <kbd>&gt;</kbd>（<code>kmacro-quit-counter-equal</code> / <code>-less</code> / <code>-greater</code>，比较计数器与前缀值，成立就<strong>终止宏</strong>，用来写「编号到 20 就停」的循环）。这两组是<strong>同一个版本</strong>进来的：我拉了 Emacs 29.4 与 30.2 的 <code>lisp/kmacro.el</code> 对比，29.4 里一个都没有，30.2 里八条齐全，都是 Emacs 30。</p>
+    <p>坦白说这些极少有人用，因为绝大多数需求用 <kbd>C-u</kbd> <kbd>0</kbd> <kbd>F4</kbd>（跑到出错为止）就够了。真需要按数值终止，直接写 Elisp 宏比记这些键划算。</p>
+  </details>
+
+  <h4>1.6 <kbd>C-x</kbd> <kbd>C-k</kbd> 全景</h4>
+  <p>想知道这组前缀键下有什么，最省事的是在 Emacs 里按 <kbd>C-h</kbd> 然后跟 <kbd>C-x</kbd> <kbd>C-k</kbd>——Emacs 自身的功能，惯例都是「在键后面按 <kbd>C-h</kbd>」查它。下面这张表是我从 <code>lisp/kmacro.el</code> 的 <code>kmacro-keymap</code> 定义读出、并在 32.0.50 上核对过的完整清单。</p>
+  <div class="keys">
+    <h4>本节按键：<kbd>C-x</kbd> <kbd>C-k</kbd> 前缀下的全部命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>s</kbd> ／ <kbd>C</kbd><kbd>s</kbd></td><td><code>kmacro-start-macro</code></td><td>开始录制</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>k</kbd></td><td><code>kmacro-end-or-call-macro-repeat</code></td><td>结束或回放（可连按重复）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>r</kbd></td><td><code>apply-macro-to-region-lines</code></td><td><strong>把宏对区域内每一行各执行一遍</strong></td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>q</kbd></td><td><code>kbd-macro-query</code></td><td>插入一个「询问点」</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>d</kbd></td><td><code>kmacro-redisplay</code></td><td>回放时重画屏幕（慢机器上更清楚）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-n</kbd></td><td><code>kmacro-cycle-ring-next</code></td><td>宏环向后轮换</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-p</kbd></td><td><code>kmacro-cycle-ring-previous</code></td><td>宏环向前轮换</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-v</kbd></td><td><code>kmacro-view-macro-repeat</code></td><td>查看宏环内容</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-d</kbd></td><td><code>kmacro-delete-ring-head</code></td><td>删除环首宏</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-t</kbd></td><td><code>kmacro-swap-ring</code></td><td>交换环首两个宏</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-l</kbd></td><td><code>kmacro-call-ring-2nd-repeat</code></td><td>执行宏环里第二个宏</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-f</kbd></td><td><code>kmacro-set-format</code></td><td>设置计数器格式串</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-c</kbd></td><td><code>kmacro-set-counter</code></td><td>设置计数器值</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-i</kbd></td><td><code>kmacro-insert-counter</code></td><td>插入计数器并加一</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-a</kbd></td><td><code>kmacro-add-counter</code></td><td>计数器加上一个数</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-e</kbd></td><td><code>kmacro-edit-macro-repeat</code></td><td>编辑宏（可连按切换宏）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>RET</kbd></td><td><code>kmacro-edit-macro</code></td><td>编辑宏（一次）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>e</kbd></td><td><code>edit-kbd-macro</code></td><td>编辑最近一个宏</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>l</kbd></td><td><code>kmacro-edit-lossage</code></td><td>把最近 300 次按键做成宏</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>SPC</kbd></td><td><code>kmacro-step-edit-macro</code></td><td>逐条单步编辑宏</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>b</kbd></td><td><code>kmacro-bind-to-key</code></td><td>把最近的宏临时绑到一个键</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>n</kbd></td><td><code>kmacro-name-last-macro</code></td><td>给最近的宏起名字</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>x</kbd></td><td><code>kmacro-to-register</code></td><td>把最近的宏存进寄存器</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>加了 <kbd>C-u</kbd> <kbd>F3</kbd> 的宏排在前缀后面紧跟 <kbd>C-p</kbd> / <kbd>C-n</kbd> / <kbd>C-e</kbd> / <kbd>C-l</kbd> / <kbd>C-k</kbd> / <kbd>C-d</kbd> 时不必重复前缀——这是 <code>kmacro-repeat-no-prefix</code>（默认 <code>t</code>）的便利：<kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-e</kbd> 之后可以直接按 <kbd>C-e</kbd> 切到下一个宏。这也是为什么有人记成「<kbd>C-x C-k e</kbd> 编辑最近宏」、有人记成「切换宏」——<kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>C-e</kbd> 才是稳定的那一个。</p>
+
+  <h4>1.7 查看与逐条编辑</h4>
+  <p>录错了可以像改文本一样改宏。Emacs 把宏摊开在临时 buffer 里，每行一个「命令调用」，可增删改，最后 <kbd>C-c</kbd> <kbd>C-c</kbd> 提交。</p>
+  <ul>
+    <li><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>e</kbd>（<code>kmacro-edit-macro-repeat</code>）或 <kbd>RET</kbd>：编辑当前宏，<strong>连按可切换宏环里的宏</strong>。</li>
+    <li><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>SPC</kbd>（<code>kmacro-step-edit-macro</code>）：<strong>逐条单步编辑</strong>——宏一步一步回放，每步停下来问你是保留还是跳过。调试「宏到底做了什么」的最佳工具。</li>
+    <li><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>l</kbd>（<code>kmacro-edit-lossage</code>）：<strong>事后追认</strong>。Emacs 一直记着你最近 300 次按键（<strong>lossage</strong>），从这段历史挑一段直接做成宏，不必重新演示。原始列表按 <kbd>C-h</kbd> <kbd>l</kbd>（<code>view-lossage</code>）。</li>
+  </ul>
+  <div class="callout warn">
+    <b>易错</b>
+    <p>lossage 记录<strong>你敲过的每一个字符</strong>，包括密码。执行 <code>M-x open-dribble-file</code> 会把全部击键原样写进文件，Emacs 不会替你过滤。</p>
+    <p>另外 lossage 显示的是「当时那个 buffer、那个模式下」的键义。同一个键在不同 major mode 里可能触发不同命令，脱离原环境查键位时别被骗。</p>
+  </div>
+
+  <h4>1.8 命名、绑键、落盘：从「会用」到「会造工具」</h4>
+  <p>要让宏活过重启，走三步：<strong>命名 → 生成代码 → 写进配置并重载</strong>。</p>
+  <ol>
+    <li><strong>命名</strong>：<kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>n</kbd>（<code>kmacro-name-last-macro</code>），给它一个名字。<strong>必须先命名</strong>，下一步才能生成可读代码。</li>
+    <li><strong>生成代码</strong>：把光标放进 Emacs 配置文件（Emacs 28 起默认 <code>~/.emacs</code>；用 <code>use-package</code> 的现代配置通常在 <code>init.el</code> 或某个模块里），执行 <code>M-x insert-kbd-macro</code>，输入刚才的名字，它会插入一小段可执行的 Elisp。</li>
+    <li><strong>重载</strong>：在配置里执行 <code>M-x eval-buffer</code> 或 <code>M-x load-file</code>，或重启 Emacs。</li>
+  </ol>
+  <pre class="el"><code>(fset 'my-insert-date
+      (kmacro "..."))   ; insert-kbd-macro 生成的字符串</code></pre>
+  <div class="callout note">
+    <b>要点</b>
+    <p><code>(fset '名字 (kmacro "..."))</code> 这个写法是 <strong>Emacs 29 起</strong>的：29 的 NEWS 写明键盘宏改成了 OClosure，新增构造器 <code>kmacro</code>（用 <code>key-parse</code> 语法），取代旧的 <code>kmacro-lambda-form</code>。你在 Emacs 29 及更新的版本里看到的就是上面这种；老文章里那种 <code>(fset 'x (kmacro-lambda-form [...]))</code> 不用再抄了。</p>
+  </div>
+  <div class="callout warn">
+    <b>易错</b>
+    <p>很多人（包括大量中文教程）会说「用 <code>M-x kmacro-to-elisp</code> 把宏转成 Elisp」。<strong>Emacs 里没有这个命令。</strong>我在本机 32.0.50 的完整 lisp 源码树与 <code>loaddefs.el</code> 里都 grep 不到 <code>kmacro-to-elisp</code> 这个符号，运行时 <code>(fboundp 'kmacro-to-elisp)</code> 也是 <code>nil</code>。正确的是上面两个：<code>edit-kbd-macro</code>（编辑并可交互回放）与 <code>insert-kbd-macro</code>（往当前 buffer 插入 <code>(fset ... (kmacro ...))</code>）。想存进寄存器用 <kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>x</kbd>（<code>kmacro-to-register</code>）。</p>
+  </div>
+  <p><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>b</kbd>（<code>kmacro-bind-to-key</code>）能把最近一个宏<strong>临时</strong>绑到一个键上，只在本次会话有效。想试手感用它，想长期用走命名那条路。</p>
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>命名有讲究：起完名它就是<strong>一个真正的 Emacs 命令</strong>，会和其他命令一起出现在 <kbd>M-x</kbd> 补全面板里。Elisp 符号不能有空格，但几乎所有其他字符都行。原书作者用自己名字缩写打头（比如 <code>mp-</code>），以后按 <kbd>C-h</kbd> <kbd>a</kbd> 输入 <code>mp-</code> 就能列出自己造的全部命令。这个习惯值得抄。</p>
+  </div>
+
+  <h4>1.9 询问点：让宏在关键处停下来问你</h4>
+  <p>有些判断没法自动化。录制时按 <kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>q</kbd>（等价键 <kbd>C-x</kbd> <kbd>q</kbd>，命令 <code>kbd-macro-query</code>）插入一个<strong>询问点</strong>。回放到这里宏会暂停，在 minibuffer（底部那行小输入区）问你。</p>
+  <div class="keys">
+    <h4>本节按键：询问点的回答方式</h4>
+    <table>
+      <thead><tr><th>按键</th><th>含义</th><th>在「反复回放」模式下的效果</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>y</kbd></td><td>照常继续</td><td>这一条按宏的既定步骤做完，然后跑下一条</td></tr>
+        <tr><td><kbd>n</kbd> 或 <kbd>DEL</kbd></td><td>跳过本轮剩余部分</td><td>回到宏开头，继续下一条</td></tr>
+        <tr><td><kbd>RET</kbd></td><td><strong>彻底停止</strong></td><td>整个宏与后续循环全部结束</td></tr>
+        <tr><td><kbd>C-l</kbd></td><td>重定位窗口</td><td>让当前行居中显示，方便你看清现场</td></tr>
+        <tr><td><kbd>C-r</kbd></td><td>进入<strong>递归编辑</strong></td><td>挂起宏，手动改完再 <kbd>C-M-c</kbd> 回来</td></tr>
+        <tr><td><kbd>C-M-c</kbd></td><td>退出递归编辑</td><td>弹回挂起前的现场，从宏的下一步继续</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>这三个回答的语义要分清：在 <kbd>M-0</kbd> <kbd>F4</kbd> 这种循环里，<kbd>n</kbd> 只<strong>跳过这一条</strong>并回到宏开头继续下一条，<kbd>y</kbd> 是「这一条就这么办」，<kbd>RET</kbd> 才让整个循环停下。</p>
+
+  <details class="deep">
+    <summary>进阶：递归编辑——Emacs 最被低估的功能</summary>
+    <p><strong>递归编辑</strong>指：在某个正在执行的复杂命令（Isearch、<code>query-replace</code>、宏回放）中途按 <kbd>C-r</kbd>，把这个命令<strong>挂起</strong>，控制权交还给你。你此时可以像平时一样自由编辑，甚至<strong>再录一个宏</strong>；做完按 <kbd>C-M-c</kbd> 退出，Emacs 立刻弹回现场继续原命令。可以<strong>嵌套多层</strong>；身处其中时模式行的模式名会被<strong>方括号括起来</strong>；连按三次 <kbd>ESC</kbd> 强行退出所有层；<kbd>C-g</kbd> <strong>不能</strong>退出递归编辑——这点跟它在别处都不一样。</p>
+    <p>实战价值：宏跑着跑着你发现某一行要手工大改。与其 <kbd>C-g</kbd> 掐了重来，不如 <kbd>C-r</kbd> 进去改完 <kbd>C-M-c</kbd> 出来。更妙的是 Emacs <strong>允许你在递归编辑里录制和回放另一个宏</strong>——一个宏做大范围重排，另一个做精细收尾。minibuffer 本身也是 buffer，所以「在询问提示里递归编辑、改掉默认提示、再回来」同样可行。这正体现了 Emacs 的概念循环复用：同一个 buffer 抽象，既是文件，也是命令行输入框，也是递归编辑的暂存地。</p>
+  </details>
+
+  <h4>1.10 实战组合</h4>
+  <ol>
+    <li><strong>窗口布局</strong>：想每次按同一方式打开四个文件？先按 <kbd>C-x</kbd> <kbd>1</kbd>（<code>delete-other-windows</code>）留出干净底子，然后<strong>开始录制</strong>，依次 <kbd>C-x</kbd> <kbd>C-f</kbd> 打开、<kbd>C-x</kbd> <kbd>3</kbd> 分屏、<kbd>C-x</kbd> <kbd>b</kbd> 切 buffer，结束录制。以后按 <kbd>F4</kbd> 一键复原整套布局——这招能把「复杂的窗口编排」变成一个键，而编排本身不需要你会任何 Elisp。</li>
+    <li><strong>批量改文件</strong>：<code>M-x rgrep</code> 找出待改文件 → 在 <code>*grep*</code> buffer 里开始录制 → <kbd>M-g</kbd> <kbd>M-n</kbd> 跳到第一条匹配 → 做替换 → 结束录制。之后每按一次 <kbd>F4</kbd> 处理一条。<strong>这个模式是通用的</strong>：<code>occur</code>、<code>M-x compile</code> 的错误列表，凡是产出「可用 <kbd>M-g</kbd> <kbd>M-n</kbd> 遍历的列表」的功能都能套。</li>
+    <li><strong>对区域每一行做同一件事</strong>：选一块文本，<kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>r</kbd>（<code>apply-macro-to-region-lines</code>）把宏对每行各跑一遍，比 <kbd>M-0</kbd> <kbd>F4</kbd> 精确，不会跑过头。</li>
+    <li><strong>用鼠标回放</strong>：默认 <kbd>S-</kbd>鼠标3（变量 <code>kmacro-call-mouse-event</code>）会在点击位置设置 point 并执行最近一个宏。</li>
+  </ol>
+  <div class="callout note">
+    <b>要点</b>
+    <p>Emacs 30 新增 <code>M-x list-keyboard-macros</code>（<code>kmacro-menu-mode</code> 的入口）：列出当前所有键盘宏，在那个 buffer 里可以重排宏环顺序、复制、删除，甚至编辑它们的计数器、格式与绑定键。想要「键盘宏仪表盘」，命令就是它。</p>
+  </div>
+
+  <div class="drill" data-answer="C-x C-k r（apply-macro-to-region-lines）把宏对区域内每一行各执行一遍">
+    <p class="drill-q"><b>练习 1</b>　你录好一个「在当前行前面加 <code>- [ ] </code>」的宏。现在想对选中的 40 行统一加前缀，用 <kbd>C-x</kbd> <kbd>C-k</kbd> 下的哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>k</kbd> <kbd>r</kbd>（<code>apply-macro-to-region-lines</code>）。它把宏对区域的每一行各执行一遍，比 <kbd>M-0</kbd> <kbd>F4</kbd> 精确。</p></div>
+  </div>
+
+  <div class="drill" data-answer="先 C-x C-k n 给宏命名，再 M-x insert-kbd-macro；Emacs 里不存在 kmacro-to-elisp">
+    <p class="drill-q"><b>练习 2</b>　想把录好的宏变成能写进 <code>init.el</code> 的 Elisp 代码，用哪个命令？（提示：不是 <code>kmacro-to-elisp</code>）</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>先 <kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>n</kbd> 给宏命名，再执行 <code>M-x insert-kbd-macro</code> 并输入这个名字，它会插入 <code>(fset '名字 (kmacro ...))</code>。<strong>Emacs 里没有 <code>kmacro-to-elisp</code></strong>——32.0.50 的 lisp 源码树与 loaddefs 里都 grep 不到它，<code>(fboundp 'kmacro-to-elisp)</code> 为 <code>nil</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x C-k q（等价键 C-x q，命令 kbd-macro-query）">
+    <p class="drill-q"><b>练习 3</b>　录制宏时想在「这行有 FIXME 就停下来问我」的分支上插一个询问点，按哪组键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>k</kbd> <kbd>q</kbd>，等价键 <kbd>C</kbd><kbd>x</kbd> <kbd>q</kbd>，命令 <code>kbd-macro-query</code>。回放时宏停在这里，在 minibuffer 里等 <kbd>y</kbd> / <kbd>n</kbd> / <kbd>RET</kbd>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="x5yx7yx9yx11y">
+    <p class="drill-q"><b>练习 4</b>　按 <kbd>M-5</kbd> <kbd>F3</kbd>、输入 <code>x</code>、<kbd>M-2</kbd> <kbd>F3</kbd>、输入 <code>y</code>，再按四次 <kbd>F4</kbd>，buffer 里会得到什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>结果为 <code>x5yx7yx9yx11y</code>。<kbd>M-5</kbd> <kbd>F3</kbd> 把计数器初值设为 5；<kbd>M-2</kbd> <kbd>F3</kbd> 插入 5 并让计数器 +2（变 7）；之后每按一次 <kbd>F4</kbd> 插入当前值再 +2，依次 7、9、11。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x kmacro-edit-lossage（C-x C-k l），把最近 300 次按键做成宏">
+    <p class="drill-q"><b>练习 5</b>　你刚才手打了一遍正确操作，现在想直接把它变成宏而不重录，用哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>l</kbd>（<code>kmacro-edit-lossage</code>）。Emacs 一直记着最近 300 次按键，这个命令让你从历史里挑一段直接做成宏。原始列表按 <kbd>C-h</kbd> <kbd>l</kbd> 查看。</p></div>
+  </div>
+
+  <div class="drill" data-answer="RET（彻底停止整个宏）、n（只跳过当前这一轮）、y（照常继续这一轮）">
+    <p class="drill-q"><b>练习 6</b>　宏带着询问点在 <kbd>M-0</kbd> <kbd>F4</kbd> 的循环里跑。你想「这一条跳过、但继续跑剩下的」，按哪个键？想让整个循环停下呢？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>跳过当前这一轮按 <kbd>n</kbd>（或 <kbd>DEL</kbd>）——宏回到开头做下一轮；<kbd>y</kbd> 是「这一条照常做」；<kbd>RET</kbd> 才会<strong>彻底停止</strong>整个宏与后续循环。</p></div>
+  </div>
+
+  <h3>二、文本展开：少打字，补全，插入片段</h3>
+  <p>Emacs 里有好几套「输入固定文本」的机制，目标相同、打法不同。先建立坐标系，再逐个上手。</p>
+
+  <div class="keys">
+    <h4>本节按键：文本展开工具一览</h4>
+    <table>
+      <thead><tr><th>工具与来源</th><th>触发方式</th><th>适合什么</th></tr></thead>
+      <tbody>
+        <tr><td><code>abbrev</code>　内置 <code>abbrev.el</code></td><td>打完缩写再敲分隔符自动展开</td><td>拼写纠错、少量全局词替换</td></tr>
+        <tr><td><code>dabbrev</code>　内置 <code>dabbrev.el</code></td><td><kbd>M</kbd><kbd>/</kbd> 反复按轮换</td><td>补全本 buffer 里出现过的词</td></tr>
+        <tr><td><code>hippie-expand</code>　内置 <code>hippie-exp.el</code></td><td><kbd>M</kbd><kbd>/</kbd>，替换 dabbrev</td><td>词 / 整行 / 符号 / 文件名 / 路径</td></tr>
+        <tr><td><strong>YASnippet</strong>　<strong>第三方包</strong>（GNU ELPA / MELPA / NONGNU 都有）</td><td>按一个触发键展开片段</td><td>写代码时的多行模板、函数骨架</td></tr>
+        <tr><td><code>skeleton</code>　内置 <code>skeleton.el</code></td><td><code>M-x define-skeleton</code> 定义后当命令用</td><td>填空式模板，Elisp 味道重</td></tr>
+        <tr><td><code>auto-insert</code>　内置 <code>autoinsert.el</code></td><td>新建匹配文件名的文件时自动插入</td><td>样板文件开头，如 HTML 头部</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>2.1 abbrev：安静、即时、也最容易惹祸</h4>
+  <p><strong>abbrev</strong>（abbreviation，缩写）是你输入某个短词后 Emacs 悄悄把它换成长词的机制。最大优点是<strong>安静</strong>——不弹窗、不出补全列表、没有视觉噪音，你多半注意不到它发生了。适合的场景是纠错和少量固定词替换：<code>teh</code> → <code>the</code>、<code>recieve</code> → <code>receive</code>、<code>resume</code> → <code>résumé</code>。</p>
+  <div class="keys">
+    <h4>本节按键：定义与查看 abbrev</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C-x</kbd> <kbd>a</kbd> <kbd>g</kbd></td><td><code>add-global-abbrev</code></td><td>加一个全局缩写（所有 buffer 生效）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>a</kbd> <kbd>l</kbd></td><td><code>add-mode-abbrev</code></td><td>加一个当前 major mode 专用的缩写</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>a</kbd> <kbd>i</kbd> <kbd>g</kbd></td><td><code>inverse-add-global-abbrev</code></td><td>「反向」定义全局缩写</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>a</kbd> <kbd>i</kbd> <kbd>l</kbd></td><td><code>inverse-add-mode-abbrev</code></td><td>「反向」定义 mode 缩写</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>a</kbd> <kbd>e</kbd></td><td><code>expand-abbrev</code></td><td>立刻展开当前缩写</td></tr>
+        <tr><td><code>M-x edit-abbrevs</code></td><td><code>edit-abbrevs</code></td><td>在一个 buffer 里列出并编辑所有缩写</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>abbrev 的定义方向非常反直觉，Emacs 老用户也常在这里卡住：用 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>g</kbd> 时，Emacs 拿<strong>光标前面那个词</strong>当展开结果，让你输入的是触发词。所以想把 <code>resume</code> 变成 <code>résumé</code>，正确做法是<strong>先打出 <code>résumé</code></strong>、把光标放到词尾，再按 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>g</kbd>，输入 <code>resume</code>。之后每次敲 <code>resume</code> 再敲一个分隔符（空格、回车、<kbd>)</kbd> 等）就自动替换。</p>
+    <p>「反向」命令方向是顺着直觉的：先打出触发词 <code>resume</code>，按 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>i</kbd> <kbd>g</kbd>，再输入展开结果 <code>résumé</code>。<strong>刚上手用反向命令，别用正向命令。</strong></p>
+  </div>
+
+  <p>要用 abbrev 做代码补全，得先想清两笔账：</p>
+  <ul>
+    <li><strong>按键开销</strong>：定义一条要花 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>g</kbd> 加上输入缩写和结果；使用虽「免费」（自动展开），但你打字时<strong>不能真的打出那个词</strong>，否则会被提前展开。以 <code>M-x</code> 这类高频长词为例，省下的手指未必抵得上心智负担。</li>
+    <li><strong>全局污染</strong>：<code>add-global-abbrev</code> 的缩写在<strong>所有 buffer</strong> 生效，包括别人的文件、邮件、密码字段。用得太宽就会出现「我想打 <code>as</code>，结果变成 <code>assert</code>」这类事故。<strong>凡是跟代码词法相关的缩写，都用 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>l</kbd> 限定在当前 major mode。</strong></li>
+  </ul>
+  <p>还有个隐形的坑：<strong>abbrev 的展开点会跟随光标移动</strong>。你打完触发词后往回改别处，Emacs 有时不会重新展开。所以 abbrev 只适合「打完就走」的短词，不要指望它像 <code>hippie-expand</code> 那样能来回试。</p>
+
+  <h4>2.2 dabbrev 与 hippie-expand：<kbd>M</kbd><kbd>/</kbd> 的两种命运</h4>
+  <p><strong>dabbrev</strong>（动态缩写）扫描当前 buffer 里<strong>已经出现过</strong>的词，补全光标处那个词：<kbd>M</kbd><kbd>/</kbd>（<code>dabbrev-expand</code>）补全<strong>一个</strong>候选，再按一次换下一个，按到头会绕回原词；<kbd>C-M</kbd><kbd>/</kbd>（<code>dabbrev-completion</code>）先尽力补全最长的一段，仍有多个候选就把它们<strong>列出来</strong>让你选。局限很直白：只认当前 buffer、只认词——文件刚新建是空的，它什么也给不了。</p>
+  <p><strong>hippie-expand</strong> 是 Emacs 内置的、功能强得多的替代品（<code>hippie-exp.el</code>）。它把一串「尝试函数」按顺序试一遍，谁先成功用谁；顺序由变量 <code>hippie-expand-try-functions-list</code> 决定，我在 32.0.50 上读到的默认值是：</p>
+  <pre class="el"><code>(try-complete-file-name-partially try-complete-file-name
+ try-expand-all-abbrevs try-expand-list try-expand-line
+ try-expand-dabbrev try-expand-dabbrev-all-buffers
+ try-expand-dabbrev-from-kill
+ try-complete-lisp-symbol-partially try-complete-lisp-symbol)</code></pre>
+  <p>换成白话：<strong>先试文件名 / 目录路径 → 试 abbrev → 试列表 → 试整行 → 再退回 dabbrev → 最后试 Elisp 符号</strong>。你只需打出前缀，Emacs 自己猜你在写什么。</p>
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>hippie-expand 最被低估的是<strong>文件名补全</strong>：在文档、配置、注释里写路径时，打出前缀按 <kbd>M</kbd><kbd>/</kbd>，它像 shell 的 <kbd>TAB</kbd> 一样把绝对/相对路径补完整。其次是<strong>整行补全</strong>：代码里写过一次的样板行，下次打头几个字就能整行拉回来。写 Elisp 时它还会认出符号并补全。替换默认做法的写法：</p>
+    <pre class="el"><code>(global-set-key (kbd "M-/") #'hippie-expand)</code></pre>
+    <p>保留两者共存也行，但抢同一个键位，二选一更省事。<kbd>M</kbd><kbd>/</kbd> 还有一个<strong>缺点</strong>：<kbd>C-M</kbd><kbd>/</kbd> 那个「列出候选」的变体<strong>只对 dabbrev 有效</strong>，hippie-expand 没有对应版本，候选列表只能在回显里逐个读。</p>
+  </div>
+  <p>想知道有哪些可用的尝试函数，两种办法：<kbd>M-h</kbd> <kbd>f</kbd> 描述 <code>hippie-expand</code>，Emacs 会告诉你在哪个库里，再 <kbd>M-x</kbd> <code>find-library</code> 读注释；或用 <code>M-x apropos-function</code> 按名字前缀搜。两种都做一遍最好——注释经常过期，按名字搜又要求你先知道大概叫什么。</p>
+
+  <h4>2.3 YASnippet、skeleton、autoinsert：模板类工具</h4>
+  <p><strong>YASnippet</strong> 是第三方包（Emacs 的 <strong>GNU ELPA</strong>——也就是内置 <code>package-archives</code> 里的默认仓库——以及 MELPA、NONGNU 都有，维护者 Joao Távora，仓库 <code>github.com/joaotavora/yasnippet</code>）。<code>M-x package-install yasnippet</code> 之后执行 <code>M-x yas-global-mode</code> 启用。模型接近编辑器 TextMate 的 snippet：用简单的模板语言定义片段，用 <kbd>tab</kbd> 或空格触发，展开成带「跳板」的可编辑模板。写 C / Java / JS / Go 的人几乎人手一份。</p>
+  <p><strong>skeleton</strong> 是内置（<code>skeleton.el</code>）的模板系统：<code>M-x define-skeleton</code> 能把一段填空式模板定义成一个命令。它二十多年来一直在 Emacs 里但用的人很少——因为<strong>要会一点 Elisp 才用得舒服</strong>，模板语法（<code>&amp;n</code>、<code>?\n</code>、<code>&gt;</code> 回跳）不直观。今天想走「Elisp 路线」可以试，想省时间就上 YASnippet。</p>
+  <p><strong>auto-insert</strong>（<code>autoinsert.el</code>）解决另一个问题：<em>新建文件时自动铺一段样板</em>。开关是 <strong><code>M-x auto-insert-mode</code></strong>——注意命令名中间有连字符，<code>autoinsert-mode</code> 这样的写法不是 Emacs 的符号，会报 void-function。打开后，新建 <code>foo.html</code> 会在开头自动插上 <code>&lt;html&gt;</code>、<code>&lt;head&gt;</code> 那一堆。规则表由变量 <code>auto-insert-alist</code> 控制（按文件名后缀或 major mode 匹配，本机 32.0.50 上默认有 13 条）。另外两个变量分工要分清：<code>auto-insert-query</code> 的含义是「非 nil 就先问用户要不要插」，本机默认值是符号 <code>function</code>，意思是<strong>只在被非交互方式调用时才问</strong>（比如从 hook 里触发），你亲手 <code>M-x auto-insert</code> 则直接插；<code>auto-insert</code> 控制插完之后算不算「文件已被修改」，本机默认是 <code>not-modified</code>——样板插进去了，但保存时不会问你「文件已改变，是否保存」。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>网上（包括一些中文 Emacs 教程）推荐的两个东西，本书经查证要修正。</p>
+    <p><strong>其一，<code>text-skeleton-mode</code> 不是 Emacs / Org 自带的命令。</strong>我在 Emacs 28.2、29.4、30.2、31.1 以及本机 32.0.50 的完整 lisp 源码树里 grep <code>text-skeleton</code>，<strong>结果都是零</strong>——<code>skeleton.el</code>、<code>org.el</code>、<code>org-list.el</code> 都没有这个符号，<code>M-x text-skeleton-mode</code> 会直接报 void-function。想要 Org 里的「填表式列表」体验，用 Org 自己的列表功能（命令是 <code>M-x org-toggle-item</code>，样式规则由 <code>org-list-indent-offset</code>、<code>org-list-automatic-rules</code> 这一组 <code>org-list-*</code> 变量控制）。</p>
+    <p><strong>其二，<code>expand-region-function</code> 也不是 Emacs 的变量。</strong>32.0.50 里 <code>(boundp 'expand-region-function)</code> 是 <code>nil</code>，官方手册与 <code>lisp/</code> 源码树里也找不到它（只有早年的第三方包会来设它）。<strong>「智能扩展选区」是一个独立的第三方包</strong>，名字就叫 <code>expand-region</code>（<code>github.com/magnars/expand-region.el</code>，作者 Magnar Sveen），<strong>GNU ELPA 与 MELPA 都收录了</strong>，装上之后不用设任何 Emacs 变量，直接把它的命令绑到你要的键上即可：</p>
+    <pre class="el"><code>(global-set-key (kbd "C-=") #'er/expand-region)</code></pre>
+    <p>（同一作者还给了 <code>er/contract-region</code>，按负的前缀参数 <code>C-- C-=</code> 收缩选区。）网上把作者写成 <code>stenaro</code> 的说法是张冠李戴。</p>
+  </div>
+
+  <h4>2.4 怎么选：一张取舍表</h4>
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>给新用户的顺序：<strong>先开 <code>hippie-expand</code> 替换 <code>dabbrev</code>（零成本、立刻见效）→ 再决定要不要装 YASnippet（写代码就装）→ 最后才考虑 abbrev，而且只用它做拼写纠错，并优先用 mode-local 版本</strong>。</p>
+    <p>一句话判据：<strong>「我要少打一个已经存在过的词」用 <kbd>M</kbd><kbd>/</kbd>；「我要少打一个我刚定义过的长词」用 abbrev 或 YASnippet；「我要插一整段有结构的模板」用 YASnippet 或 skeleton。</strong>abbrev 与 YASnippet 功能重叠，而 abbrev 有按键开销和全局污染的固有缺点，所以它的位置被 YASnippet 挤掉了。</p>
+  </div>
+
+  <div class="drill" data-answer="先打出 résumé 再按 C-x a g 输入 resume；或用反向命令 C-x a i g：先打 resume 再输 résumé">
+    <p class="drill-q"><b>练习 7</b>　要设置「输入 <code>resume</code> 自动展开成 <code>résumé</code>」。用 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>g</kbd> 的具体操作顺序是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>先打出 <code>résumé</code></strong>，光标放到词尾，再按 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>g</kbd>，输入缩写 <code>resume</code> 回车——因为 <code>add-global-abbrev</code> 取的是光标<strong>前面</strong>的词当展开结果。想省心就用反向命令 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>i</kbd> <kbd>g</kbd>：先打 <code>resume</code>，按命令，再输入 <code>résumé</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="(global-set-key (kbd &quot;M-/&quot;) #'hippie-expand)">
+    <p class="drill-q"><b>练习 8</b>　想让 <kbd>M</kbd><kbd>/</kbd> 走 hippie-expand 而不是 dabbrev，配置里写哪一行？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>(global-set-key (kbd "M-/") #'hippie-expand)</code>。原书用 <code>[remap dabbrev-expand]</code> 的写法，效果一样。hippie-expand 覆盖文件名补全、整行补全、abbrev 展开、Elisp 符号补全，dabbrev 只覆盖「本 buffer 出现过的词」。</p></div>
+  </div>
+
+  <div class="drill" data-answer="不存在：grep Emacs 28.2/29.4/30.2/31.1 与本机 32.0.50 的 lisp 源码，text-skeleton-mode 全部零命中">
+    <p class="drill-q"><b>练习 9</b>　一个教程让你「用 <code>M-x text-skeleton-mode</code> 开模板」。按下去会发生什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>会报 <strong>void-function</strong>：<code>text-skeleton-mode</code> 不是 Emacs 的符号。我逐个版本查过（28.2 / 29.4 / 30.2 / 31.1 的源码，以及本机 32.0.50 的完整 lisp 树），零命中。内置的模板机制叫 <strong>skeleton</strong>，入口是 <code>M-x define-skeleton</code>。</p></div>
+  </div>
+
+  <h3>三、缩进：Emacs 怎么知道该缩进多少</h3>
+  <p>Emacs 的缩进不是「按一个键插入若干空格」，而是<strong>把判断权交给当前 major mode</strong>。每种语言、每个模式有自己的缩进引擎；Emacs 也提供几套通用引擎供新模式继承。</p>
+
+  <h4>3.1 <strong>electric indentation</strong>（电缩进）</h4>
+  <p>Emacs <strong>24.4 起</strong>，回车就会<strong>自动缩进到与上一行相同的列</strong>，这叫 electric indentation，由 minor mode <code>electric-indent-mode</code> 控制，各语言模式默认开启（我在 <code>emacs-lisp-mode</code> 下读到它是 <code>t</code>）。官方手册的措辞是「This mode is enabled by default」；24.4 的 NEWS 记着「<em>'electric-indent-mode' is now enabled by default</em>」——它不是 Emacs 29 才开的开关，比那早得多，Elisp 24.1 就有了这个模式，24.4 开始默认打开。要按 buffer 单独开关用 <code>M-x electric-indent-local-mode</code>，要全局开关用 <code>M-x electric-indent-mode</code>。</p>
+
+  <div class="keys">
+    <h4>本节按键：缩进与制表符</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>TAB</kbd></td><td><code>indent-for-tab-command</code></td><td>按当前行的缩进量缩进（必要时先插制表符）</td></tr>
+        <tr><td><kbd>M-i</kbd></td><td><code>tab-to-tab-stop</code></td><td>按 Tab 停止点插入空白，跳到下一制表位</td></tr>
+        <tr><td><code>M-x edit-tab-stops</code></td><td><code>edit-tab-stops</code></td><td>编辑当前行的 Tab 停止点</td></tr>
+        <tr><td><kbd>C-M</kbd><kbd>\</kbd></td><td><code>indent-region</code></td><td>用当前模式的「智能」规则重排整个区域</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>TAB</kbd></td><td><code>indent-rigidly</code></td><td><strong>硬缩进</strong>：不管语言语义，整块左移/右移固定列数</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>3.2 <kbd>TAB</kbd> 到底做了什么</h4>
+  <p><kbd>TAB</kbd> 触发的是 <code>indent-for-tab-command</code>——一个<strong>通用代理命令</strong>：它自己不做缩进，而是把活派给当前模式注册的 <code>indent-line-function</code>。我实测的结果：<code>text-mode</code> 与 <code>fundamental-mode</code>（新建空 buffer 的默认模式）下它是 <code>indent-relative</code>（简单插一个制表符）；<code>emacs-lisp-mode</code> 下是 <code>lisp-indent-line</code>（真正按括号结构缩进）。</p>
+  <p>有些模式会覆盖 <kbd>TAB</kbd>，直接绑自己的缩进命令（C 语言的 <code>c-mode</code> 是典型）。所以 <kbd>TAB</kbd> 的行为<strong>随 buffer 变</strong>——同一个键，在 Markdown 里插一个 Tab，在 Lisp 里重排整个缩进层级。控制这个分歧的变量是 <code>tab-always-indent</code>，默认为 <code>t</code>；设为 <code>nil</code> 时，Emacs 判断「当前行已经缩进够了」就只插入一个真正的制表符，不再重排。</p>
+
+  <h4>3.3 用空格还是制表符，以及缩进宽度</h4>
+  <ul>
+    <li><code>indent-tabs-mode</code>：是否用真正的制表符字符缩进。本机 32.0.50 默认 <code>t</code>。想要空格就 <kbd>M-x</kbd> 后输入它回车切换。对语言文件通常需要设成 <code>nil</code> 并把 <code>tab-width</code> 设成 2 或 4。</li>
+    <li><code>tab-width</code>：每个缩进层级占多少列，默认 <strong>8</strong>。即使关掉制表符，这个宽度仍决定缩进量。<strong>它只是「显示宽度」约定，不会把文件里的制表符改写成空格</strong>——真要把制表符批量转成空格（反之亦然），用 <code>M-x untabify</code> 与 <code>M-x tabify</code>，它们作用于选区（这两个命令在 <code>tabify.el</code> 里，注意名字里没有 <code>-buffer</code>）。</li>
+    <li><kbd>M-i</kbd> 与 <code>M-x edit-tab-stops</code>：Emacs 支持传统行编辑器的「制表停止点」，<code>edit-tab-stops</code> 让你在行的合适位置插 <code>:</code>，之后 <kbd>M-i</kbd> 按这些点跳。今天基本只在你手写 Makefile 这类需要精确制表符对齐的文件时才有用。</li>
+  </ul>
+
+  <h4>3.4 区域缩进</h4>
+  <p>单行缩进简单，区域缩进麻烦——有些语言的缩进<strong>有语义</strong>（Python 里缩进决定代码块，重缩进可能直接改变程序含义）。所以 Emacs 给了两条性质不同的路：</p>
+  <ul>
+    <li><strong>智能路径</strong>：选一块文本按 <kbd>C-M</kbd> <kbd>\</kbd>（<code>indent-region</code>），Emacs 问当前模式「这段该怎么缩进」，对 HTML、C 等缩进无关语言效果好，对 Python 有风险。给它一个数字前缀，会把区域缩进到指定列，并尊重你的 <strong>fill prefix</strong>（<code>fill-prefix</code>，每行自动加的前缀，缩进式排版里很有用）。</li>
+    <li><strong>硬缩进路径</strong>：<kbd>C-x</kbd> <kbd>TAB</kbd>（<code>indent-rigidly</code>）只做纯粹的列平移，不管语言语义；正数右移、负数左移。</li>
+  </ul>
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><kbd>C-x</kbd> <kbd>TAB</kbd> <strong>不加任何参数</strong>会进入<strong>交互式缩进模式</strong>：之后用 <kbd>S-</kbd><kbd>left</kbd> 和 <kbd>S-</kbd><kbd>right</kbd> 一行行左右推区域，单独按 <kbd>left</kbd> / <kbd>right</kbd> 也能推，<kbd>TAB</kbd> 也被绑定成「整块右移一列」。注意这个模式<strong>没有「<kbd>RET</kbd> 确认、<kbd>ESC</kbd> 取消」</strong>这回事——<code>indent-rigidly</code> 的文档写的是「Typing any other key exits this mode, and this key is then acted upon as normally」：你按下的第一个「别的键」会先结束这个模式，然后<strong>照常执行</strong>。想干净地退出，按一个你不打算让它生效的键，或者按 <kbd>ESC</kbd>（它会以前缀键的身份把后续输入变成一条命令）。想手工把一段代码挪 2 列，带数字前缀最省事：<kbd>M-2</kbd> 然后 <kbd>C-x</kbd> <kbd>TAB</kbd> 右移两列，<kbd>M--2</kbd> 则左移。另外，选区存在时直接按 <kbd>TAB</kbd>，Emacs 会尝试用当前模式重排整个选区——但<strong>不要指望它在所有语言里都聪明</strong>，尤其 Python。</p>
+  </div>
+
+  <div class="drill" data-answer="indent-line-function（emacs-lisp-mode 是 lisp-indent-line，text-mode 是 indent-relative）">
+    <p class="drill-q"><b>练习 10</b>　同一个 Emacs 里，<code>text-mode</code> 和 <code>emacs-lisp-mode</code> 按 <kbd>TAB</kbd> 结果完全不同。决定这个差异的变量是哪个？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>indent-line-function</code>。<kbd>TAB</kbd> 触发的是通用代理命令 <code>indent-for-tab-command</code>，它把活派给这个变量指向的函数。我实测：<code>text-mode</code> 下是 <code>indent-relative</code>（只插一个制表符），<code>emacs-lisp-mode</code> 下是 <code>lisp-indent-line</code>（按括号重排）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x TAB（indent-rigidly），负参数左移">
+    <p class="drill-q"><b>练习 11</b>　选中一段 Python 代码，想把它整体右移两列（<strong>不改变缩进语义</strong>），用哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C-x</kbd> <kbd>TAB</kbd>（<code>indent-rigidly</code>），硬缩进只做列平移不管语言语义，负数左移。不要用 <kbd>C-M</kbd> <kbd>\</kbd>（<code>indent-region</code>）——它按模式规则重排，在 Python 里可能改变程序含义。</p></div>
+  </div>
+
+  <h3>四、排序：sort.el 的七个命令</h3>
+  <p>排序命令全都工作在<strong>区域</strong>上（选好区再执行），除了段落命令。默认<strong>升序</strong>；对一部分命令，加 <kbd>C</kbd><kbd>u</kbd> 前缀（或负的数字前缀）会改成<strong>降序</strong>——但<strong>不是全部</strong>，具体见下面的表。</p>
+
+  <div class="keys">
+    <h4>本节命令：排序（<code>M-x</code> 调用）</h4>
+    <table>
+      <thead><tr><th>命令（均为 <kbd>M-x</kbd> 调用）</th><th>作用</th><th>加 <kbd>C</kbd><kbd>u</kbd> 前缀时</th></tr></thead>
+      <tbody>
+        <tr><td><code>sort-lines</code></td><td>按整行字典序排序</td><td>改为降序</td></tr>
+        <tr><td><code>sort-fields</code></td><td>按第 N 个字段做<strong>字典序</strong>排序</td><td><strong>不降序</strong>：N 由数字前缀给出（从 1 开始），<strong>负数表示从行尾往回数第几个字段</strong></td></tr>
+        <tr><td><code>sort-numeric-fields</code></td><td>按第 N 个字段做<strong>数值</strong>排序</td><td>同 <code>sort-fields</code>：负数是「从右数第几个字段」，不是反向排序</td></tr>
+        <tr><td><code>sort-columns</code></td><td>按 point 与 mark 之间的列排序</td><td>改为降序</td></tr>
+        <tr><td><code>sort-paragraphs</code></td><td>按段落排序（唯一不排行的命令）</td><td>改为降序</td></tr>
+        <tr><td><code>sort-pages</code></td><td>按分页符（form feed）划分的页排序</td><td>改为降序</td></tr>
+        <tr><td><code>sort-regexp-fields</code></td><td>用正则定义记录与排序键，排序<strong>非空白分隔</strong>的数据</td><td>改为降序</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout warn">
+    <b>易错</b>
+    <p><code>sort-fields</code> 与 <code>sort-numeric-fields</code> 是这一节最容易敲错的前缀。<code>sort-fields</code> 的源码里交互规格写的是 <code>(interactive "p\nr")</code>（<code>p</code> = 原样取前缀数字），函数文档也写明「With a negative arg, sorts by the ARGth field counted from the right」——它拿前缀数字当<strong>列号</strong>用，从来不拿它当反向开关；它内部调用 <code>sort-fields-1</code> 时传给 <code>sort-subr</code> 的 reverse 参数写死是 <code>nil</code>（永远升序）。我实测 <code>(sort-fields -2)</code> 处理 <code>a 3 / b 1 / c 2</code>，输出原封不动。<strong>真要降序排字段，唯一办法是排完再用 <code>M-x reverse-region</code> 翻过来</strong>（官方手册也是这么建议的）。</p>
+  </div>
+
+  <p>另一个实用细节，跟常见说法相反：<strong><code>M-x sort-lines</code> 不会去调用系统的 <code>sort</code> 程序</strong>，它一直在 Emacs 内部用 <code>sort-subr</code> 排。我拉了 Emacs 24.4、25.3、26.3、27.2、28.2、29.4、30.2 的 <code>lisp/sort.el</code> 逐个 grep，<code>sort-buffer</code> 这个外部-sort 入口<strong>一次都没出现过</strong>；原书与很多中文教程说的「非 Windows 上调用外部 sort」是老资料里的过时说法。<strong>真正会用外部 <code>sort</code> 的是 <code>M-x sort-columns</code></strong>——它的文档写着「when possible, it uses the <code>sort</code> utility program, which doesn't understand tabs」，源码里是 <code>(apply #'call-process-region beg1 end1 "sort" t t nil sort-args)</code>；而且它会在两种情况下退回 Emacs 内部实现：系统是 <code>windows-nt</code>，或者区域里带非字体锁定的文本属性。<code>sort-columns</code> 还有一个硬限制：<strong>遇到制表符直接报错</strong>，让你先 <code>M-x untabify</code>。</p>
+
+  <h4>4.1 字典序 vs 数值序：为什么 <code>4</code> 排在 <code>23</code> 后面</h4>
+  <p><strong>字典序</strong>就是逐字符比较字符编码，数字也一样比编码，于是 <code>4</code>（编码 52）大于 <code>23</code> 的首字符 <code>2</code>（编码 50）。要按真正的数值排，必须用 <code>M-x sort-numeric-fields</code>。</p>
+
+  <h4>4.2 按字段排序：数字前缀选列</h4>
+  <p><code>M-x sort-fields</code> 与 <code>M-x sort-numeric-fields</code> 需要指定<strong>按第几列</strong>排序，列号<strong>从 1 开始</strong>，用数字前缀给出，例如按第三列排：<kbd>M-3</kbd> 然后 <code>M-x sort-fields</code>。列是按<strong>空白分隔</strong>的——一个或多个空格、制表符都算一个分隔符。给<strong>负数</strong>则改成从行尾往回数（<kbd>M--1</kbd> = 按最后一个字段排）。列号只能给一个；想按<strong>多列</strong>排只有 <code>M-x sort-columns</code>：它不用列号，而是<strong>把 point 和 mark 放在你想比较的起止两个列位置上</strong>，从 point 所在行到 mark 所在行之间的所有行就按这段字符排序（注意它的「区域」定义很特殊：point 那一整行和 mark 那一整行都算在范围内）。</p>
+
+  <h4>4.3 <code>sort-regexp-fields</code>：处理 CSV 与「部分排序」的坑</h4>
+  <p>这个命令要你提供两个正则：<strong>Record</strong>（一条记录长什么样）和 <strong>Key</strong>（拿记录的哪部分当排序键）。Emacs 内置排序函数的心智模型是「键 vs 记录」——记录通常就是一整行，键是其中被挑出来比较的部分。Key 可以写 <code>\1</code> / <code>\2</code> 直接引用 Record 里的第几个捕获组，也可以写 <code>\&amp;</code> 表示「整条记录都当键」。处理下面这份 CSV：</p>
+  <pre class="term"><code>Price,Product
+$3.50,Cappuccino
+$4.00,Caramel Latte
+$2.00,Americano
+$2.30,Macchiato</code></pre>
+  <p>第一步，<strong>选中下面四行数据</strong>（从 <code>$3.50</code> 那一行起拖到文件末尾，<strong>不要把表头包进去</strong>），然后执行 <code>M-x sort-regexp-fields</code>，依次回答（注意 <code>\(</code> 是 Elisp 正则里的分组括号）：<code>Record: ^\([^,]+\),.*$</code>、<code>Key: \1</code>。Record 把每行定义成「一个不含逗号的捕获组 + 逗号 + 剩下随便什么」，Key 取第一个组（价格）来比较。32.0.50 上实测结果：</p>
+  <pre class="term"><code>Price,Product
+$2.00,Americano
+$2.30,Macchiato
+$3.50,Cappuccino
+$4.00,Caramel Latte</code></pre>
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>忘了选区、连表头一起排，会出两个意外。</strong>其一，表头 <code>Price,Product</code> 自己也是一条记录，它的键是 <code>Price</code>；而 <code>$</code> 的字符编码是 36、<code>P</code> 是 80，所以表头会被排到<strong>最下面</strong>而不是留在顶部（我实测整个 buffer 直接排，得到的是 <code>$2.00,Americano / $2.30,Macchiato / $3.50,Cappuccino / $4.00,Caramel Latte / Price,Product</code>）。其二，原书给的 Record 正则 <code>^\([^,]+\),\([^,]+\)$</code> 在今天的 Emacs 上还会<strong>多插一个空行</strong>出来——所以这里我改用结尾是 <code>.*$</code> 的写法，上面那段输出就是它的实测结果。</p>
+    <p>第二个坑更凶：<strong>部分排序会毁掉你的数据。</strong>如果你少写一个括号，只写 <code>Record: ^\([^,]+\)</code>，Record 只匹配逗号之前的前半段，行会被<strong>拆开重排</strong>，价格和商品名就散了。同样在原始的四行数据上实测：</p>
+    <pre class="term"><code>$2.00,Cappuccino
+$2.30,Caramel Latte
+$3.50,Americano
+$4.00,Macchiato</code></pre>
+    <p>价格确实排对了，<strong>商品名的对应关系全乱了</strong>——每个商品名都往上错了一行。所以<strong>跑 <code>sort-regexp-fields</code> 之前先 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 撤销点一下，或者干脆复制一份</strong>。</p>
+  </div>
+
+  <div class="drill" data-answer="M-2 M-x sort-numeric-fields；字典序下 4 的编码大于 2，所以 4 排在 23 之后">
+    <p class="drill-q"><b>练习 12</b>　一行数据里第二列是数字（<code>name 23</code>、<code>name 4</code>），要按第二列的<strong>数值</strong>升序排，按键怎么敲？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M-2</kbd> 然后 <code>M-x sort-numeric-fields</code>。用 <code>sort-fields</code> 会按字典序排，<code>4</code> 会排在 <code>23</code> 后面——因为字符 <code>4</code> 的编码大于 <code>2</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-u 让 sort-lines 降序；但 sort-fields / sort-numeric-fields 是例外，它们的负前缀是「从行尾数第几个字段」，要降序得排完再 M-x reverse-region">
+    <p class="drill-q"><b>练习 13</b>　<code>sort-lines</code> 默认升序，想改成降序，前缀怎么加？<strong>这个约定对所有排序命令都成立吗？</strong></p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>加 <kbd>C</kbd><kbd>u</kbd>（<code>universal-argument</code>），对 <code>sort-lines</code>、<code>sort-paragraphs</code>、<code>sort-pages</code>、<code>sort-columns</code>、<code>sort-regexp-fields</code> 成立。<strong>但 <code>sort-fields</code> 与 <code>sort-numeric-fields</code> 是例外</strong>：它们的前缀数字是列号，给负数表示「从行尾往回数第几个字段」，<strong>不会</strong>降序。要给字段降序，只能排完升序再 <code>M-x reverse-region</code> 翻过来。</p></div>
+  </div>
+
+  <div class="drill" data-answer="Record 正则要用 ^ 开头、$ 结尾，并用括号捕获两列：逗号两侧各一个捕获组，否则会只排到半行；先撤销点一下备份">
+    <p class="drill-q"><b>练习 14</b>　一份三列 CSV（价格、名称、数量）要以价格排序。执行 <code>M-x sort-regexp-fields</code> 前应该先做什么防护动作？为什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>先 <kbd>C-x</kbd> <kbd>u</kbd> 撤销点一下，或复制一份。因为 <code>sort-regexp-fields</code> <strong>可能只排到部分行</strong>：Record 正则写错（比如只写 <code>^\([^,]+\)</code>）时行会被拆开重排，价格对了但名称的对应关系全散。命令出错时不会自我保护。</p></div>
+  </div>
+
+  <h3>五、对齐：align.el 与 table.el</h3>
+  <p>「缩进」和「对齐」是两件事。<strong>缩进</strong>是相对行首的整体位移，由语言规则决定；<strong>对齐</strong>是让<strong>某一列字符横着对齐</strong>——一堆赋值语句的等号对齐成一竖排，或表格的价格列对齐。对齐系统 <code>align.el</code> 与缩进系统完全独立。</p>
+
+  <h4>5.1 <code>align.el</code> 的五条命令</h4>
+  <div class="keys">
+    <h4>本节命令：对齐（<code>M-x</code> 调用）</h4>
+    <table>
+      <thead><tr><th>命令（均为 <kbd>M-x</kbd> 调用）</th><th>作用</th><th>要点与变体</th></tr></thead>
+      <tbody>
+        <tr><td><code>align</code></td><td>按对齐规则表对齐<strong>选区</strong></td><td>逐条试 <code>align-rules-list</code>，第一条整段匹配的规则胜出</td></tr>
+        <tr><td><code>align-current</code></td><td>不选区，光标在哪一行就自动找 <strong>section</strong> 并对齐</td><td>最常用的一条：内置规则能认出 Python 的 <code>=</code> 与 Lisp 的 alist 点</td></tr>
+        <tr><td><code>align-regexp</code></td><td>自己给正则，指定对齐字符</td><td>直接调用是<strong>新手模式</strong>（只问一次 Align regexp）；加 <kbd>C</kbd><kbd>u</kbd> 进<strong>复杂模式</strong>（问四个问题，可一行内反复对齐）</td></tr>
+        <tr><td><code>align-entire</code></td><td>把整个选区当成一个 section 对齐</td><td>选区里混了好几种模式而你希望整体当一块时用</td></tr>
+        <tr><td><code>align-highlight-rule</code></td><td>高亮「某条规则会改动哪些空白」</td><td>读不懂 <code>align-rules-list</code> 时的调试工具</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>前两个命令按变量 <code>align-rules-list</code>（对齐规则表）逐条尝试，第一条<strong>整段都匹配</strong>的规则胜出。规则里可以限定 major mode 和要匹配的正则。<strong>section</strong>（段落块）是 <code>align.el</code> 特有的概念：一组连续的行，其中<strong>第一条命中的规则</strong>统辖它们。比如有一条规则对齐字符串里的 <code>=</code>，那么所有连续含 <code>=</code> 赋值的行就是一个 section。</p>
+  <p>两条免选区的命令很省事：<code>M-x align-current</code> 从光标所在行推出 section 并一起对齐；<code>M-x align-entire</code> 把整个选区当成一个 section。内置规则里，Python 会把赋值语句的 <code>=</code> 对齐，Clojure / Lisp 的 alist 里的点也能对齐——把光标放在其中一行执行 <code>M-x align-current</code>，Emacs 自己认。</p>
+  <div class="callout warn">
+    <b>易错</b>
+    <p><code>align-rules-list</code> 里的规则需要读者相当熟悉正则才能看懂，而且每条都没有文档字符串——这是 Emacs 的一个老大难，也是原书作者吐槽的地方。想看懂某条规则会怎么改你的文本，用 <code>M-x align-highlight-rule</code>：它会把「这条规则会动到的空白」高亮出来，比读正则直观得多。</p>
+  </div>
+
+  <h4>5.2 <code>align-regexp</code>：自己指定对齐字符</h4>
+  <p>内置规则很少正好命中你的场景，这时用 <code>M-x align-regexp</code>（正则驱动的临时对齐规则）。它有<strong>新手模式</strong>（直接调用）和<strong>复杂模式</strong>（加 <kbd>C</kbd><kbd>u</kbd> 前缀）。</p>
+  <p>新手模式只问一个问题 <code>Align regexp:</code>。例如对齐 <code>$</code>：</p>
+  <pre class="term"><code>Cappuccino $2.00
+Caramel Latte $2.30
+Americano $3.50
+Macchiato $4.00</code></pre>
+  <p>要在一行里对齐<strong>多处</strong>（比如三列 CSV 的所有逗号）必须进复杂模式。我读过 <code>align-regexp</code> 的交互规格，它依次问四件事：</p>
+  <ol>
+    <li><code>Complex align using regexp:</code>——预填 <code>\(\s-*\)</code>，即「捕获已有的连续空白」。需要它是因为你可能刚对齐过一次、现在文本又乱了，得先匹配住现有空白再重排。<strong>这个空白捕获组即使在只支持单点时也存在</strong>，只是你看不到。</li>
+    <li><code>Parenthesis group to modify (justify if negative):</code>——改动第几个捕获组，默认 <code>1</code>；给负数表示「两端对齐」。</li>
+    <li><code>Amount of spacing (or column if negative):</code>——间距，默认取 <code>align-default-spacing</code>（用 Emacs 的制表位），一般保持默认；给负数表示对齐到第几列。</li>
+    <li><code>Repeat throughout line?</code>——是否沿整行反复对齐。<strong>处理三列 CSV 必须答 yes。</strong></li>
+  </ol>
+  <p>完整处理三列 CSV 的答案：</p>
+  <pre class="term"><code>C-u M-x align-regexp
+Complex align using regexp: ,\(\s-*\)
+Parenthesis group to modify (justify if negative): 1
+Amount of spacing (or column if negative): 1
+Repeat throughout line? y</code></pre>
+  <p>注意<strong>逗号放在正则开头还是结尾，结果完全不同</strong>：放<strong>前面</strong>（<code>,\(\s-*\)</code>）对齐的是<strong>逗号之后</strong>的列；放<strong>后面</strong>（<code>\(\s-*\),</code>）对齐的是<strong>逗号之前</strong>的列。结果：</p>
+  <pre class="term"><code>Price, Product, Qty Sold
+$2.00, Cappuccino, 289
+$2.30, Caramel Latte, 109
+$3.50, Americano, 530
+$4.00, Macchiato, 20</code></pre>
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>「一行里要反复对齐两次以上」太常用了，<strong>把它录成键盘宏是最自然的选择</strong>——这正是 1.10 说的「用宏自动化你反复做的复杂命令」。不过老实说，只要数据是规整的多列文本，<strong>正确的答案往往是下一节的 <code>table.el</code>，而不是跟正则搏斗</strong>。</p>
+  </div>
+
+  <h4>5.3 <code>table.el</code>：今天做数据对齐应该用它</h4>
+  <p>如果处理的是<strong>真正的表格数据</strong>（列有明确含义、要反复增删行列），现代最佳实践不是 <code>align.el</code>，而是 Emacs 内置的 <code>table.el</code>（<code>lisp/textmodes/table.el</code>）。理由很简单：<code>align.el</code> 只是「在文本里插空白让某列对齐」，那些空格是<strong>文本本身的一部分</strong>；<code>table.el</code> 则把一块矩形区域<strong>识别成一个表格</strong>，之后光标被限制在单元格内，打字时单元格自动加宽 / 加高以容纳内容——这就是所谓 WYSIWYG（所见即所得）式的纯文本表格编辑。</p>
+  <ol>
+    <li><code>M-x table-insert</code>，依次输入<strong>列数</strong>、<strong>行数</strong>、<strong>单元格宽</strong>、<strong>单元格高</strong>（默认值分别是 3、3、5、1）。</li>
+    <li>Emacs 插入带边框的表格，光标落在第一格。</li>
+    <li>用 <kbd>TAB</kbd> 在单元格间移动、直接打字。<strong>字超出宽度时单元格自动变宽</strong>，同列其他单元格跟着一起变宽。</li>
+  </ol>
+  <pre class="term"><code>M-x table-insert
+Number of columns: 3
+Number of rows: 2
+Cell width: 12
+Cell height: 1
++-------+--------------+------+
+|       |              |      |
++-------+--------------+------+
+|       |              |      |
++-------+--------------+------+</code></pre>
+  <div class="callout note"><b>要点</b><p><strong>表格内部的按键全部挂在 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> 底下——也就是要连按两下 <kbd>C</kbd><kbd>c</kbd>，然后才是下面表里那个带 <kbd>C</kbd> 的键。</strong>比如「下一个单元格」是 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>i</kbd>，<strong>不是</strong>光秃秃的 <kbd>C</kbd><kbd>i</kbd>（那个是 <code>tab-insert</code>）。本书作者在 Emacs 32.0.50 的 <code>lisp/textmodes/table.el</code> 第 292–295 行读到它自己的说明：“special characters. In this case use "C-cC-c"… For example, use "C-cC-c|" instead”，绑定清单在同一文件第 922–947 行的 <code>table-cell-bindings</code> 常量里。<strong>下面这张表已经把完整键位写全，照着敲就行。</strong></p>
+    <p><strong>还有一件必须知道的事：这套按键<strong>只在你用 <code>table.el</code> 的表格</strong>（<kbd>M</kbd><kbd>x</kbd> <code>table-recognize</code> 生成的那种）里生效。<strong>Org 的表格是完全另一套</strong>，见第 14 章。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键：表格单元格内部（仅在 <code>table.el</code> 表格里生效）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>i</kbd> ／ <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>TAB</kbd></td><td><code>table-forward-cell</code></td><td>下一个单元格</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>S</kbd><kbd>i</kbd> ／ <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>S</kbd><kbd>TAB</kbd></td><td><code>table-backward-cell</code></td><td>上一个单元格。<strong>源码里绑的是 <code>[(control ?I)]</code>，也就是 <kbd>C</kbd><kbd>S</kbd><kbd>i</kbd>（Ctrl+Shift+i），不是 <kbd>C</kbd><kbd>I</kbd></strong></td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>&gt;</kbd></td><td><code>table-widen-cell</code></td><td>加宽当前格</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>&lt;</kbd></td><td><code>table-narrow-cell</code></td><td>变窄当前格</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>}</kbd></td><td><code>table-heighten-cell</code></td><td>加高当前格</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>{</kbd></td><td><code>table-shorten-cell</code></td><td>变矮当前格</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>+</kbd></td><td><code>table-insert-row-column</code></td><td>插入行或列</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>|</kbd></td><td><code>table-split-cell-horizontally</code></td><td>水平拆单元格</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>-</kbd></td><td><code>table-split-cell-vertically</code></td><td>垂直拆单元格</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>*</kbd></td><td><code>table-span-cell</code></td><td>把单元格横向合并</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>?</kbd></td><td><code>table-justify</code></td><td>单元格内文字左 / 中 / 右对齐，连按会循环切换</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>#</kbd></td><td><code>table-query-dimension</code></td><td>查询表格尺寸</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>^</kbd></td><td><code>table-generate-source</code></td><td>生成 HTML / LaTeX / wiki 等表格源码</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>!</kbd></td><td><code>table-fixed-width-mode</code></td><td>固定宽 / 自适应宽切换</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>配套的识别 / 取消识别命令（把已有文本变成表格，或把表格变回普通文本）：<code>M-x table-recognize</code>、<code>M-x table-recognize-region</code>、<code>M-x table-recognize-table</code>（只认光标所在那张）、<code>M-x table-recognize-cell</code>，以及对应的 <code>table-unrecognize*</code> 系列；插入命令还有 <code>M-x table-insert-row</code>、<code>M-x table-insert-column</code>、<code>M-x table-insert-row-column</code>。</p>
+  <div class="callout warn">
+    <b>易错</b>
+    <p>网上流传着 <code>M-x table-generate</code> 这个命令。<strong>Emacs 里没有它</strong>——我在 32.0.50 的完整 lisp 树里只找到 <code>table-generate-source</code>（由 <kbd>C</kbd><kbd>^</kbd> 调用，把表格导出成 HTML / LaTeX / CALS / wiki / mediawiki 源码）。建表的入口就是 <code>M-x table-insert</code>。</p>
+    <p>还有一点：<code>table.el</code> <strong>不是 major mode 也不是 minor mode</strong>。它把特殊行为限制在表格所在的那块文本区域内部，靠 keymap 文本属性实现，所以同一个 buffer 里表格内外行为不同，模式行会显示 <code>Table</code> 之类的指示字样。</p>
+  </div>
+
+  <h4>5.4 矩形（rectangle）：按列而不是按行操作</h4>
+  <p><strong>矩形</strong>指横跨多行、但只取每行某个列区间的选区。它的价值在于「给这三行的第 5 到第 12 列都填上同一个字符」这类操作——普通选区做不到，矩形一下就够。</p>
+  <div class="keys">
+    <h4>本节按键：矩形命令（<kbd>C-x</kbd> <kbd>r</kbd> 前缀）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>t</kbd></td><td><code>string-rectangle</code></td><td>在矩形里填入字符串，<strong>逐行竖着填</strong></td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>o</kbd></td><td><code>open-rectangle</code></td><td>把矩形内各行之间的空白换成换行</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>k</kbd></td><td><code>kill-rectangle</code></td><td>删除矩形内容（先进 kill ring）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>y</kbd></td><td><code>yank-rectangle</code></td><td>从 kill ring 里粘一个矩形</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>d</kbd></td><td><code>delete-rectangle</code></td><td>删除矩形内容并用空白填空</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>c</kbd></td><td><code>clear-rectangle</code></td><td>用空白覆盖矩形</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>N</kbd></td><td><code>rectangle-number-lines</code></td><td>给矩形内每行编上连续行号</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><kbd>C-x</kbd> <kbd>r</kbd> <kbd>t</kbd> 的「竖着填」最有意思：你输入 <code>abc</code>，它<strong>一列一列</strong>写下去——第 1 行第 1 列写 <code>a</code>，第 2 行第 1 列写 <code>b</code>，第 3 行第 1 列写 <code>c</code>，再从第 1 行第 2 列重来。这正是给多行文本批量加行号前缀、批量补同一段字符最快的办法，配合 <code>rectangle-number-lines</code> 尤其顺手。</p>
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong><kbd>C-x</kbd> <kbd>r</kbd> <kbd>m</kbd> 不是「移动矩形」。</strong>我在 Emacs 32.0.50 上查过，它是 <code>bookmark-set</code>（设置书签）——几十年前就撞了车的历史遗留。更彻底的是：<code>move-rectangle</code> 这个命令在今天的 Emacs 里<strong>已经不存在了</strong>。我逐个版本核对过 <code>lisp/rect.el</code>，Emacs 28.2、29.4、30.2、31.1 以及 master 分支里都没有 <code>move-rectangle</code> 的定义。旧教程里教你的键位，别照抄。</p>
+    <p>同一前缀下，<kbd>C-x</kbd> <kbd>r</kbd> <kbd>w</kbd> 现在是 <code>window-configuration-to-register</code>，<kbd>C-x</kbd> <kbd>r</kbd> <kbd>b</kbd> 是 <code>bookmark-jump</code>。它们跟矩形无关却占着这个前缀，容易混。</p>
+  </div>
+  <p><strong>矩形和 <code>table.el</code> 怎么配合？</strong><strong>矩形</strong>用在<strong>纯文本还没成型</strong>的时候：批量加行号、批量补前缀、把带缩进的数据「压平」成一行、给多行统一加边框字符——它<strong>不认识「列」是什么，只知道字符位置</strong>。<strong><code>table.el</code></strong>用在<strong>数据成型之后</strong>：一旦你认定这是有行有列的表格，就交给它，之后插行插列、切分合并、单元格对齐、导出 HTML 全都顺手。典型流程：先用矩形把原始数据规整成等宽方块，再 <code>M-x table-recognize</code> 识别成表格，接着当表格编辑。</p>
+
+  <div class="drill" data-answer="C-x r t（string-rectangle）竖向填入，然后 RET；也可用 C-x r N（rectangle-number-lines）自动编号">
+    <p class="drill-q"><b>练习 15</b>　想给 30 行的文本每行前面填上编号字符，最快的键位组合是？<strong>注意不是 <kbd>C-x</kbd> <kbd>r</kbd> <kbd>m</kbd>。</strong></p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>选好矩形区后用 <kbd>C-x</kbd> <kbd>r</kbd> <kbd>t</kbd>（<code>string-rectangle</code>）<strong>竖着</strong>填字符串，填完按 <kbd>RET</kbd>；或直接用 <kbd>C-x</kbd> <kbd>r</kbd> <kbd>N</kbd>（<code>rectangle-number-lines</code>）自动编号。顺带说明：<kbd>C-x</kbd> <kbd>r</kbd> <kbd>m</kbd> 是 <code>bookmark-set</code>，而 <code>move-rectangle</code> 这个命令在 Emacs 28 以后的 <code>rect.el</code> 里已经没有定义了。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-u M-x align-regexp；Complex align using regexp 填「逗号 + 空白捕获组」（逗号在前表示对齐逗号之后的列）；Repeat throughout line 答 y">
+    <p class="drill-q"><b>练习 16</b>　要对齐三列 CSV 里<strong>所有的逗号</strong>（一行里要反复对齐两次以上），<code>M-x align-regexp</code> 的四个问题分别怎么答？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>必须加 <kbd>C</kbd><kbd>u</kbd> 进复杂模式，然后：<code>Complex align using regexp:</code> 填 <code>,\(\s-*\)</code>（逗号放前面 = 对齐逗号<strong>之后</strong>的列）；<code>Parenthesis group to modify</code> 填 <code>1</code>；<code>Amount of spacing</code> 填 <code>1</code> 或直接回车用默认值；<code>Repeat throughout line?</code> 答 <code>y</code>。最后一条是「一行里反复对齐」的唯一开关。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x table-insert（M-x table-generate 不存在）">
+    <p class="drill-q"><b>练习 17</b>　想插入一个 4 列 3 行、每格宽 20 的可编辑表格，敲什么命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>M-x table-insert</code>，依次回答 4（列数）、3（行数）、20（单元格宽）、1（单元格高）。之后用 <kbd>TAB</kbd> 在格子间移动，打字超出宽度时单元格自动加宽。<strong>Emacs 里没有 <code>M-x table-generate</code> 这个命令</strong>；导出成 HTML / LaTeX 源码的命令叫 <code>table-generate-source</code>，在单元格里按 <kbd>C</kbd><kbd>^</kbd>。</p></div>
+  </div>
+
+  <h3>六、Zapping Characters：<kbd>M</kbd><kbd>z</kbd> 按字符删</h3>
+  <p>第六章的 kill 命令（<kbd>C</kbd><kbd>w</kbd>、<kbd>M</kbd><kbd>w</kbd> 等）作用于<strong>语法单元</strong>——词、行、句子。但有时你只想「删到某个字符为止」，不想管中间是什么。<strong>zap</strong> 命令干的就是这件事。按 <kbd>M</kbd><kbd>z</kbd>（<code>zap-to-char</code>）之后，Emacs 在 minibuffer 里提示 <code>Zap to char:</code>，<strong>你把那个字符输入进去、回车</strong>，Emacs 就从光标处<strong>一直杀到那个字符为止，而且把那个字符也一起杀掉</strong>。</p>
+
+  <p>下面用 <code>|</code> 标出光标的位置（<strong>| 只是给你看的记号，不是真要敲的东西</strong>）：</p>
+
+  <pre class="term"><code>删除前：http://www.example.com/|articles/?id=10
+按 M-z，在 Zap to char: 后面输入 /，回车
+删除后：http://www.example.com/|?id=10
+              ↑ articles 没了，连那一个 / 也一起没了</code></pre>
+
+  <div class="callout warn"><b>易错</b><p><strong>「含」还是「不含」是这一族命令唯一要记的差别。</strong><code>zap-to-char</code> 的文档字符串原文是 “Kill up to <strong>and including</strong> ARGth occurrence of CHAR”，<code>zap-up-to-char</code> 是 “Kill up to, <strong>but not including</strong> ARGth occurrence of CHAR”。<strong>所以上面那个例子用 <code>zap-to-char</code> 会把斜杠吃掉；换成 <code>zap-up-to-char</code> 就留下 <code>/</code>，结果是 <code>http://www.example.com/|/?id=10</code>。</strong>如果你删完发现少了一个本该保留的字符，就要往另一条命令上换。</p></div>
+
+  <p><strong>为什么是「输入字符」而不是「按下一个键」？</strong>这是版本变化的结果：<code>zap-to-char</code> 从 <strong>Emacs 27</strong> 起改用 <code>read-char-from-minibuffer</code>（可在 minibuffer 里输入、能用搜索历史），<code>zap-up-to-char</code> 从 <strong>Emacs 28</strong> 起跟上。老文章里写「按 <kbd>M</kbd><kbd>z</kbd> 然后直接按字符键」是 Emacs 26 及以前的用法，在今天的 Emacs 上照做会没反应。<strong>本书作者在 32.0.50 自带的 <code>etc/NEWS.27</code> 第 584–585 行和 <code>etc/NEWS.28</code> 第 1041 行查到了这两条原文。</strong></p>
+
+  <p>因为它走 kill ring，可以像别的 kill 命令一样加前缀：<kbd>M-3</kbd> <kbd>M</kbd><kbd>z</kbd> 连续 zap 三次（注意方向会翻转），负数字符串往回删。所以原书说「可以把它和 kill 命令、数字参数、负参数组合使用」是对的。</p>
+  <div class="keys">
+    <h4>本节按键：zap</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>z</kbd></td><td><code>zap-to-char</code></td><td>杀掉到（<strong>含</strong>）指定字符</td></tr>
+        <tr><td><code>M-x zap-up-to-char</code></td><td><code>zap-up-to-char</code></td><td>杀掉到（<strong>不含</strong>）指定字符</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><code>zap-up-to-char</code> 是内置命令（定义在 <code>misc.el</code> 里），<strong>默认没有任何键位</strong>，所以表里写的是 <code>M-x</code> 加名字。原书建议自己绑一个，比如 <code>(global-set-key (kbd "M-S-z") #'zap-up-to-char)</code>。但更好的做法是<strong>替换而不是新增</strong>——多数人真正想要的是「含」与「不含」二选一：<code>(global-set-key (kbd "M-z") #'zap-up-to-char)</code>。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>版本差异，本书作者在本机 <code>etc/NEWS.*</code> 里逐条查到的原文：<strong>Emacs 27</strong>（<code>NEWS.27</code> 第 584–585 行）起 <code>zap-to-char</code> 改用 <code>read-char-from-minibuffer</code>，并且「会用你以前 zap 过的那些字符的历史」；<strong>Emacs 28</strong>（<code>NEWS.28</code> 第 1041 行）起 <code>zap-up-to-char</code> 也改用同一个函数；<strong>Emacs 29</strong>（<code>NEWS.29</code> 第 1258 行）起两者<strong>对大写字符区分大小写</strong>——也就是输 <code>a</code> 不会匹配 <code>A</code> 了。</p>
+    <p><strong>一条作者没能核实的说法，这里说清楚：</strong>「<code>zap-up-to-char</code> 是从哪个版本才开始有的」——本书查遍 <code>NEWS.20</code> 到 <code>NEWS.32</code> 只找到上面那两条讲「改用 minibuffer」的记录，<strong>没有一条说它是哪个版本新加的命令</strong>。<code>NEWS.28</code> 那条说它「now uses」，措辞暗示它在那之前就已经存在。<strong>所以「Emacs 28 才加入」这个说法本书无法证实，不作为结论。</strong>你要在自己的 Emacs 上确认，用 <kbd>M</kbd><kbd>x</kbd> 输入 <code>zap-up-to-char</code> 看它认不认识；不认识就说明你的版本早于它被加进来的时间，照 <code>M-x</code> 查文档即可。</p>
+  </div>
+
+  <div class="drill" data-answer="M-z 用 zap-to-char（含）；zap-up-to-char 可自己绑 M-S-z 或替换 M-z">
+    <p class="drill-q"><b>练习 18</b>　把光标到下一个 <code>/</code>（含这个斜杠）之间的文本删掉用哪个键？「不含斜杠」的版本又用哪个？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>含斜杠用 <kbd>M</kbd><kbd>z</kbd>（<code>zap-to-char</code>）；不含斜杠用 <code>zap-up-to-char</code>，它默认没键位，可以绑 <kbd>M</kbd><kbd>S</kbd><kbd>z</kbd>，或干脆 <code>(global-set-key (kbd "M-z") #'zap-up-to-char)</code> 把 <kbd>M</kbd><kbd>z</kbd> 变成「不含」的行为。</p></div>
+  </div>
+
+  <h3>七、拼写检查：<kbd>M</kbd><kbd>$</kbd>、Flyspell 与词典查询</h3>
+  <p>反直觉但重要的一点：<strong>Emacs 自己不做拼写检查</strong>。真正干活的是外部程序——Linux 上通常是 <strong>aspell</strong> 或 <strong>ispell</strong>，Emacs 会优先用 aspell（更快也更现代）。Emacs 内部一律把「拼写检查」叫 <strong>ispell</strong>，哪怕底层跑的是 aspell 或 hunspell。</p>
+  <div class="keys">
+    <h4>本节按键：拼写检查</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>$</kbd></td><td><code>ispell-word</code></td><td>检查光标处的词（最常用）</td></tr>
+        <tr><td><code>M-x flyspell-mode</code></td><td><code>flyspell-mode</code></td><td>minor mode，边打字边给错词加波浪线</td></tr>
+        <tr><td><code>M-x flyspell-prog-mode</code></td><td><code>flyspell-prog-mode</code></td><td>同上，但只检查注释、字符串、docstring</td></tr>
+        <tr><td><kbd>M</kbd><kbd>TAB</kbd> <span>（Flyspell 开启时）</span></td><td><code>flyspell-auto-correct-word</code></td><td>直接采纳最可能的修正</td></tr>
+        <tr><td><kbd>C</kbd><kbd>;</kbd> <span>（Flyspell 开启时）</span></td><td><code>flyspell-auto-correct-previous-word</code></td><td>自动修正并在候选间循环</td></tr>
+        <tr><td><kbd>C</kbd><kbd>.</kbd> <span>（Flyspell 开启时）</span></td><td><code>flyspell-correct-word</code></td><td>弹出候选列表来选</td></tr>
+        <tr><td><kbd>C</kbd><kbd>,</kbd> <span>（Flyspell 开启时）</span></td><td><code>flyspell-goto-next-error</code></td><td>跳到下一个错词</td></tr>
+        <tr><td><code>M-x ispell-region</code></td><td><code>ispell-region</code></td><td>检查整个区域</td></tr>
+        <tr><td><code>M-x ispell-buffer</code></td><td><code>ispell-buffer</code></td><td>检查整个 buffer</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原书说开启 Flyspell 后，「一个绑在 <kbd>C-M-i</kbd>（和 <kbd>C-.</kbd>）上的辅助命令会自动纠正光标处的词」。<strong>这在今天的 Emacs 里已经变了。</strong>我读了 32.0.50 的 <code>lisp/textmodes/flyspell.el</code>：自动修正的默认键位由变量 <code>flyspell-auto-correct-binding</code> 决定，<strong>默认值是 <kbd>C</kbd><kbd>;</kbd></strong>（<code>flyspell-auto-correct-previous-word</code>）；<kbd>C</kbd><kbd>.</kbd> 仍在，但绑的是 <code>flyspell-correct-word</code>，会弹候选列表让你选。另外还有 <kbd>M</kbd><kbd>TAB</kbd> → <code>flyspell-auto-correct-word</code>（直接用第一个候选）。</p>
+    <p>想要以前的 <kbd>C-M-i</kbd> 行为，可以 <code>(setq flyspell-auto-correct-binding (kbd "C-M-i"))</code>；Emacs 29 之后可以直接 <kbd>M-x customize-variable</kbd> 改这个变量，不必再写 Elisp。Emacs 30 新增 <code>flyspell-check-changes</code>（默认 <code>nil</code>），设为 <code>t</code> 就只检查<strong>你编辑过的</strong>词，扫大文件快很多。</p>
+  </div>
+
+  <p><kbd>M</kbd><kbd>$</kbd> 是最省事的「随手纠错」：Emacs 告诉你这词对不对，错的话列候选，选一个替换。<strong>写中文文档或代码标识符时不要开 Flyspell</strong>——它会把所有中文和驼峰标识符都标成错的。要调字典就 <kbd>M-x customize-group</kbd> 后输入 <code>ispell</code>，整组选项都在那里。</p>
+
+  <h4>词典查询（Emacs 28 新增）</h4>
+  <p>Emacs 28 加了 <code>dictionary.el</code>（<code>lisp/net/dictionary.el</code>），可以把光标处的词发到 <strong>dict.org</strong> 这类 RFC 2229 词典服务器去查。我读过它的选项：<code>dictionary-server</code> 默认是 <code>nil</code>，含义是「<strong>先试本机 localhost，不通就在征得同意后改用 dict.org</strong>」——不是默认就往外发数据，这点值得肯定。</p>
+  <ul>
+    <li><code>M-x dictionary-lookup-definition</code>：查光标处的词。</li>
+    <li><code>M-x dictionary-search</code>：搜索你输入的词。</li>
+    <li><code>M-x dictionary-select-dictionary</code>：选择查哪个词典（dict.org 支持很多语言）。</li>
+    <li><code>M-x dictionary</code>：打开一个专门的查询 buffer。</li>
+    <li><code>M-x dictionary-tooltip-mode</code>：鼠标悬停即查释义。</li>
+  </ul>
+
+  <div class="drill" data-answer="C-;（flyspell-auto-correct-binding 默认值）；C-. 是 flyspell-correct-word；M-TAB 是 flyspell-auto-correct-word">
+    <p class="drill-q"><b>练习 19</b>　开了 <code>flyspell-mode</code> 之后，想「直接采用第一个候选、不弹列表」地自动纠正光标处的词，按哪个键？原书给的 <kbd>C-M-i</kbd> 答案在今天的 Emacs 里对吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>M</kbd><kbd>TAB</kbd>（<code>flyspell-auto-correct-word</code>）。<strong>原书的 <kbd>C-M-i</kbd> 需要修正</strong>：32.0.50 的 <code>flyspell.el</code> 里 <code>flyspell-auto-correct-binding</code> 默认是 <kbd>C</kbd><kbd>;</kbd>（绑 <code>flyspell-auto-correct-previous-word</code>），而 <kbd>C</kbd><kbd>.</kbd> 绑的是 <code>flyspell-correct-word</code>，它会<strong>弹候选列表</strong>，跟「不弹列表」正好相反。</p></div>
+  </div>
+
+  <h3>八、Quoted Insert：字面插入控制字符</h3>
+  <p>有时候你需要在文本里放一个<strong>真正的</strong>制表符、回车或 ASCII 控制码——比如你正在写一份讲 Emacs 的文档，正需要展示 <kbd>C-q</kbd> 这个键。<strong>quoted insert</strong>（字面插入）就是干这个的：按 <kbd>C-q</kbd>（<code>quoted-insert</code>）后接任意键，Emacs 把它<strong>原样插入</strong>，不解释成命令。</p>
+  <ul>
+    <li><kbd>C-q</kbd> <kbd>TAB</kbd>：插入一个字面的制表符。</li>
+    <li><kbd>C-q</kbd> <kbd>C-j</kbd>：插入换行符（LINE FEED，ASCII 10）。</li>
+    <li><kbd>C-q</kbd> <kbd>RET</kbd>：插入回车符（CARRIAGE RETURN，ASCII 13）。</li>
+    <li><kbd>C-q</kbd> <kbd>ESC</kbd>：插入 ESCAPE 字符（ASCII 27）。</li>
+    <li><kbd>C-q</kbd> <kbd>C-q</kbd>：插入 <kbd>C-q</kbd> 自己。</li>
+    <li><kbd>C-q</kbd> <kbd>C-u</kbd> <kbd>8</kbd> <kbd>RET</kbd>：用八进制数直接插入任意字符。</li>
+  </ul>
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>LF 与 CR 不是一回事。</strong>你敲 <kbd>RET</kbd> 产生的是 CARRIAGE RETURN，而 <kbd>C-q</kbd> <kbd>C-j</kbd> 产生的是 LINE FEED。绝大多数现代文本文件里行尾统一用 LF，所以「我明明按了 RET 为什么插进去的东西不一样」，答案就是这一条。</p>
+    <p>Emacs 还会用专门的 face（<strong>face</strong>，一组显示属性）<code>escape-glyph</code> 把控制字符显示成 <code>^[</code>、<code>^I</code> 这种两字符记号，方便你在屏幕上找到它们。需要调整就 <kbd>M-x customize-face</kbd>。</p>
+  </div>
+
+  <div class="drill" data-answer="C-q C-j 插入 LF（ASCII 10）；RET 产生的是 CR（ASCII 13）">
+    <p class="drill-q"><b>练习 20</b>　要在文档里插入一个「纯换行符」（LF），同时又要让读者看到你按下的是回车，分别怎么敲？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>插入纯 LF 用 <kbd>C-q</kbd> <kbd>C-j</kbd>；插入回车（CR，ASCII 13）用 <kbd>C-q</kbd> <kbd>RET</kbd>。直接按 <kbd>RET</kbd> 产生的是 CR，两者不是同一个字符。</p></div>
+  </div>
+
+  <h3>本章按键总表</h3>
+  <div class="keys">
+    <h4>本章关键键位一览</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>F3</kbd> ／ <kbd>F4</kbd></td><td><code>kmacro-start-macro-or-insert-counter</code> ／ <code>kmacro-end-or-call-macro</code></td><td>录制宏 ／ 结束或回放</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>F3</kbd> ／ <kbd>C</kbd><kbd>u</kbd> <kbd>F4</kbd></td><td>—</td><td>追加到上一个宏 ／ 交换宏环头两个元素</td></tr>
+        <tr><td><kbd>M-3</kbd> <kbd>F4</kbd> ／ <kbd>M-0</kbd> <kbd>F4</kbd></td><td>—</td><td>执行 3 遍 ／ 反复执行到出错</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>r</kbd></td><td><code>apply-macro-to-region-lines</code></td><td>宏对区域每行执行一遍</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>q</kbd></td><td><code>kbd-macro-query</code></td><td>插入询问点</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>l</kbd> ／ <kbd>SPC</kbd></td><td><code>kmacro-edit-lossage</code> ／ <code>kmacro-step-edit-macro</code></td><td>从 lossage 造宏 ／ 逐条单步编辑</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>C-k</kbd> <kbd>n</kbd> ／ <kbd>b</kbd> ／ <kbd>x</kbd></td><td><code>kmacro-name-last-macro</code> ／ <code>kmacro-bind-to-key</code> ／ <code>kmacro-to-register</code></td><td>命名 ／ 临时绑键 ／ 存进寄存器</td></tr>
+        <tr><td><code>M-x insert-kbd-macro</code></td><td><code>insert-kbd-macro</code></td><td>把宏插入成 Elisp 代码</td></tr>
+        <tr><td><code>M-x list-keyboard-macros</code></td><td><code>list-keyboard-macros</code></td><td>宏环仪表盘（Emacs 30+）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>/</kbd> ／ <kbd>C-M</kbd><kbd>/</kbd></td><td><code>dabbrev-expand</code> ／ <code>dabbrev-completion</code></td><td>补全光标处的词 ／ 补全并列候选</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>a</kbd> <kbd>g</kbd> ／ <kbd>l</kbd> ／ <kbd>i</kbd> <kbd>g</kbd> ／ <kbd>i</kbd> <kbd>l</kbd></td><td><code>add-global-abbrev</code> ／ <code>add-mode-abbrev</code> ／ <code>inverse-add-global-abbrev</code> ／ <code>inverse-add-mode-abbrev</code></td><td>定义全局 / mode / 反向全局 / 反向 mode 缩写</td></tr>
+        <tr><td><kbd>TAB</kbd> ／ <kbd>M</kbd><kbd>i</kbd></td><td><code>indent-for-tab-command</code> ／ <code>tab-to-tab-stop</code></td><td>按模式缩进当前行 ／ 跳到下一制表位</td></tr>
+        <tr><td><kbd>C-M</kbd><kbd>\</kbd> ／ <kbd>C-x</kbd> <kbd>TAB</kbd></td><td><code>indent-region</code> ／ <code>indent-rigidly</code></td><td>智能缩进区域 ／ 硬缩进区域</td></tr>
+        <tr><td><code>M-x sort-lines</code> ／ <code>sort-numeric-fields</code></td><td>—</td><td>按行排序 ／ 按第 N 列数值排序</td></tr>
+        <tr><td><code>M-x sort-regexp-fields</code></td><td>—</td><td>按正则定义的键排序（CSV 用）</td></tr>
+        <tr><td><code>M-x align</code> ／ <code>align-current</code> ／ <code>align-regexp</code></td><td>—</td><td>按规则对齐选区 ／ 免选区对齐 ／ 按正则对齐</td></tr>
+        <tr><td><code>M-x table-insert</code></td><td>—</td><td>插入可编辑表格</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>t</kbd> ／ <kbd>k</kbd> ／ <kbd>y</kbd> ／ <kbd>o</kbd></td><td><code>string-rectangle</code> ／ <code>kill-rectangle</code> ／ <code>yank-rectangle</code> ／ <code>open-rectangle</code></td><td>矩形竖填 ／ 删除 ／ 粘贴 ／ 换行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>z</kbd></td><td><code>zap-to-char</code></td><td>删到指定字符（含）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>$</kbd></td><td><code>ispell-word</code></td><td>检查光标处拼写</td></tr>
+        <tr><td><kbd>C-q</kbd></td><td><code>quoted-insert</code></td><td>字面插入下一个键</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>收尾：把这一章连起来看</h3>
+  <p>键盘宏、片段展开、缩进、对齐，看起来是四个话题，其实是同一个观念的四次应用：<strong>Emacs 不替你猜，它替你算</strong>。宏替你重复，abbrev 替你写词，缩进引擎替你算列，对齐命令替你补空格，而 <code>table.el</code> 干脆把「算」封装成一个可以进出的矩形对象。</p>
+  <div class="callout note">
+    <b>要点</b>
+    <p>这一章最值得你真花时间练熟的，是<strong>「录 → 改 → 命名 → 写进配置」这条完整链路</strong>。它是你从 Emacs 的使用者变成 Emacs 的主人的分水岭：一旦你意识到「任何我手动做过一遍的操作都可以变成一个我自己的命令」，Emacs 对你的意义就变了——它不再是一个要你适应它的编辑器，而是一个你每天都在往上加零件的工具。</p>
+  </div>
+  <p>具体路线：先在 <code>*scratch*</code>（<kbd>C-x</kbd> <kbd>b</kbd> 后输入 <code>*scratch*</code> 打开的临时 buffer，不会保存）里把三个最烦人的操作录成宏——比如「把当前行变成待办注释」「把下一行往上提」「在文件末尾追加一行带时间戳的注释」——然后命名、写进配置、重载。做完这一遍你会发现，写 Elisp 的门槛比想象中低得多。</p>
+
+  <div class="drill" data-answer="先开 hippie-expand 替换 dabbrev → 写代码就装 YASnippet → 最后才用 abbrev 且只做拼写纠错、优先 mode-local；理由：按键开销、全局污染、模板能力被 YASnippet 覆盖">
+    <p class="drill-q"><b>练习 21</b>　原书把 abbrev 列为文本展开的第一选择。按今天的实际情况，给新用户的推荐顺序是什么？至少说出两条理由。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>先开 <code>hippie-expand</code> 替换 <code>dabbrev</code>（零成本）→ 写代码就装 YASnippet → 最后才用 abbrev，且只做拼写纠错、优先 mode-local 版本。</strong>理由：(1) abbrev 定义时要多按 <kbd>C-x</kbd> <kbd>a</kbd> <kbd>g</kbd> 并输入两遍，有<strong>按键开销</strong>；(2) <code>add-global-abbrev</code> 的缩写在<strong>所有 buffer</strong> 生效，容易污染别人的文件、邮件甚至密码字段；(3) 它只能做单词替换，多行模板能力被 YASnippet / skeleton 完全覆盖；(4) 展开点跟随光标，容易出意外。</p></div>
+  </div>
+</section>

@@ -1,0 +1,1506 @@
+<section class="ch" id="ch-13-setup" data-stage="精通" data-min="85">
+  <h2 class="ch-title">十三、现代安装与配置工程</h2>
+  <p class="ch-lead">前十二章讲的是「Emacs 里面怎么用」。这一章讲外面那一层：在哪个平台装、装哪个版本、配置文件放哪、包从哪来、启动为什么慢、坏了怎么救。读完你手里会有一套能长期用、能搬到第二台机器、坏了能在五分钟内定位问题的 Emacs 环境。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>本章所有关于「某个变量存不存在、默认值是什么、某个包是不是内置」的断言，都在<strong>本机 GNU Emacs 32.0.50</strong> 上用 <code>emacs --batch -Q --eval '…'</code> 与 <code>locate-library</code> 实际跑过；涉及版本起点的部分，对照 Emacs 28/29/30/31 的 <code>NEWS</code> 原文（<code>etc/NEWS.29</code> 等）与 31.1 发行包的 <code>doc/emacs/*.texi</code> 手册原文逐条核对。凡是我无法核实的说法，正文里会直接写「未能核实」，不拿猜测凑数。</p>
+  </div>
+
+  <h3>一、先做一个决定：你在装「一个程序」还是在装「一份可复现的环境」</h3>
+
+  <p>零基础读者最常犯的第一个错误，是一上来就纠结「装哪个 Emacs」。其实在敲第一条安装命令之前，你要先回答一个更上层的问题：<strong>你希望这台机器上的 Emacs 长什么样，多久之后还能再装出同样的一份？</strong></p>
+
+  <p>这个问题有两个极端，中间是绝大多数人的位置。</p>
+
+  <ul>
+    <li><strong>模型一：装程序</strong>。用发行版包管理器、Homebrew、官方安装器装一个二进制，配置写在自己电脑上。它更新得慢（要等发行版打包），但零折腾。</li>
+    <li><strong>模型二：装可复现环境</strong>。用 Nix 或 Guix 这样的<strong>声明式包管理器</strong>，把「Emacs 本体 + 系统库 + 你的配置」写成一份声明文件。好处是任何一台 Linux 机器上都能一键还原同一份环境，代价是你要额外学一套语言和一个哲学。</li>
+  </ul>
+
+  <p>本节的判断很直接：<strong>如果你是第一次用 Emacs，先走模型一</strong>。理由很实在——模型二出问题时，你分不清是 Emacs 配置错了，还是 Nix/Guix 表达式写错了，两套系统同时报错会让你完全无从下手。等你用 Emacs 满三个月、配置超过三百行、并且已经开始关心「我的包到底装了哪些版本」的时候，再迁移到模型二，成本最低。</p>
+
+  <p>反过来说也有该直接选模型二的人：你要在一台不属于自己的机器上工作（比如公司发的开发机、CI 容器、临时租的云主机）；或者你用 Emacs 做的是需要长期一致性的事（比如维护十年的文档、发布到 App Store 的 Org 导出）。这种情况下「重现一次环境」比「调好一次环境」重要得多。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>很多人在装 Emacs 之前先装一堆包，期望「装完之后一切都是现成的」。这是本世纪最常见的时间浪费。<strong>Emacs 的配置生态里有大量包已经十几年没更新了</strong>——在 2026 年从 MELPA 上装包之前，至少先看一眼它的仓库最近一次提交是什么时候（本章后面会给具体命令）。装了一个 2017 年最后提交的包，你会花两天时间查一个已经被修好或者被废弃的问题。</p>
+  </div>
+
+  <h3>二、Linux：三条路，先看你的发行版给了什么</h3>
+
+  <p>Linux 上装 Emacs 有三条路：发行版仓库、第三方仓库（有的第三方 APT 源、Homebrew on Linux、Nix）、自己编译源码。<strong>对初学者的建议顺序是：发行版仓库 → 第三方仓库 → 源码编译</strong>，理由是每往后一条路，自由度越大，出问题时能查的东西越少。</p>
+
+  <h4>2.1 先看看你的发行版给的是什么版本</h4>
+
+  <p>动手之前先查版本。Emacs 的功能差异很大，29 和 32 之间差着好几年的东西，而各发行版的打包节奏完全不同。</p>
+
+  <pre class="term"><code># Debian / Ubuntu
+$ apt policy emacs-nox | head -3
+  Installed: (none)
+  Candidate: 28.2
+
+# Fedora / RHEL
+$ dnf info emacs-common | head -5
+
+# Arch
+$ pacman -Si emacs | grep -E 'Version|Repository'
+
+# NixOS（配置在 /etc/nixos/configuration.nix 里）
+$ nix eval --raw nixpkgs#emacs.version</code></pre>
+
+  <p>看到 28.x 不必恐慌：28 自带 <code>project.el</code>（<strong>25.1 起</strong>）、<code>display-line-numbers</code>（28 起），日常够用了。但有两件事要提醒：<strong><code>use-package</code> 和 <code>eglot</code> 都是 Emacs 29 才进本体的</strong>（NEWS.29 各给了独立小节），在 28 上它们还是第三方包；<strong>Completion Preview 是 Emacs 30 才有的</strong>（<code>completion-preview-mode</code>，NEWS.30），而 31 才带来 <code>treesit-x.el</code> 那批简易 tree-sitter 模式。想要这些，就得升级。下面按「你能接受多少折腾」给三档方案。</p>
+
+  <h4>2.2 方案 A：发行版仓库（最省事）</h4>
+
+  <pre class="term"><code># Debian / Ubuntu / Mint
+$ sudo apt update
+$ sudo apt install emacs-nox        # 纯终端版，不要 X11
+$ sudo apt install emacs           # 带图形界面（会拉一堆 GTK 依赖）
+
+# Fedora
+$ sudo dnf install emacs-enhanced   # 带 X 的界面
+$ sudo dnf install emacs-terminal   # 纯终端
+
+# Arch
+$ sudo pacman -S emacs
+
+# NixOS（写在配置里，然后 nixos-rebuild switch）
+$ sudo nix-env -iA nixpkgs.emacs</code></pre>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><code>emacs-nox</code> 和 <code>emacs</code> 的区别只在图形界面。<strong>如果你在 X11、Wayland 或 SSH 里跑 Emacs，就装带界面的那个</strong>；如果你只在终端里跑（tmux + ssh 是很多人的常态），装 <code>-nox</code> 版本会少拖几十兆 GTK 依赖，启动也快一点。</p>
+  </div>
+
+  <p>方案 A 的<strong>代价</strong>要说清楚：发行版的包是「够用就好」的构建——往往有一批额外特性被关掉。比如 Debian 的 <code>emacs-nox</code> 默认不带 tree-sitter（NEWS.29 记录 tree-sitter 是<strong>编译期选项</strong> <code>--with-tree-sitter</code>），不带某些字体支持，也不带最新版本的原生编译（native compilation）优化。而且它不会自动升级——你可能要等一两年才能从 28 跳到 29。</p>
+
+  <h4>2.3 方案 B：官方二进制 / 第三方仓库（中间档）</h4>
+
+  <p>GNU 官方在 <code>ftp.gnu.org/gnu/emacs/</code> 下发布的预编译二进制<strong>只有 Windows 版</strong>（下面第三节会讲），Linux 上没有。所以 Linux 上的「二进制」都是别的项目打包的：</p>
+
+  <ul>
+    <li><strong>第三方打包的 APT/DEB 仓库</strong>（业界常提到的是 Erlang Solutions 的 APT 源）。<strong>这一条我无法在本次写作中核实</strong>——我既没装也没访问他们的站点，所以请你在采用之前自己确认它当前的仓库地址、支持哪些发行版、以及它构建 Emacs 时开了哪些开关。</li>
+    <li><strong>Homebrew on Linux</strong>（<code>brew install emacs</code>，注意是 formula 不是 cask——Homebrew 的 cask 是 macOS 独有的机制，Linux 上没有 cask 这条路），包多、更新快，但在一台机器上再装一整套 Homebrew 本身有额外成本。</li>
+    <li><strong>nixpkgs</strong> 本身（不走 NixOS 也行，见第五节）。</li>
+  </ul>
+
+  <pre class="term"><code># 在 Debian/Ubuntu 上用 Nix 只装 Emacs，不装 NixOS
+$ curl -L https://nixos.org/nix/install | sh -s -- --daemon
+$ nix profile install nixpkgs#emacs-gtk       # 装带界面的
+$ nix profile install nixpkgs#emacs            # 装终端版
+$ emacs --version | head -1
+
+# Homebrew on Linux（只有 formula，没有 cask）
+$ brew install emacs</code></pre>
+
+  <h4>2.4 方案 C：源码编译（最后的手段）</h4>
+
+  <p>只有在你明确需要某个发行版没开的功能时才值得。比如你需要一个带 tree-sitter 的 Emacs，或者你要调试 Emacs 本身。步骤是标准的 GNU 三件套，但有几个坑：</p>
+
+  <pre class="term"><code>$ wget https://ftp.gnu.org/gnu/emacs/emacs-31.1.tar.xz
+$ tar xf emacs-31.1.tar.xz &amp;&amp; cd emacs-31.1
+$ ./configure --prefix=$HOME/.local \
+              --with-native-compilation \
+              --with-tree-sitter \
+              --with-x-toolkit=gtk3
+$ make -j"$(nproc)"     # 并行编译，这一步要 10~40 分钟
+$ make install
+$ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>源码编译最大的坑不是编译本身，而是<strong>它把 Emacs 和系统库焊死在一起</strong>。你的 Emacs 会链接你自己装的 GTK、自己的 harfbuzz、自己的 libgccjit。半年后你升级系统库，Emacs 突然起不来了，而这类「起不来」通常没有清晰的错误信息。所以：<strong>编译完请立刻记下 <code>./configure</code> 的完整命令</strong>，或者干脆把命令行写成一个 <code>build.sh</code> 提交进你的 dotfiles。</p>
+  </div>
+
+  <p>编译完记得验证这两个开关到底生效没有，这是本节最实用的一条检查：</p>
+
+  <pre class="term"><code>$ emacs --batch -Q --eval '(princ (format "native-comp: %S\n"
+    (locate-library "native-comp")))'
+native-comp: "/usr/share/emacs/31.1/lisp/emacs-lisp/native-comp.elc"
+;; nil 就说明这个 Emacs 是 --with-native-compilation=no 编出来的
+
+$ emacs --batch -Q --eval '(princ (format "treesit: %S\n"
+    (locate-library "tree-sitter")))'
+treesit: nil</code></pre>
+
+  <p>我在本机跑出来的结果就是 <code>native-comp: nil</code> 和 <code>treesit: nil</code>——这台机器上的 Emacs 32.0.50 是<strong>不带原生编译、不带 tree-sitter</strong> 构建的。所以本章讲到原生编译那节，我会告诉你怎么自己确认，而不是假设它有。</p>
+
+  <h3>三、Windows：官方安装器、Scoop、winget、MSYS2</h3>
+
+  <p>Windows 是唯一有<strong>GNU 官方预编译二进制发行版</strong>的主流平台。GNU Emacs 官方在 <code>ftp.gnu.org/gnu/emacs/windows/</code> 下按版本目录发布 Windows 构建。我拉了 <code>emacs-31/</code> 那个目录，里面同一个版本有四类东西：<code>emacs-31.1.zip</code>（免安装包）和 <code>emacs-31.1-installer-UCRT64.exe</code>（图形安装器）各有一份，<strong>而且每个都还有 <code>-UCRT64</code> 与非 <code>-UCRT64</code> 两个变体</strong>，另外还有 <code>-nodeps</code>（不带依赖 DLL）和 <code>-deps</code>（单独给依赖 DLL）版本。<strong>装 31.1 你要认准 <code>emacs-31.1.zip</code> 或 <code>emacs-31.1-installer-UCRT64.exe</code> 这两个名字</strong>。</p>
+
+  <p>我在本章写作时从 winget 的官方清单仓库（<code>microsoft/winget-pkgs</code>）里读到的 31.1 条目是这样的：</p>
+
+  <pre class="term"><code># microsoft/winget-pkgs/manifests/g/GNU/Emacs/31.1/
+PackageIdentifier: GNU.Emacs
+PackageVersion: "31.1"
+InstallerType: nullsoft
+Scope: machine
+InstallModes: [interactive, silent, silentWithProgress]
+InstallerUrl: https://ftp.gnu.org/gnu/emacs/windows/emacs-31/emacs-31.1-installer-UCRT64.exe
+ReleaseDate: 2026-08-24</code></pre>
+
+  <p>也就是说 <strong>Windows 官方安装器是 NSIS 打包的</strong>，支持静默安装，这一点在企业环境里很关键（<code>--silent</code> 开关）。</p>
+
+  <h4>3.1 方案 A：官方 zip 免安装（最可控）</h4>
+
+  <pre class="term"><code># 1. 下载 emacs-31.1.zip，解压到 C:\tools\emacs-31.1
+# 2. 把 C:\tools\emacs-31.1\bin 加进 PATH
+# 3. 之后在 PowerShell 里直接
+emacs --version</code></pre>
+
+  <p><strong>取舍</strong>：这个版本完全在你的用户目录下，卸载就是删文件夹，没有注册表残留，没有提权，是最容易「装坏了就重来」的方式。代价是没有开始菜单快捷方式、文件关联、PATH 需要手动改。</p>
+
+  <h4>3.2 方案 B：官方图形安装器</h4>
+
+  <pre class="term"><code># 下载 emacs-31.1-installer-UCRT64.exe 后双击安装
+# 静默安装（企业批量部署用）：
+emacs-31.1-installer-UCRT64.exe /S /D=C:\tools\emacs-31.1</code></pre>
+
+  <p><strong>取舍</strong>：安装器会创建开始菜单项、注册 <code>run.exe</code>、<code>emacsclient</code> 的路径，也支持 <code>emacs -nw</code>（无窗口模式）。需要管理员权限（<code>Scope: machine</code>）。卸载要通过「设置 → 应用」面板。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>文件名里的 <code>UCRT64</code> 是指它链接的是 <strong>Universal C Runtime</strong>，这是 Windows 10 以后系统自带的 C 运行库。同一目录里不带 <code>UCRT64</code> 的那个变体链接的是老的 MinGW-w64 运行库，<strong>只适合更老的 Windows</strong>。更早的 Emacs（27.x 及以前）用的就是 <code>-w64</code> 这种命名；从 Emacs 28 起官方主推的就是 <code>-UCRT64</code>，31.1 的目录里<strong>已经没有 <code>-w64</code> 文件了</strong>。所以你下载时认准 <code>-UCRT64</code> 就对了。</p>
+  </div>
+
+  <h4>3.3 方案 C：Scoop</h4>
+
+  <pre class="term"><code>PS&gt; scoop bucket add extras
+PS&gt; scoop install emacs
+PS&gt; scoop update emacs
+PS&gt; scoop info emacs       # 看版本、来源、许可证</code></pre>
+
+  <p>我读到的 <code>ScoopInstaller/Extras</code> 仓库里 <code>bucket/emacs.json</code> 的内容是：版本 <code>31.1</code>，许可证 <code>GPL-3.0-or-later</code>，下载地址 <code>https://ftp.gnu.org/gnu/emacs/windows/emacs-31/emacs-31.1.zip</code>。注意两点：</p>
+
+  <ul>
+    <li><strong>它装的是 zip 版，不是安装器版</strong>，所以不写注册表、不需要管理员权限，卸载就是删目录。清单里把可执行文件链到 Scoop 的 shims 目录，<code>emacs</code> 命令照常可用。</li>
+    <li><strong>它照样会建开始菜单快捷方式</strong>。清单里有一段 <code>"shortcuts"</code>，给 <code>bin\runemacs.exe</code> 和 <code>bin\emacsclientw.exe</code> 各建一个开始菜单项（后者还带 <code>-c -n -a ""</code> 参数）。所以「zip 版就没有快捷方式」是个常见误解。</li>
+    <li>该清单的 <code>notes</code> 字段写着「32 位版本请装 <code>versions/emacs27.2</code>」，也就是说 Scoop 的 64 位 Emacs <strong>不支持 32 位 Windows</strong>。</li>
+  </ul>
+
+  <p><strong>取舍</strong>：Scoop 的强项是<strong>用户态、免管理员、一条命令装一串东西</strong>，并且 <code>scoop update *</code> 能批量更新。如果你的 Emacs 配置依赖 <code>git</code>、<code>ripgrep</code>、<code>fd</code>、<code>fzf</code> 这些外部程序（本书第 14 章的工作流会大量用到），Scoop 一次装齐非常舒服。</p>
+
+  <h4>3.4 方案 D：winget（Windows 10/11 内置）</h4>
+
+  <pre class="term"><code>PS&gt; winget search emacs
+PS&gt; winget install GNU.Emacs
+PS&gt; winget upgrade GNU.Emacs
+PS&gt; winget list --id GNU.Emacs</code></pre>
+
+  <p><strong>取舍</strong>：winget 是 Windows 10 1809 以后系统自带的，<strong>不需要额外安装任何东西</strong>，这是它相对 Scoop 最大的优势——很多新机器上根本没人装过 Scoop。清单由社区维护，但 `GNU.Emacs` 这个条目我验证过是存在的，且指向官方 ftp.gnu.org。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><code>emacsclient</code> + <code>-daemon</code> 是在 Windows 上体验 Emacs 的关键。以 daemon 模式启动一次之后，后续每次编辑都只是把文件丢给已有的 Emacs 进程，<strong>启动时间从两三秒降到几十毫秒</strong>。Windows 上建议开一个 PowerShell 终端先跑 <code>emacs --daemon</code>，然后用 <code>emacsclientw</code>（带窗口）或 <code>emacsclient</code>（纯终端）连上去。</p>
+  </div>
+
+  <h4>3.5 方案 E：MSYS2（Mintty 用户选这个）</h4>
+
+  <pre class="term"><code># MSYS2 的 MinGW64 环境（包名在 pacman 里带 x86_64 前缀）
+$ pacman -Syu
+$ pacman -S mingw-w64-x86_64-emacs
+$ pacman -S mingw-w64-x86_64-emacs-pdf-tools-server   # 可选，pdf-tools 的配套
+# 纯 MSYS 环境版本
+$ pacman -S emacs</code></pre>
+
+  <p>我在 MSYS2 的软件包索引（我拉了 <code>repo.msys2.org/msys/x86_64/</code> 和 <code>repo.msys2.org/mingw/mingw64/</code> 两个仓库的索引）上查到的当前版本是：<code>emacs 31.1-1</code>（MSYS 环境）、<code>emacs 31.1-2</code>（MinGW-w64 环境）、<code>emacs-pdf-tools-server 1.3.0-1</code>。注意 MSYS2 仓库里<strong>同时躺着多个历史版本</strong>（比如 mingw64 里还有 <code>emacs 31.1-1</code> 和 <code>emacs 30.2-8</code>），pacman 装的是仓库版本号最高的那个。</p>
+
+  <p><strong>取舍</strong>：MSYS2 版本的好处是自带 Mintty（带滚动条和复制粘贴的终端模拟器），适合在 Windows 上习惯终端工作流的人。坏处是引入了整整一层 MSYS2 环境（bash、pacman、依赖链），如果你只是想编辑文本文件，这是杀鸡用牛刀。</p>
+
+  <div class="keys">
+    <h4>本节相关命令</h4>
+    <table>
+      <thead><tr><th>命令</th><th>命令名</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>emacs --version</code></td><td>—</td><td>确认装的是哪个版本</td></tr>
+        <tr><td><code>emacs -Q</code></td><td>—</td><td>完全跳过所有配置启动，排障用</td></tr>
+        <tr><td><code>emacs --debug-init</code></td><td>—</td><td>让 init 文件里的报错进入调试器</td></tr>
+        <tr><td><code>emacs --daemon</code></td><td>—</td><td>以守护进程模式启动，不开窗口</td></tr>
+        <tr><td><code>emacsclient -nw FILE</code></td><td>—</td><td>把文件交给已在运行的 Emacs，纯终端窗口</td></tr>
+        <tr><td><code>emacsclientw FILE</code></td><td>—</td><td>同上，但打开图形窗口</td></tr>
+        <tr><td><code>M-x server-start</code></td><td><code>server-start</code></td><td>在 Emacs 内部启动 server，供 emacsclient 连接</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="emacs --daemon 然后 emacsclient -nw FILE">
+    <p class="drill-q"><b>练习 1</b>　在 Windows 上你已经用 <code>emacs --daemon</code> 起过一个后台 Emacs，现在想用当前这个 PowerShell 窗口编辑 <code>notes.txt</code>，又要保留 Emacs 的 GUI 能力，该敲哪条命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>emacsclientw notes.txt</code>。带 <code>w</code> 后缀的版本会弹出独立窗口；如果你要的是在当前终端里编辑，用 <code>emacsclient -nw notes.txt</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="scoop bucket add extras">
+    <p class="drill-q"><b>练习 2</b>　你在 Windows PowerShell 里敲 <code>scoop install emacs</code> 报错说找不到 bucket。缺的是哪一步？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>先敲 <code>scoop bucket add extras</code>。Scoop 的 <code>Main</code> 仓库（核心工具）和 <code>Extras</code> 仓库（GUI 与非核心软件）是分开的，Emacs 在 Extras 里。</p></div>
+  </div>
+
+  <h3>四、macOS：Emacs.app、Homebrew、MacPorts</h3>
+
+  <p>macOS 上有个 Linux/Windows 都没有的概念：<strong><code>Emacs.app</code></strong>，也就是一个标准的 macOS 应用包（bundle）。有 bundle 和没 bundle 的 Emacs 在系统里的行为差别很大：能不能出现在 Dock 里、能不能被 Cmd+Tab 切到、Finder 里右键「用 Emacs 打开」有没有——全看有没有 <code>Emacs.app</code>。</p>
+
+  <p>所以 macOS 上的第一个决定是：<strong>你要「应用」还是「命令行程序」？</strong></p>
+
+  <h4>4.1 方案 A：Emacs.app（社区构建，推荐给 macOS 用户）</h4>
+
+  <p>macOS 上的 <code>Emacs.app</code> 主要来自 <a href="https://emacsformacosx.com/">emacsformacosx.com</a>，<strong>David Caldwell</strong> 从 2009 年起维护的社区构建（站点页脚写着「© 2009 - 2026 David Caldwell」，它给自己的定位是「Pure builds of Emacs for Mac OS X. No extras! No nonsense!」）。它是<strong>非官方</strong>的，但长期稳定、版本跟得上、提供 universal 二进制（同时跑 Intel 和 Apple Silicon）——我写作时它给的是 <code>Emacs 31.1</code> universal 包。</p>
+
+  <p>Homebrew 的 cask 我读到的定义是这样的（<code>Homebrew/homebrew-cask</code> 的 <code>Casks/e/emacs-app.rb</code>，下面是节选，省略了 <code>sha256</code> 和 <code>zap trash</code> 那几段）：</p>
+
+  <pre class="term"><code>cask "emacs-app" do
+  arch arm: "arm64-11", intel: "x86_64-11"
+  version "31.1"
+  url "https://emacsformacosx.com/emacs-builds/Emacs-#{version}-universal.dmg"
+  homepage "https://emacsformacosx.com/"
+  app "Emacs.app"
+  binary "#{appdir}/Emacs.app/Contents/MacOS/Emacs", target: "emacs"
+  conflicts_with cask: ["emacs-app@nightly", "emacs-app@pretest"]
+end</code></pre>
+
+  <p>安装命令就是：</p>
+
+  <pre class="term"><code>$ brew install --cask emacs-app
+# 顺带说明：cask 名字是 emacs-app，不是 emacs。
+# $ brew install --cask emacs 会 404。
+
+$ open -a Emacs          # 打开应用
+$ emacs --version        # cask 把 Emacs.app 里的二进制链成了 emacs</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>macOS 上有 Apple 自带的一个 Emacs，它藏在 <code>/usr/bin/emacs</code>。<strong>这个版本的版本号常年停在 22.1，而且没有 GUI</strong>。如果你直接敲 <code>emacs</code> 得到一行 <code>GNU Emacs 22.1.1</code>，那不是你装的那个——是系统自带的。在 <code>zsh</code> 里检查 PATH 顺序：<code>which -a emacs</code>，正确的那个应该排在 <code>/usr/bin</code> 前面。</p>
+  </div>
+
+  <h4>4.2 方案 B：Homebrew formula（终端版）</h4>
+
+  <pre class="term"><code>$ brew install emacs          # 注意：没有 --cask，这是终端版
+$ emacs --version
+$ brew upgrade emacs</code></pre>
+
+  <p>我读到的 <code>Homebrew/homebrew-core</code> 里 <code>Formula/e/emacs.rb</code>：<code>version "31.1"</code>、<code>revision 1</code>、<code>license "GPL-3.0-or-later"</code>，从 <code>ftpmirror.gnu.org/emacs/emacs-31.1.tar.xz</code> 拿源码，并且为 macOS arm64（Tahoe / Sequoia / Sonoma）、Linux x86_64 都预编译了 bottle。</p>
+
+  <p><strong>取舍</strong>：终端版启动更快、依赖更少、更新更勤（跟着 Homebrew 的每日更新走）。<strong>但它没有 <code>Emacs.app</code></strong>，所以用不了 macOS 的全局快捷键服务（<code>Cmd</code> 系列）、不能被 Cmd+Tab 切到、在 Finder 里也没有「用 Emacs 打开」。如果你只是 Emacs + tmux + iTerm2 的终端流，这个版本完全够用，而且是我会推荐的。</p>
+
+  <h4>4.3 方案 C：MacPorts</h4>
+
+  <p>MacPorts 是比 Homebrew 更老的 macOS 包管理器，特点是<strong>从源码编译 + 极其细粒度的编译选项</strong>。我读了 <code>macports/macports-ports</code> 仓库里 <code>editors/emacs/Portfile</code>（407 行），它定义了这些 subport 和 variant：</p>
+
+  <ul>
+    <li>subport：<code>emacs</code>（基础）、<code>emacs-devel</code>、<code>emacs-app</code>（应用包）、<code>emacs-app-devel</code></li>
+    <li>variant：<code>gtk</code>（GTK+3 界面）、<code>x11</code>、<code>motif</code>、<code>dbus</code>、<code>imagemagick</code>、<code>rsvg</code>、<code>xwidgets</code>、<strong><code>nativecomp</code></strong>、<strong><code>treesitter</code></strong></li>
+  </ul>
+
+  <pre class="term"><code>$ sudo port selfupdate
+$ sudo port install emacs-app                # 装 Emacs.app
+$ sudo port install emacs-app +nativecomp    # 显式要原生编译（其实默认已经开）
+$ sudo port install emacs                    # 只要终端版</code></pre>
+
+  <p><strong>取舍</strong>：MacPorts 的价值在于它那一堆编译变体，以及<strong>默认就替你把几个关键开关打开</strong>。我读了 Portfile 末尾，它有 <code>default_variants-append +treesitter</code> 和 <code>default_variants-append +nativecomp</code>（后者在 <code>i386</code> 和 <code>ppc</code> 上排除，因为 JIT 在这两类架构上会段错误）——<strong>所以现在 <code>emacs-app</code> 默认是带原生编译、带 tree-sitter 的</strong>，手写 <code>+nativecomp</code> 是保险而不是必需。那句 <code>+nativecomp</code> 之所以存在，是因为它把 <code>--with-native-compilation=no</code> 换成 <code>--with-native-compilation=aot</code>，并额外把 <code>libgccjit</code> 挂进 rpath。</p>
+
+  <p>代价是 MacPorts 会和你已有的 Homebrew 安装打架（两套 dylib 搜索路径互相污染），而且 MacPorts 社区的活跃度明显低于 Homebrew。如果你的机器上已经有 Homebrew，我建议不要同时上 MacPorts。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>macOS 上装 Emacs 之后值得做的一件事：把 server 打开。</strong>在 <code>init.el</code> 末尾写 <code>(server-start)</code> 就行；想让它变成一个随配置开合的开关，就用 <code>(server-mode 1)</code>（这两个函数我在本机确认过都存在）。之后用 <code>emacsclient -nw 文件</code> 就能秒开。</p>
+    <pre class="el"><code>;;; init.el 末尾
+(server-start)
+</code></pre>
+    <p><strong>至于「在 Finder 里双击文件就用 Emacs 打开」，那不是 <code>init.el</code> 能配的。</strong>macOS 用 Launch Services 把「文件类型 → 默认应用」记在系统数据库里，只有 <code>Emacs.app</code>（bundle）能被登记进去；终端版 Emacs 没有 bundle，所以在 Finder 里看不到它。Emacs 在 macOS 上被 Finder 调用，靠的是系统发来的 <code>ns-open-file</code> Apple Event——31.1 手册 <code>(macos) Mac / GNUstep Customization</code> 一节写着：<em>「This event occurs when another Nextstep application requests that Emacs open a file. A typical reason for this would be a user double-clicking a file in the Finder application. By default, Emacs responds to this event by opening a new frame and visiting the file in that frame (<code>ns-find-file</code>).」</em>可用 <code>ns-pop-up-frames</code> 改这个默认行为。所以正确顺序是：<strong>先装 <code>Emacs.app</code>（4.1 的 cask 或 4.3 的 MacPorts <code>emacs-app</code>），再在 Finder 的「显示简介 → 打开方式」里指过去</strong>。具体工作流见第十四章《现代工作流实战》。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>网上有一段流传很广的「macOS Emacs 必做配置」：<code>(setq mac-auto-save-file-modes nil)</code>，再加一行往 <code>auto-mode-alist</code> 里塞 <code>.org</code>。<strong>这个变量在 Emacs 源码和 31.1 手册里都不存在</strong>（我 grep 过 <code>lisp/</code> 与 <code>doc/emacs/</code>，一处都没有），而 <code>auto-mode-alist</code> 本来就已经有 <code>.org</code> 的条目，你再 <code>add-to-list</code> 一次纯属重复。抄到这种代码，说明写它的人自己多半也没跑通过。</p>
+  </div>
+
+  <div class="drill" data-answer="emacs-app">
+    <p class="drill-q"><b>练习 3</b>　在 macOS 上用 Homebrew 装带图形界面的 Emacs，命令是什么？注意 cask 的名字和直觉不一样。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>brew install --cask emacs-app</code>。cask 叫 <code>emacs-app</code>；不带 <code>--cask</code> 的 <code>brew install emacs</code> 装的是终端版 formula。</p></div>
+  </div>
+
+  <div class="drill" data-answer="which -a emacs">
+    <p class="drill-q"><b>练习 4</b>　你在 macOS 终端敲 <code>emacs --version</code>，回显 <code>GNU Emacs 22.1.1</code>。系统里其实装了新版 Emacs。用一条命令确认 PATH 里到底有几个 <code>emacs</code>、谁排在前面。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>which -a emacs</code>。你会看到 <code>/usr/local/bin/emacs</code>（或 <code>/opt/homebrew/bin/emacs</code>）排在 <code>/usr/bin/emacs</code> 前面才是对的；反之说明你的 PATH 顺序有问题，或者新版的那个没链进来。</p></div>
+  </div>
+
+  <h3>五、Nix 与 Guix：声明式安装 Emacs</h3>
+
+  <p>如果你在第一节选了「模型二」，这一节是你的主战场。<strong>Nix</strong> 是「把每个包连同它的依赖装进一个独立目录」的系统；<strong>Guix</strong> 在这之上又加了一层「配置本身也是用 Scheme 写的、可以被复制和求值」的完整方案（<a href="https://guix.gnu.org/">guix.gnu.org</a>）。</p>
+
+  <h4>5.1 NixOS（系统本身就是声明式的）</h4>
+
+  <pre class="term"><code># /etc/nixos/configuration.nix 里加：
+environment.systemPackages = with pkgs; [
+  emacs
+  ripgrep        # rg 二进制本体；Emacs 里要用的 M-x rg 来自第三方 ripgrep 包
+  fd             # 快速 find
+  git
+  graphviz       # 第三方 graphviz-mode 需要（Emacs 本身不含它）
+];
+
+# Emacs 自己的配置在 NixOS 上要额外声明：把 ~/.config/emacs 做成 symlink
+# 或者用 home-manager 管理你的 Emacs 配置
+
+$ sudo nixos-rebuild switch   # 改完配置执行这条
+$ nix profile list            # 看当前 profile 里有什么</code></pre>
+
+  <p>NixOS 的关键概念是 <strong>profile</strong>：<code>nix profile install nixpkgs#emacs</code> 会创建一个 profile 目录并把 Emacs 链进去；<code>nix profile remove nixpkgs#emacs</code> 删掉；升级时 <code>nix profile upgrade nixpkgs#emacs</code>。<code>nix profile list</code> 看当前 profile 里到底有什么。这套机制不是 NixOS 专属——<strong>任何 Linux 发行版上都可以只装 Nix 来管理 Emacs 这一个软件</strong>，这也是初学者最实用的中间路线。</p>
+
+  <h4>5.2 Guix（配置与系统一起声明）</h4>
+
+  <p>Guix 和 Nix 的哲学差异在于：Guix 让你<strong>用 Scheme 写一份声明，然后 <code>guix reconfigure</code> 让系统状态向声明靠拢</strong>。Emacs 配置在 Guix 上的典型写法：</p>
+
+  <pre class="el"><code>;; ~/.config/guix/user.scm 片段（示意语法，实际字段随版本变化）
+(use-modules (gnu home))
+
+(service
+ 'home-bash-service-type
+ (home-bash-configuration
+  (home-bashrc-configuration
+   (home-bashrc-content
+"exec ~/.local/bin/emacs-server &amp;")
+   (home-bashrc-paths (list (local-file ".config/emacs/init.el"))))))
+</code></pre>
+
+  <div class="callout note"><b>要点</b><p><strong>上面这几个符号你从别处抄来之前，得先知道它们是哪来的——这一段最容易变成「照抄了，但不知道属于哪个系统」。</strong></p>
+    <ul>
+      <li><code>home-bash-service-type</code>、<code>home-bash-configuration</code>、<code>home-bashrc-configuration</code>、<code>home-bashrc-paths</code> 这些符号来自 Guix 的 <strong><code>home-services</code> 模块</strong>，属于 <code>guix home</code> 那一套「管理你自己家目录里的配置文件」的机制，<strong>不是 <code>guix system</code>（管整个操作系统那一套）里的东西</strong>。</li>
+      <li><strong>用之前得先把模块引进来</strong>，也就是代码第一行的 <code>(use-modules (gnu home))</code>。<strong>少了这一行，后面每一个符号都是 undefined，报错还很难懂。</strong></li>
+      <li><strong>怎么查一个字段到底叫什么：</strong>按 <kbd>M</kbd><kbd>x</kbd> 输入 <code>info guix</code> 回车打开 Guix 手册，进去之后按 <kbd>C</kbd><kbd>s</kbd>（<code>isearch-forward</code>）搜 <code>home-bash-configuration</code>，手册会跳到那一节并逐条列出它接受的字段。<strong>这是唯一可靠的查法</strong>——Guix 的字段名随版本变，本书给出的任何字段清单都可能过期。</li>
+      <li><strong>如果你根本不想碰这些字段</strong>：<code>guix home edit</code> 会打开一个现成模板让你填，<code>guix home build</code> 把它应用到你的家目录，<code>guix home reconfigure</code> 让它长期生效。</li>
+    </ul>
+  </div>
+
+  <p>本节不做完整的 Guix 教程——那是一本书的篇幅——只提醒一件事：<strong>在 Nix/Guix 环境下，<code>use-package</code> 的 <code>:ensure</code> 基本用不了</strong>。因为 <code>package-install</code> 要联网下载、还要往用户目录里写东西，而声明式环境的哲学恰恰是「所有依赖在构建时就确定了，运行时不联网」。在声明式环境里装包，正确做法是在声明文件里把它们列成依赖，让包管理器负责，构建出来的 Emacs 一开始就带着这些包。</p>
+
+  <h4>5.3 非 Linux 用户能不能用 Nix？</h4>
+
+  <p>能，而且用得越来越多。macOS 上 Homebrew 会和 <code>nix-darwin</code> 共存；Windows 上有 <code>nix-portable</code> 这个社区项目，可以在没有 WSL 的情况下跑一个 Nix 环境。<strong>但我不建议零基础读者一上来就走这条路</strong>——如果你只是想「我的 Emacs 配置在两台机器上一致」，那么把 <code>init.el</code> 放进 Git 仓库（第十一节会详细讲）成本低得多，效果几乎一样。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>判断你有没有走过头的一个信号</strong>：如果你的 Emacs 启动命令需要写成 <code>nix run /home/you/emacs-config#emacs</code> 才能跑起来，或者你花在「为什么 <code>libgccjit.so</code> 找不到」上的时间超过了花在「怎么配置 Emacs」上的时间，那就是该退回简单方案的时候了。</p>
+  </div>
+
+  <h3>六、配置文件放哪、按什么顺序加载</h3>
+
+  <p>Emacs 的配置文件体系比大多数人以为的复杂。它有一个「初始化目录」的概念，里面可以放好几个文件，而且<strong>加载顺序不是你想的那样</strong>。搞清楚这三点，后面所有的排障都省一半力气。</p>
+
+  <h4>6.1 Emacs 到底去哪个目录找配置</h4>
+
+  <p>Emacs 内部确实算出过一个叫 <code>startup-init-directory</code> 的目录，但要先泼一盆冷水：<strong>它是 <code>command-line</code> 函数里的一个局部变量，启动结束后就随栈帧一起消失了</strong>。你在 <code>--eval</code> 里引用它，只会得到 <code>Symbol's value as variable is void: startup-init-directory</code>（我在本机 Emacs 32.0.50 上实测过这个错误）。真正能查询、也是你配置里会读的那个变量是 <code>user-emacs-directory</code>。</p>
+
+  <p>目录本身的判定规则写死在 <code>lisp/startup.el</code> 的 <code>startup--xdg-or-homedot</code> 函数里。规则是<strong>按顺序判断，谁先存在用谁</strong>：</p>
+
+  <ol>
+    <li><code>~/.emacs.d/</code> 目录存在 → 用它。</li>
+    <li><code>~/.emacs</code> 文件存在 → 也用 <code>~/.emacs.d/</code>。（在 Windows 上这一条放宽成正则 <code>[._]emacs\(\.elc\)?</code>，顺带认 <code>.emacs.elc</code> 和历史名 <code>_emacs</code>；在 Linux/macOS 上只认 <code>.emacs</code> 这一个文件名。）</li>
+    <li><code>~/.config/emacs/</code> 目录存在 → 用它（这是 XDG 规范路径，Linux 上现在的标准）。</li>
+    <li>都不存在 → 默认 <code>~/.emacs.d/</code>。</li>
+  </ol>
+
+  <p>在本机跑 <code>emacs --batch -Q --eval '(princ user-emacs-directory)'</code>，作者本机的结果是 <code>/home/you/.config/emacs/</code>（用户名已替换）——说明那台机器上 <code>~/.config/emacs/</code> 已经存在，所以 Emacs 选了 XDG 路径。macOS 上传统是 <code>~/.emacs.d</code>（虽然 macOS 也有 XDG 规范，但 Emacs 并不强制跟随 macOS 的 <code>~/Library/Application Support</code>）。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>规则 1 的优先级陷阱</strong>：一旦你有了 <code>~/.emacs.d/</code>，Emacs 就<strong>永远不看</strong> <code>~/.config/emacs/</code>了。所以「我明明在 <code>~/.config/emacs/init.el</code> 里改了配置却没生效」这类问题，八成是因为某个历史原因留下了一个 <code>~/.emacs.d</code> 目录。确认办法就是上面那条命令，把 <code>startup-init-directory</code> 换成 <code>user-emacs-directory</code>：<code>emacs --batch --eval '(princ user-emacs-directory)'</code>。</p>
+  </div>
+
+  <h4>6.2 完整的加载顺序（这是本节最有价值的一段）</h4>
+
+  <p>Emacs 启动时按这个顺序读文件，每一步我都对照过 <code>lisp/startup.el</code> 的源码和 Emacs 31.1 手册的 <code>(emacs) Init File</code> 节点：</p>
+
+  <ol>
+    <li><strong>预编译的 dump 文件</strong>（<code>emacs.pdmp</code> 或 <code>emacs.dump</code>）。这是「Emacs 还没读你的任何配置之前就已经具备的全部功能」，包含绝大多数内置的 Elisp 字节码。这一步极快，因为它不是从源码读。</li>
+    <li><strong><code>site-start.el</code></strong>（由 <code>site-run-file</code> 变量指定，默认值就是字符串 <code>"site-start"</code>）。管理员级别的配置，只有系统管理员才会用它。</li>
+    <li><strong><code>early-init.el</code></strong>（由 <code>early-init-file</code> 变量指定）。<strong>你的第一个用户级配置文件</strong>。</li>
+    <li><strong><code>package.el</code> 自动初始化</strong>（如果 <code>package-enable-at-startup</code> 非 nil）。这是 <code>package.el</code> 存在的唯一理由——让 Emacs 能自己安装你之后配置里要用的包。</li>
+    <li><strong><code>init.el</code></strong>（由 <code>user-init-file</code> 变量指定）。你的主配置文件。</li>
+    <li><strong><code>default.el</code></strong>。发行版管理员的兜底配置，你可以在自己的 <code>init.el</code> 里用 <code>(setq inhibit-default-init t)</code> 跳过。</li>
+  </ol>
+
+  <p><strong>这条顺序是 Emacs 31 之后才这样的，版本差别必须记住。</strong>NEWS.31 有一条：<em>「site-start.el is now loaded before the user's early init file. Previously, the order was early-init.el, site-start.el and then the user's regular init file, but now site-start.el comes first. This allows site administrators to customize things that can normally only be done from early-init.el, such as adding to 'package-directory-list'.」</em>也就是说：<strong>Emacs 29/30 上第 2、3 步是反过来的</strong>（先 <code>early-init.el</code> 再 <code>site-start.el</code>），31 起才对调。对读者个人配置基本没影响，但如果你写过「只在站点环境下生效」的配置，跨版本时会看到不同的结果。</p>
+
+  <p>前四步的骨架在 <code>lisp/startup.el</code> 的 <code>site-run-file</code> 文档字符串里写得很清楚：<em>「Thus, the run-time load order is: 1. file described in this variable, if non-nil; 2. <code>early-init-file</code>, 3. <code>user-init-file</code>; 4. <code>default.el</code>」</em>。注意它只列了四步——<code>package.el</code> 那一步不在文档字符串里，是 <code>command-line</code> 函数在 <code>site-run-file</code> 与 <code>early-init-file</code> 两次加载之间插进去的一段代码。</p>
+
+<div class="callout note">
+    <b>要点</b>
+    <p><strong><code>early-init.el</code> 存在的唯一理由，就是它夹在「dump 文件」和 <code>package.el</code> 之间这个位置。</strong>你需要用它来做那些「必须在 <code>package.el</code> 启动前设好」的事：比如改 <code>package-user-dir</code>（包装到哪），加 <code>package-archives</code>（从哪下载），设置 <code>straight</code> 或 <code>elpaca</code> 的目录。这些设置如果你写在 <code>init.el</code> 里就太晚了——<code>package.el</code> 已经在你读 <code>init.el</code> 之前跑完了。</p>
+  </div>
+
+  <p>在本机可以验证 <code>package-enable-at-startup</code> 默认是 <code>t</code>：<code>(bound-and-true-p package-enable-at-startup)</code> 返回 <code>t</code>。</p>
+
+  <h4>6.3 最小可用的 early-init.el</h4>
+
+  <pre class="el"><code>;;; early-init.el --- -*- lexical-binding: t; -*-
+;;; 这个文件在 dump 文件之后、init.el 之前加载。
+
+;;; 1. 让启动画面别挡路（如果你不需要那个欢迎页）
+(setq inhibit-startup-screen t)
+
+;;; 2. 设置 package.el 的下载目录（必须在 init.el 之前！）
+(setq package-user-dir
+      (expand-file-name "elpa" user-emacs-directory))
+
+;;; 3. 增加 MELPA 归档（默认只有 GNU ELPA 和 NonGNU ELPA）
+(add-to-list 'package-archives
+             '("melpa" . "https://melpa.org/packages/"))
+
+;;; 4. 如果你的网络慢，关掉并行的内容抓取
+(setq package-archive-ping-contents nil)</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>别再用 <code>(package-add-archive 'melpa :url … :key-id …)</code> 这套写法了。</strong><code>package-add-archive</code> 这个函数在 <strong>Emacs 31 里已经彻底消失</strong>——我在本机 32.0.50 和一份 31.0.91 源码里都 grep 不到它的定义（<code>fboundp</code> 返回 <code>nil</code>），它原本所在的那个文件 <code>package-x.el</code> 现在被挪进了 <code>lisp/obsolete/</code>，文件头写着 <code>Obsolete-since: 31.1</code>，NEWS.31 有一条「package-x.el is now obsolete」。如果你在网上抄到这段老代码，抄到的会是一个 void-function。</p>
+    <p>现在的正确写法就是上面那样：<code>package-archives</code> 本身就是一个列表，默认内容是 <code>(("gnu" . "https://elpa.gnu.org/packages/") ("nongnu" . "https://elpa.nongnu.org/nongnu/"))</code>，直接 <code>add-to-list</code> 进去就行。Emacs 29/30 上两种写法都能用，但新写的配置没必要再用会消失的 API。</p>
+  </div>
+
+  <p>关于包签名：Emacs 32 里 <code>package-check-signature</code> 的默认值是 <code>allow-unsigned</code>（允许未签名包）——这个我在本机实测过。所以第三方归档（尤其是 MELPA）通常根本不做 GPG 签名，「配一个 <code>:key-id</code> 指纹」这种写法在默认配置下是形式上的东西，不必学。真正想严格校验，需要自己导入 ELPA 的密钥并把 <code>package-check-signature</code> 设成 <code>sign-and-verify</code> 或 <code>require-all</code>，新手用默认值就好。</p>
+
+  <h4>6.4 init.el 拆分：什么时候该分文件</h4>
+
+  <p><code>init.el</code> 没有内置的「多文件」机制，但有一种被广泛采用的手工约定：<strong>把所有配置拆成 <code>modules/</code> 下的若干文件，在 <code>init.el</code> 里按顺序 <code>load</code> 它们</strong>。</p>
+
+  <pre class="el"><code>;;; init.el 顶部：定义一个加载辅助函数
+(defconst my-emacs-dir
+  (file-name-directory (or load-file-name buffer-file-name))
+  "这个 init.el 所在目录。")
+
+(defun my-load (rel)
+  "加载 modules/REL.el，出错就大声报出来。"
+  (let ((path (expand-file-name (concat "modules/" rel) my-emacs-dir)))
+    (if (file-exists-p path)
+        (condition-case err
+            (load path)
+          (error (message "加载 %s 失败: %S" path err)))
+      (message "跳过不存在的模块: %s" rel))))
+
+;;; 基础设置（必须最先，因为它设定后面模块依赖的变量）
+(my-load "00-basic")
+(my-load "10-editing")
+
+;;; 外观
+(my-load "20-appearance")
+
+;;; 语言支持
+(my-load "30-langs")
+
+;;; 大件 / 重量级包，放最后，这样前面报错时不用等它们装完
+(my-load "40-heavy")</code></pre>
+
+  <div class="callout warn"><b>易错</b><p><strong>这段里的 <code>load</code> 有个坑，你迟早会踩到，所以现在就说清楚。</strong><code>load</code> 拿到的路径<strong>不带扩展名</strong>时，会优先加载<strong>字节编译过的 <code>.elc</code></strong>（本书第 12 章有一个要点框专门讲这件事）。后果很具体：<strong>你改了 <code>modules/00-basic.el</code>，重启 Emacs 却什么都没变</strong>——因为它加载的是上一次编译出来的 <code>00-basic.elc</code>，不是你刚改的那个 <code>.el</code>。</p>
+    <p><strong>解决办法挑一个：</strong>① <strong>开发期把 <code>load</code> 换成 <code>load-file</code></strong>——它<strong>只加载你给的那个确切文件</strong>，改完立刻生效；等模块稳定了再换回 <code>load</code>，换取启动时少一点编译检查的开销。② <strong>把那个陈旧的 <code>.elc</code> 删掉或重新生成</strong>——<kbd>M</kbd><kbd>x</kbd> 输入 <code>byte-compile-file</code> 回车重编一次，或者直接把文件删掉。</p>
+    <p><strong>第 10 节那份「可以直接抄的最小骨架」里，两处 <code>my-load</code> 用的也是 <code>load</code>，同样适用这条提醒。</strong></p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>文件名加数字前缀是为了控制加载顺序。</strong>Emacs 加载 <code>load</code> 的文件时是<strong>严格按你写的顺序</strong>，不是按文件名排序——但数字前缀让你在读 <code>init.el</code> 的时候一眼看出顺序，少犯「把 <code>evil</code> 的配置写在它的 <code>use-package</code> 之前」这类错误。</p>
+  </div>
+
+  <p><strong>什么时候不该拆</strong>：如果你 <code>init.el</code> 不到两百行，拆了反而增加心智负担——你要同时记住「内容在哪」和「顺序为什么是这样」。拆分的收益要到文件超过三百行、或者你开始需要在不同机器/不同场景下<strong>只加载一部分模块</strong>时（比如工作机和私人机共用一份 dotfiles，但只共享 <code>00-basic</code>）才显现出来。</p>
+
+  <div class="keys">
+    <h4>本节相关命令与变量</h4>
+    <table>
+      <thead><tr><th>按键/命令</th><th>命令名或变量</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> <kbd>RET</kbd> <code>init.el RET</code></td><td><code>find-file</code></td><td>打开 init.el 编辑</td></tr>
+        <tr><td>—</td><td><code>user-emacs-directory</code></td><td>Emacs 实际使用的配置目录（启动后能查到的那个）</td></tr>
+        <tr><td>—</td><td><code>startup-init-directory</code></td><td>启动过程内部用的目录名，<code>command-line</code> 的局部变量，<strong>启动完就没了</strong>，<code>--eval</code> 里查不到</td></tr>
+        <tr><td>—</td><td><code>early-init-file</code></td><td>early-init.el 的实际路径</td></tr>
+        <tr><td>—</td><td><code>user-init-file</code></td><td>init.el 的实际路径</td></tr>
+        <tr><td>—</td><td><code>package-enable-at-startup</code></td><td>启动时是否自动初始化 package.el，默认 <code>t</code></td></tr>
+        <tr><td>—</td><td>命令行 <code>emacs -q</code></td><td>跳过 <code>init.el</code>（<strong>只能从命令行做，Emacs 内部没有对应按键</strong>）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="early-init.el">
+    <p class="drill-q"><b>练习 5</b>　你想改 Emacs 安装包的目录（<code>package-user-dir</code>），写进 <code>init.el</code> 里发现完全没生效。应该写在哪个文件？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>写进 <code>early-init.el</code>。因为 <code>package.el</code> 的自动初始化发生在 <code>early-init.el</code> 之后、<code>init.el</code> 之前——你在 <code>init.el</code> 里改的时候，包系统已经用旧值跑完了。同理，添加 <code>package-archives</code>（比如 MELPA）也必须在 <code>early-init.el</code> 里做。</p></div>
+  </div>
+
+  <div class="drill" data-answer="emacs --batch --eval '(princ user-emacs-directory)'">
+    <p class="drill-q"><b>练习 6</b>　你在两台 Linux 机器上改配置，一台生效一台不生效。用一条 <code>emacs --batch</code> 命令打印出这台机器<strong>实际</strong>使用的配置目录。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>emacs --batch --eval '(princ user-emacs-directory)'</code>。两点提醒：一是<strong>不要写 <code>startup-init-directory</code></strong>，那是启动函数里的局部变量，启动完就 void 了；二是<strong>加不加 <code>-Q</code> 都一样</strong>（我两种都跑过，结果相同）——因为这个目录是在 <code>startup.el</code> 被加载时就定下来的，跟 init 文件无关。真正会改变它的两个环境因素是：<strong>这台机器上有没有 <code>~/.emacs.d/</code> 目录</strong>（有就压过 XDG 路径），以及<strong>有没有设 <code>XDG_CONFIG_HOME</code></strong>（<code>startup.el</code> 里就是拿 <code>(getenv-internal "XDG_CONFIG_HOME")</code> 决定 XDG 路径的）。</p></div>
+  </div>
+
+  <h3>七、声明式配置：<code>use-package</code>、straight、elpaca 怎么选</h3>
+
+  <p>「声明式配置」的意思是：你写下「我想要什么」，而不是「按什么顺序执行什么」来得到它。这三者都自称声明式，但实现思路完全不同。先把底层的 <code>package.el</code> 说清楚，再讲三个宏。</p>
+
+  <h4>7.1 <code>package.el</code>：两个内置归档和两个社区归档</h4>
+
+  <p><strong>ELPA</strong>（Emacs Lisp Package Archive）是 Emacs 官方的包分发机制，<code>package.el</code> 是它的客户端。<strong>归档（archive）</strong>就是一个可以从 HTTP 下载包索引的站点。你可以在 Emacs 里问它默认连哪几个归档：</p>
+
+  <pre class="term"><code>$ emacs --batch -Q --eval '(progn (require (quote package))
+  (princ (format "%S\n" package-archives)))'
+(("gnu" . "https://elpa.gnu.org/packages/")
+ ("nongnu" . "https://elpa.nongnu.org/nongnu/"))</code></pre>
+
+  <p>这两个默认归档的分工是：</p>
+
+  <ul>
+    <li><strong>GNU ELPA</strong>（<code>gnu</code>）。由 Emacs 官方维护，收录的都是社区认为「质量够、值得进官方归档」的包，而且需要走一遍 Emacs 开发团队的审核流程，所以进得慢。好处是<strong>版本保守、更新有保障、和 Emacs 本体的兼容性被认真考虑过</strong>。我写作时下载并解析了 <code>https://elpa.gnu.org/packages/archive-contents</code>：里面是五百多个包（我数到 509 个），<code>use-package</code>、<code>eglot</code>、<code>corfu</code>、<code>vertico</code>、<code>consult</code>、<code>orderless</code>、<code>cape</code>、<code>project</code>、<code>modus-themes</code> 都在里面。<strong>这个数字每周都在涨，你要用的时候自己重新数一遍。</strong></li>
+    <li><strong>NonGNU ELPA</strong>（<code>nongnu</code>）。审核更宽松，主要是那些许可证不是 GPL 的包，或者作者不想等官方审核的包。<strong>它是从 Emacs 28 开始就默认启用的</strong>——Emacs 28 的 NEWS 原话是「The new NonGNU ELPA archive is enabled by default alongside GNU ELPA」。</li>
+  </ul>
+
+  <p>社区维护的第三方归档里，你要认识两个：</p>
+
+  <ul>
+    <li><strong>MELPA</strong>（<a href="https://melpa.org/">melpa.org</a>）。全称是 <strong>Milkypostman's Emacs Lisp Package Archive</strong>（milkypostman 是 Emacs 社区一位老贡献者的网名，<strong>不是「The Modern Emacs Lisp Package Archive」</strong>——后者是网上常见的讹传）。它<strong>只收 git 仓库的默认分支</strong>，自动构建，没有审核，<strong>更新极快</strong>。我解析它的 <code>archive-contents</code> 时是六千多个包（我数到 6325 个），包含 <code>magit</code>、<code>projectile</code>、<code>helm</code>、<code>embark</code>、<code>tree-sitter-langs</code> 这些大名鼎鼎的东西。风险是：<strong>作者的默认分支今天推坏了，你的 Emacs 明天就起不来</strong>。</li>
+    <li><strong>MELPA Stable</strong>（<a href="https://stable.melpa.org/">stable.melpa.org</a>）。同样的包，但<strong>只在作者打了 tag 的版本上构建</strong>，我数到三千四百多个（3483 个）。<strong>牺牲新鲜度换稳定性</strong>，适合生产环境。</li>
+  </ul>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>MELPA 快是有代价的。</strong>很多包作者把「已发布可用」的代码放在 <code>master</code>，把「正在写的」放在 <code>develop</code>——但这不是 Emacs 社区的强制约定，个人项目经常不遵守。所以一条经验规则：<strong>你在 MELPA 上看到的版本号很可能是空的或者只到 0.1.x，那说明这个包没走 tag 流程，你正在用一个开发中的版本</strong>。判断办法是去包的 GitHub 仓库看 Releases 页面。</p>
+  </div>
+
+  <h4>7.2 <code>use-package</code>：从 Emacs 29 起是内置的</h4>
+
+  <p>这是个很多人不知道的事实：<strong><code>use-package</code> 不再是第三方包了</strong>。Emacs 29 的 NEWS 里有一整个小节写着「<em>use-package: Declarative package configuration. use-package is now shipped with Emacs.</em>」，并且告诉你去读新的 Info 手册 <code>(use-package) Top</code>。我在本机 Emacs 32.0.50 上用 <code>(locate-library "use-package")</code> 查到了它在内置 lisp 目录里。</p>
+
+  <p>它的写法长这样：</p>
+
+  <pre class="el"><code>;; magit 只在 MELPA 上（GNU ELPA 里没有），所以要 :ensure 保证装得上。
+;; 键位用它自己的推荐绑定，别抢：magit 默认把 C-x g 绑到 magit-status、
+;; C-c g 绑到 magit-dispatch（我读了 magit.el 里的
+;; magit-maybe-define-global-key-bindings），你覆盖 C-c g 就等于废掉了
+;; magit-dispatch 的键位。
+(use-package magit
+  :ensure t
+  :bind (("C-c M-g" . magit-dispatch)))
+
+;; 内置包不用写 :ensure：display-line-numbers 是 Emacs 28 起自带的库，
+;; 写成 :ensure t 反而会让 use-package 去归档里找一个根本不存在的包
+(use-package display-line-numbers
+  :custom (display-line-numbers-mode 1))
+
+;; 明确用某个版本
+(use-package vertico
+  :ensure t
+  :pin "1.15")   ; 锁在这个版本</code></pre>
+
+  <div class="callout note"><b>要点</b><p><strong>关于 <code>M-x magit</code>：本书作者在本机实测过，它是真实存在的命令，不要因为老资料说「magit 没有 magit 命令」就以为敲了会报 void-function。</strong>在装了 Magit 4.7 的 Emacs 32.0.50 上，<code>(fboundp 'magit)</code> 返回 <code>t</code>、<code>(commandp 'magit)</code> 也返回 <code>t</code>，<code>(documentation 'magit)</code> 原文是：</p>
+    <pre class="term"><code>Begin using Magit.
+
+This alias for ‘magit-status’ exists for better discoverability.
+
+Instead of invoking this alias for ‘magit-status’ using
+"M-x magit RET", you should bind a key to ‘magit-status’
+and read the info node ‘(magit)Getting Started’, which
+also contains other useful hints.</code></pre>
+  <p><strong>也就是说：<code>magit</code> 就是 <code>magit-status</code> 的别名</strong>，敲 <kbd>M</kbd><kbd>x</kbd> <code>magit</code> <kbd>RET</kbd> 会打开 Git 状态缓冲区，完全能用。<strong>文档里那句「you should bind a key to <code>magit-status</code>」是 Magit 作者的风格建议</strong>（他希望你给它一个固定键，而不是每次敲 <kbd>M</kbd><kbd>x</kbd>），<strong>不是「这个命令不存在」</strong>。看到这句时不要反向推断。</p>
+  <p><strong>那 <code>magit-mode</code> 呢？</strong>它也存在，<code>(fboundp 'magit-mode)</code> 同样返回 <code>t</code>——但<strong>角色完全不同</strong>。它的文档字符串是 “Parent major mode from which Magit major modes inherit.”，也就是说<strong>它是 Magit 各种 buffer 模式（<code>magit-status-mode</code>、<code>magit-diff-mode</code> 那些）的父模式</strong>，不是「打开状态缓冲区」的入口。<strong>Magit 4 拿掉的是「用 <code>magit-mode</code> 当全局开关」那种老用法，命令本身没有被删。</strong></p>
+  <p><strong>于是这一段应该这么记：</strong>入口是 <code>magit-status</code>（等价写法 <code>magit</code>）和 <code>magit-dispatch</code>（速查菜单，「我现在能干什么」问它）；<code>magit-mode</code> 是模式继承关系，跟入口无关；<code>magit-init</code> 是第三个东西——文档字符串是 “Initialize a Git repository, then show its status.”，<strong>只在你需要在一个新目录里 <code>git init</code> 时才用</strong>，不是「装 Magit」或「初始化 Magit」的命令。</p>
+</div>
+
+  <p><code>use-package</code> 的各个关键字对应的是传统写法里的这些步骤：</p>
+
+  <div class="keys">
+    <h4><code>use-package</code> 关键字对照表</h4>
+    <table>
+      <thead><tr><th>关键字</th><th>等价于传统写法</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>:ensure t</code></td><td><code>unless (package-installed-p 'x) (package-install 'x))</code></td><td>缺包时自动安装</td></tr>
+        <tr><td><code>:pin 版本</code></td><td>（无直接对应）</td><td>锁定包版本，不随归档更新而变</td></tr>
+        <tr><td><code>:load-path</code></td><td><code>(add-to-list 'load-path "…/elpa/x-1.2")</code></td><td>只加路径，不 require、不配置</td></tr>
+        <tr><td><code>:init</code></td><td>包的加载 hook 里跑</td><td>装完、require 之后立刻执行</td></tr>
+        <tr><td><code>:config</code></td><td>顶格写设置代码</td><td>require 之后执行，配置主体的位置</td></tr>
+        <tr><td><code>:bind</code> / <code>:bind-keymap</code></td><td><code>global-set-key</code> / <code>define-prefix-command</code></td><td>绑全局键</td></tr>
+        <tr><td><code>:commands</code></td><td>—</td><td>声明「我要绑的这些命令存在」，从而触发延迟加载</td></tr>
+        <tr><td><code>:magic</code></td><td>—</td><td>需要 Elisp 魔法但不常用，配置里用少数几个</td></tr>
+        <tr><td><code>:defer t</code></td><td>—</td><td>完全不加载，用到时按需加载</td></tr>
+        <tr><td><code>:custom</code></td><td><code>(setq x val)</code></td><td>用 <code>defcustom</code> 方式设置，并让 Customize 能看到</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong><code>:ensure t</code> 在字节编译你的 <code>init.el</code> 的时候就会真的去装包</strong>，这条要记住，否则你会对「为什么每次编译都那么慢」感到莫名其妙。本书作者在本机 Emacs 32.0.50 的 <code>lisp/use-package/use-package-ensure.el</code> 第 153–161 行读到了这段逻辑（函数是 <code>use-package-handler/:ensure</code>）：</p>
+    <pre class="el"><code>(if (bound-and-true-p byte-compile-current-file)
+    ;; Eval when byte-compiling,
+    (funcall use-package-ensure-function name ensure state)
+  ;;  or else wait until runtime.
+    (push `(,use-package-ensure-function ',name ',ensure ',state) body))</code></pre>
+    <p>上面那段的注释还解释了<strong>为什么</strong>要这么写：<em>“We want to avoid installing packages when the <code>use-package</code> macro is being macro-expanded by elisp completion (see <code>lisp--local-variables</code>), but still install packages when byte-compiling, to avoid requiring <code>package</code> at runtime.”</em>——<strong>翻译过来就是：编译期真的装，宏展开期（比如按 <kbd>C-M</kbd><kbd>i</kbd> 触发补全）不装。</strong>所以你每次编译 <code>init.el</code> 都要联网下载一遍包。</p>
+    <p>后果有两个：一是<strong>编译 <code>init.el</code> 会真的联网下载包</strong>，编译机上的副作用也会跟着跑；二是<strong>编译结果和运行结果不完全等价</strong>，你在编译机上「顺手」装上的包，在别人机器上不会自动出现。解决办法有两个：要么别字节编译 <code>init.el</code>（这本来也是常见做法），要么接受这个语义。<strong>另外提醒一句：如果你读到某篇文章说 Emacs 32 把 <code>:ensure</code> 改成了「只在运行时安装」，那是错的</strong>——我在 32.0.50 上核对过源码和 <code>etc/NEWS</code>（Emacs 32 的 NEWS 全文里根本没有 <code>use-package</code> 小节），<code>:ensure</code> 至今仍按编译期安装的逻辑走。</p>
+  </div>
+
+  <p><code>use-package</code> 的全局默认开关有两个，值得知道：</p>
+
+  <pre class="el"><code>;; 让所有 use-package 形式都自动 :ensure t（省掉到处写）
+(setq use-package-always-ensure t)
+
+;; 反过来，让所有包都锁到当前版本
+(setq use-package-always-pin 'keep)</code></pre>
+
+  <p>我读了本机 Emacs 32.0.50 的 <code>lisp/use-package/use-package-core.el</code> 源码：<code>use-package-always-ensure</code> 和 <code>use-package-always-pin</code> 的 <code>:version</code> 都是 <code>"29.1"</code>，默认值都是 <code>nil</code>；它们是通过 <code>use-package-defaults</code> 这个 alist 生效的。不想用就都保持 <code>nil</code>。顺带一提，<strong>Emacs 32 把 <code>use-package</code> 拆成了好几个文件</strong>：<code>:ensure</code> 和 <code>:pin</code> 的实现搬到了 <code>lisp/use-package/use-package-ensure.el</code>，绑定相关的搬到了 <code>use-package-bind-key.el</code>；上面这两个变量仍然留在 <code>use-package-core.el</code>。</p>
+
+  <h4>7.3 straight.el：直接从 git 仓库装，可在源码上改</h4>
+
+  <p><strong>straight.el</strong> 是一个第三方包管理器（不是包装 package.el，而是完全绕开它）。它的工作方式：<strong>克隆 git 仓库，把文件符号链接（symlink）到 Emacs 的 <code>load-path</code> 里</strong>。</p>
+
+  <p>它的仓库现在是 <a href="https://github.com/radian-software/straight.el">radian-software/straight.el</a>（<strong>注意：早期的 <code>github.com/rststraight/straight.el</code> 已经 404 了</strong>）。我写作时该仓库是 3030 星、最近推送 2026-09-14，活跃维护中。它有完整的 README，讲清楚了它的定位是「next-generation, purely functional package manager for the Emacs hacker」。</p>
+
+  <p>安装方式（这段是从它的 README 里抄的官方 bootstrap 片段，能直接跑）：</p>
+
+  <pre class="el"><code>;;; early-init.el 里
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))</code></pre>
+
+  <p>然后 <code>init.el</code> 里：</p>
+
+  <pre class="el"><code>(straight-use-package 'org
+  :recipe (:host github :repo bzg/thisorg
+         :branch "master"))
+;; 用 :after 代替 use-package 的 :config
+(straight-use-package 'some-package
+  :after #'some-package-setup)</code></pre>
+
+  <p><strong>取舍</strong>，这是本节最需要你自己判断的地方：</p>
+
+  <ul>
+    <li><strong>好处一：仓库就是你的。</strong>用 straight 装的东西，源文件是一串指向 <code>~/.emacs.d/straight/repos/…</code> 的符号链接。你可以直接用编辑器和 <code>M-x magit-status</code> 在那个仓库里改源码、改完保存立刻生效、不用重装。调试第三方包时这个体验无可替代。</li>
+    <li><strong>好处二：锁文件（lockfile）机制。</strong>README 里的做法是运行 <code>M-x straight-freeze-versions</code>，它把所有包当前 checkout 的提交号写进 <code>~/.emacs.d/straight/versions/default.el</code>。<strong>把这个文件和 init.el 一起提交进 git</strong>，就得到一份完全可复现的依赖清单；在新机器上装完之后跑 <code>M-x straight-thaw-versions</code> 就能把所有包回退到锁文件指定的提交。</li>
+    <li><strong>坏处一：首次安装慢。</strong>每个包都要 clone 一次，从零配置一台机器可能等十几分钟。</li>
+    <li><strong>坏处二：多了一层抽象。</strong>包的加载路径是符号链接而不是真实文件。绝大多数时候没问题，但如果你要排查「这个 .el 文件到底从哪加载的」，<code>find-file</code> 会把你带到 <code>~/.emacs.d/straight/repos/…</code> 而不是包管理器目录里，偶尔会让人困惑。</li>
+    <li><strong>坏处三：和 package.el 的边界模糊。</strong>有些包会自己调 <code>package.el</code>。混用时会出现「同一个包有两份」的情况。</li>
+  </ul>
+
+  <h4>7.4 elpaca：另一个思路，界面更好</h4>
+
+  <p><strong>elpaca</strong>（现在是 <a href="https://github.com/progfolio/elpaca">progfolio/elpaca</a>，我写作时 950 星、最近推送 2026-09-21）的定位是「Emacs 自带的那个包管理器 <code>package.el</code> 的替代品」——和 straight 一样，它也<strong>不走归档</strong>：<code>straight</code> 和 <code>elpaca</code> 都不在 GNU ELPA 和 MELPA 的索引里（我核过两个 <code>archive-contents</code>，都搜不到这两个名字），而是直接从 git 仓库构建。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong>关于 elpaca 的「三条主打卖点」，本书作者没有核实，所以这里干脆不写结论。</strong>写本章时他的网络被拦，<strong>没能重新打开这个项目的 README</strong>。按本书自己的规矩（凡是没能查证的技术性断言就不当结论），<strong>「安装全异步并行」「自带搜包和装包的图形界面」「默认接上多个归档」这三条一律以你打开 <code>github.com/progfolio/elpaca</code> 后看到的 README 为准</strong>——那个仓库首页就是唯一该信的东西。上一段那句「<code>straight</code> 和 <code>elpaca</code> 都不在 GNU ELPA / MELPA 的索引里」是不同性质的信息（作者核过两个 <code>archive-contents</code>），可以直接用。</p>
+    <p><strong>与其背任何一个包管理器的卖点，不如学会三十秒自己判断——这条路对所有包都管用：</strong>① <kbd>M</kbd><kbd>x</kbd> <code>package-list-packages</code> 打开列表，看<strong>最近更新日期</strong>和<strong>下载量</strong>；② 打开它的仓库，看<strong>最近一次 commit 是什么时候</strong>；③ 翻 <strong>issue 里有没有人报「装不上 / 启动报错」而且没人理</strong>。<strong>本书推荐 elpaca 的唯一理由就是它在这三项上都还活着</strong>；它具体快在哪、界面长什么样，装之前自己看一眼 README 就知道了，比读本书的转述准。</p>
+</div>
+
+
+  <p><strong>什么时候选它</strong>：你在意交互体验（用图形界面搜包、看文档、一键装），并且愿意接受它比 straight 还要「有主张」——elpaca 要求你不要混用 <code>package.el</code>，两套并存会打架。</p>
+
+  <h4>7.5 三选一：我的建议</h4>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>零基础读者：先只用内置的 <code>package.el</code> + 内置的 <code>use-package</code>，一个第三方包管理器都别装。</strong>理由是：你需要学的东西已经够多了，而 <code>use-package</code> 从 Emacs 29 起就是内置的，它和 <code>package.el</code> 的配合是官方文档化的。第三方包管理器带来的是<strong>可复现性</strong>和<strong>源码可控性</strong>这两件事——只有当你真的需要其中之一（比如你要在五台机器上跑完全一样的配置），它们才值得。</p>
+  </div>
+
+  <div class="drill" data-answer="setq use-package-always-ensure t">
+    <p class="drill-q"><b>练习 7</b>　你有二十个 <code>use-package</code> 形式，每个都老老实实写了 <code>:ensure t</code>。有一个变量能让这二十处全部省掉吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>(setq use-package-always-ensure t)</code>。它在 Emacs 29.1 引入，默认 <code>nil</code>。设成 <code>t</code> 之后每个 <code>use-package</code> 形式都等于自动带上了 <code>:ensure t</code>（除非你显式写了 <code>:load-path</code>，那种情况下 <code>use-package-core.el</code> 的 <code>use-package-defaults</code> 逻辑会自动跳过 ensure）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x straight-freeze-versions">
+    <p class="drill-q"><b>练习 8</b>　你用 straight.el 管理包，想让这台机器的依赖版本能被完整记录下来并在另一台机器上还原。敲哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>M-x straight-freeze-versions</code>。它把所有包当前的提交号写进 <code>~/.emacs.d/straight/versions/default.el</code>。把这个文件提交进 git，在新机器装好包后用 <code>M-x straight-thaw-versions</code> 回退到锁定版本。</p></div>
+  </div>
+
+  <h3>八、启动性能：先测量，再优化</h3>
+
+  <p>「我的 Emacs 要 8 秒才打开」是新人最常见的抱怨，也是最常见的<strong>误判</strong>。因为在多数人的机器上，那 8 秒里只有 1.5 秒是 Emacs 自己在初始化，剩下 6.5 秒是别的包。所以本节的第一条建议是：<strong>不要凭感觉优化，用 profiler 测。</strong></p>
+
+  <h4>8.1 三种延迟，先分清是哪一种</h4>
+
+  <ul>
+    <li><strong>dump 文件加载时间。</strong>Emacs 启动时先把预编译的 <code>.pdmp</code> 读进来，这通常在 50~150 毫秒。<strong>你几乎无法优化它</strong>，因为它取决于 Emacs 二进制的构建方式。</li>
+    <li><strong>init 文件求值时间。</strong>读你的 <code>early-init.el</code> + <code>init.el</code>、require 包、跑设置代码。<strong>这是你能优化的绝大部分。</strong></li>
+    <li><strong>运行时垃圾回收（GC，garbage collection）。</strong>Emacs 是动态分配内存的，它的 GC 策略是「分配到一定量就回收一次」。如果你的配置在启动时大量分配又释放对象，会触发多次 GC，在 <code>*Messages*</code> 窗口里表现为反复刷 <code>Garbage collection: X%</code>。</li>
+  </ul>
+
+  <h4>8.2 测 CPU 时间：profiler</h4>
+
+  <p>Emacs 内置了一个采样 profiler。它的两个入口命令是 <code>M-x profiler-start</code> 和 <code>M-x profiler-report</code>（我在本机读过 <code>profiler-start</code> 的文档字符串：<code>MODE</code> 可以是 <code>cpu</code>、<code>mem</code> 或 <code>cpu+mem</code>）。<strong>要在 <code>early-init.el</code> 里就开始测</strong>，否则测不到包加载那段：</p>
+
+  <pre class="el"><code>;;; early-init.el 末尾，只在设了环境变量时才测
+(when (getenv "EMACS_PROFILE_INIT")
+  (profiler-start 'cpu))</code></pre>
+
+  <p>然后用一个干净的环境启动 Emacs：</p>
+
+  <pre class="term"><code>$ EMACS_PROFILE_INIT=1 emacs -Q
+# 进 Emacs 后按 M-x profiler-report
+
+# 更直接的写法：在 dump 加载之后、init 之前挂钩子
+$ emacs --eval '(profiler-start '"'"'cpu)'</code></pre>
+
+  <p>进了 Emacs 之后按 <kbd>M</kbd><kbd>-</kbd> <code>profiler-report</code>，弹出的 <code>*Profiler Report*</code> 缓冲区是一个按「自身耗时」倒序排的表格：</p>
+
+  <ol>
+    <li>第一列是调用者（caller），第二列是被调用的函数（callee）。</li>
+    <li><strong>「Self」列</strong>是它自己花掉的时间，<strong>「%」列</strong>是占总采样数的百分比。</li>
+    <li><strong>你要找的永远是占比最高的那几行</strong>，不是那些被调用次数最多的。</li>
+  </ol>
+
+  <p>典型的结果会长这样：某几个 <code>use-package</code> 的 <code>:config</code> 各占 3~8%，某个重量级包（比如 LSP 客户端、主题系统）占 15%，剩下是一串 <code>garbage collection</code> 占 12%。<strong>你会立刻发现优化的方向和自己的直觉完全不一样</strong>——这就是测量的价值。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>测完记得关掉。</strong><code>profiler-start</code> 重复调用只是<strong>重启</strong>计时，不会叠加，但它本身是常驻的。诊断完成后把 <code>early-init.el</code> 里那两行删掉，或者保证只在设了环境变量时才开。</p>
+  </div>
+
+  <h4>8.3 原生编译（native compilation）</h4>
+
+  <p><strong>原生编译</strong>是把 Elisp 直接编译成机器码，而不是编译成字节码。它的收益有两条：一是代码跑得快——<strong>但要诚实地给个量级：常见的说法是「一两倍到几倍」，而不是「几十倍」</strong>；收益最大的场景是大量分配、频繁 GC 的代码（比如 LSP 客户端、大包的初始化），纯计算型代码的提升就小得多。二是函数调用不分配 cons cell，GC 压力小得多——这一条在启动阶段往往比速度本身更值钱。</p>
+
+  <p>但你必须先知道你的 Emacs <strong>到底有没有它</strong>。这是本节最实用的一条命令：</p>
+
+  <pre class="term"><code>$ emacs --batch -Q --eval '(princ (if (locate-library "native-comp")
+    "有原生编译" "没有原生编译（--with-native-compilation=no）"))'
+;; 本机输出：没有原生编译（--with-native-compilation=no）</code></pre>
+
+  <p>没有的话，原生编译相关的所有配置都是摆设。发行版包经常是关掉的（Debian/Ubuntu 的 <code>emacs-nox</code>、Fedora 的包都算）；MacPorts 因为在 Portfile 末尾写了 <code>default_variants-append +nativecomp</code>，默认就是开的（<code>i386</code> 和 <code>ppc</code> 除外）；而 <strong>Homebrew 的 formula 并没有开</strong>——我读了 <code>Formula/e/emacs.rb</code> 的 <code>configure</code> 参数，里面有 <code>--with-tree-sitter</code>，但<strong>没有任何 <code>--with-native-compilation</code></strong>。自己源码编译时显式加上这个开关才会打开。</p>
+
+  <p>打开之后怎么用：</p>
+
+  <pre class="el"><code>;;; 1. 装包时就把它们提前原生编译（否则留到第一次加载时才编）
+;;;    这是 Emacs 28.1 引入的用户选项，默认 nil。
+;;;    它的文档字符串最后一句是：
+;;;    "This option does not have any effect if Emacs was not built
+;;;     with native compilation support."   &lt;- 又回到 8.3 开头那条命令
+(setq package-native-compile t)
+
+;;; 2. 手动编译单个文件
+;;    M-x native-compile-file
+
+;;; 3. Emacs 31 新增：整个目录树一起编译
+;;    M-x native-compile-directory</code></pre>
+
+  <p><code>M-x native-compile-directory</code> 是 <strong>Emacs 31 的新函数</strong>。NEWS.31 原文：<em>「New function <code>native-compile-directory</code>. This function natively compiles all Lisp files in a directory and in its sub-directories, recursively, excluding those already natively compiled.」</em>。第一次跑会持续几分钟，结果在 <code>*Warnings*</code> 缓冲区里。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>原生编译的警告该看还是得看</strong>，但不必恐慌。Emacs 30 起你可以控制异步原生编译汇报什么：NEWS.30 记录了用户选项 <code>native-comp-async-warnings-errors-kind</code>，<strong>默认值是「报全部错误 + 只报重要的警告」</strong>；如果你以前习惯把 <code>native-comp-async-report-warnings-errors</code> 设成 <code>nil</code> 或 <code>silent</code> 来消音，NEWS 明确建议<strong>别再这么做</strong>，而是「改成默认值，看看是不是真的只收到有意义的警告」。Emacs 31 又加了一条实用选项 <code>native-comp-async-on-battery-power</code>：设成 <code>nil</code> 就能在没插电源时不启动新的异步编译。</p>
+  </div>
+
+  <h4>8.4 垃圾回收：调高阈值换启动时间</h4>
+
+  <p>Emacs 的 GC 是「分配够一定量就触发」。我在本机查到的默认值是 <code>gc-cons-threshold</code> = <code>800000</code>、<code>gc-cons-percentage</code> = <code>1.0</code>。如果你看到 <code>*Messages*</code> 里刷 GC，调高阈值通常立竿见影：</p>
+
+  <pre class="el"><code>;; 把阈值调到 64 倍（代价：常驻内存变大）
+(setq gc-cons-threshold (* 64 1024 1024))
+
+;; 每次 GC 之后重新设一次，避免阈值被越调越低
+(defun my-post-gc ()
+  (setq gc-cons-threshold (* 64 1024 1024)))
+(add-hook 'post-gc-hook 'my-post-gc)</code></pre>
+
+  <p><strong>什么时候不该调</strong>：如果你在一台只有 4~8 GB 内存的机器上（或者是个虚拟机），调高 GC 阈值会让 Emacs 占用暴涨，最后被 OOM killer 干掉。<strong>GC 阈值是「用内存换时间」里最划算的一笔交易，但前提是你的内存真的够。</strong></p>
+
+  <p>还有一个现代 Emacs 特有的性能陷阱：<strong>全局 minor mode 越多，启动后越卡</strong>。<code>flymake-mode</code>、<code>show-paren-mode</code>、<code>whitespace-mode</code>、<code>column-number-mode</code> 每个都会给<strong>每一个新建的 buffer</strong> 挂钩子和后处理函数，而 buffer 会越来越多。干净的做法是<strong>只给相关 mode 的 hook 加</strong>：</p>
+
+  <pre class="el"><code>;; 只在真正需要的文件类型里开
+(dolist (hook '(python-mode-hook emacs-lisp-mode-hook
+                rust-mode-hook typescript-mode-hook))
+  (add-hook hook 'flymake-mode)
+  (add-hook hook 'show-paren-mode))</code></pre>
+
+  <h4>8.5 按需加载：advice 的正确用法</h4>
+
+  <p><strong>Advice</strong>（Emacs 的「建议」机制）能在不修改原函数的前提下，给它加一层前置或后置钩子。这是做按需加载最优雅的办法：<strong>平时什么都不做，用户真的用到某个功能时，才把那个重量级包加载进来。</strong></p>
+
+  <pre class="el"><code>;; 包里有 command，在它第一次被调用时才加载
+(eval-after-load "some-big-package"
+  '(advice-add 'some-big-package-command :before
+               (lambda (&amp;rest _)
+                 (require 'some-big-package nil t))))
+
+;; 更常见的写法：挂到 mode hook 上按语言加载
+(add-hook 'python-mode-hook
+          (lambda () (require 'pyproject-mode nil t)))
+
+;; 查看某个函数当前挂了哪些 advice
+;; 注意 advice-mapc 的回调签名是 (FUNCTION PROPERTIES)，
+;; 不是 (SYMBOL HOW)；HOW 在 properties 这个 plist 里（:before / :after …）
+(advice-mapc (lambda (fn props) (message "%S -> %S" fn props))
+             'some-function)</code></pre>
+
+  <p><code>advice-add</code> 和 <code>advice-remove</code> 我在本机确认过都存在（<code>fboundp</code> 均为 <code>t</code>），<code>advice-mapc</code> 的文档字符串也确认了它对回调的调用方式是 <code>(FUN FUNCTION PROPERTIES)</code>。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>Advice 是「猴补丁」级别的工具，<strong>用多了会让配置变得无法推理</strong>。一个函数被七个 advice 包着，你就无法靠读代码判断它的行为了。原则：<strong>advice 用来「延迟加载」和「绕过上游 bug」，不要用来「配置」</strong>——配置有 <code>defcustom</code>，不需要 advice。</p>
+  </div>
+
+  <h4>8.6 哪些包根本不该装</h4>
+
+  <p>这一小节标题就叫「哪些包不该装」，内容是几条我认为是硬道理的规则：</p>
+
+  <ol>
+    <li><strong>一次只装一个补全前端。</strong>补全这块能装的包有 <code>company</code>、<code>corfu</code>、<code>vertico</code>、<code>cape</code>、<code>helm</code>、<code>ivy</code>……<strong>它们抢的是两个不同的位置，而且同一个位置只能有一个赢家</strong>：<code>corfu</code> 和 <code>cape</code> 往 <code>completion-at-point-functions</code> 这个 hook 列表里塞自己的后端，<code>company</code> 则用 advice 包住 <code>completion-at-point</code> 这个函数本身；而 <code>vertico</code> 压根不碰 <code>completion-at-point</code>——我读了 <code>vertico.el</code> 的 <code>vertico-mode</code>，它 <code>advice-add</code> 的是 <code>completing-read-default</code> 和 <code>completing-read-multiple</code>，也就是 minibuffer 那一侧；<code>ivy</code>/<code>helm</code> 抢的也是 minibuffer 这一侧。<strong>正确配法是：minibuffer 侧选一个（<code>vertico</code> 或 <code>ivy</code> 二选一），buffer 内侧选一个（<code>corfu</code> + <code>cape</code> 这套算一个，或 <code>company</code>）。</strong>同侧装两个的结果是随机的、时好时坏的、无法调试的。</li>
+    <li><strong>不要一上来就装「全家桶配置框架」。</strong>doom-emacs 之类的框架确实能给你一个功能齐全的 Emacs，但<strong>你学到的全是框架的命令</strong>，一旦离开框架全都不会了。对「读完这本书想自己配一套」的读者来说，这是本末倒置。</li>
+    <li><strong>装之前看最后提交时间。</strong>在 2026 年，一个 2020 年之后没有 commit 的包，你可以直接跳过。查它的最快办法是问 GitHub 一次（下面那条命令我就是自己用的）：</li>
+  </ol>
+
+  <pre class="term"><code># 包的 GitHub 仓库最后一次推送时间（不需要 clone）
+curl -s https://api.github.com/repos/OWNER/REPO | grep '"pushed_at"'
+# 顺便看未关闭 issue 数量
+curl -s https://api.github.com/repos/OWNER/REPO | grep '"open_issues_count"'
+
+# 想看具体的最后提交（需要先 clone）
+git clone --depth 1 https://github.com/OWNER/REPO /tmp/probe
+git -C /tmp/probe log -1 --format='%ci  %s'</code></pre>
+
+  <p>拿这个标准回头看本章举过的例子就很直观：<code>magit</code> 在 MELPA 上的构建日期是写作当天前两天，活的；而我原本想在这份骨架里推荐的 <code>edit-list</code>，MELPA 索引里记的构建时间是 <strong>2010-09-30</strong>，它清单里的源码地址 <code>http://mwolson.org/static/dist/elisp/edit-list.el</code> 我访问时已经 404。<strong>这就是「包会死」的样子</strong>，所以我已经把它从这个骨架里拿掉了。</p>
+
+  <ol start="4">
+    <li><strong>装之前看未关闭的 issue 数量。</strong>一个 3000 行的包有 200 个未关闭的 issue，而且最近没有提交，说明它已经超出了维护者的能力范围。</li>
+    <li><strong>先问「这个功能 Emacs 内置的是不是已经有了」。</strong>Emacs 内置了非常多东西：<code>project</code>、<code>eglot</code>、<code>flymake</code>、<code>org</code>、<code>isearch</code>、<code>dired</code>、<code>vc</code>、<code>compile</code>、<code>package</code>、<code>faces</code>。装包之前先 <kbd>M</kbd><kbd>-</kbd> <code>apropos RET</code> 搜一下，能省很多事。</li>
+  </ol>
+
+  <div class="keys">
+    <h4>本节相关命令</h4>
+    <table>
+      <thead><tr><th>按键/命令</th><th>命令名</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>profiler-start RET cpu RET</code></td><td><code>profiler-start</code></td><td>开始采样 CPU 时间</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>profiler-report</code></td><td><code>profiler-report</code></td><td>弹出采样结果报告</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>garbage-collect</code></td><td><code>garbage-collect</code></td><td>立即手动触发一次 GC</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>native-compile-file RET</code></td><td><code>native-compile-file</code></td><td>原生编译当前 buffer 的文件</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>native-compile-directory</code></td><td><code>native-compile-directory</code></td><td>递归原生编译整个目录树（Emacs 31 新增）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>package-refresh-contents</code></td><td><code>package-refresh-contents</code></td><td>刷新所有归档的包索引</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="M-x profiler-report">
+    <p class="drill-q"><b>练习 9</b>　你怀疑自己的 init.el 启动慢。接下来敲哪一个命令才能知道到底是哪段配置耗时？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>先 <kbd>M</kbd><kbd>-</kbd> <code>profiler-start RET cpu RET</code> 开始采样，再 <kbd>M</kbd><kbd>-</kbd> <code>profiler-report</code> 看结果。真正的做法是把 <code>(profiler-start 'cpu)</code> 放进 <code>early-init.el</code>，这样才能测到包加载那一段。</p></div>
+  </div>
+
+  <div class="drill" data-answer="locate-library native-comp 返回 nil 说明没开">
+    <p class="drill-q"><b>练习 10</b>　网上某篇教程教你设置原生编译，但你的 Emacs 上完全没反应。用一条命令确认你的构建到底有没有开启原生编译。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>emacs --batch -Q --eval '(princ (locate-library "native-comp"))'</code>。返回文件路径说明有；返回 <code>nil</code> 说明你的 Emacs 是用 <code>--with-native-compilation=no</code> 构建的，任何 <code>native-comp</code> 相关配置都是空转。</p></div>
+  </div>
+
+  <h3>九、Emacs 28 到 32：哪些变化会直接影响你的配置</h3>
+
+  <p>这一节按时间倒推，把「从哪个版本开始是这样」讲清楚。如果你用的是 29 或 30，有些条目直接跳过；如果你在准备升级到 31/32，这些就是你要提前改的地方。</p>
+
+  <h4>9.1 Emacs 27（作为分界线）：<code>completion-styles</code> 和 <code>project.el</code></h4>
+
+  <p>这两样东西不新，但它们是后面所有变化的舞台。我查了 Emacs 的 NEWS：<code>completion-styles</code> 在 27 的 NEWS 里已被当作既有设施使用（有一整段讲「把 <code>flex</code> 加到 <code>completion-styles</code> 里」），而 26 的 NEWS 里完全没有这个变量——所以 <strong><code>completion-styles</code> 是 Emacs 27 引入的</strong>。<code>project.el</code> 更早：<strong>Emacs 25.1</strong> 的 NEWS 第 1025 行有一条标题就是「New package Project」（本节小节头是 “Changes in Specialized Modes and Packages in Emacs 25.1”），25、26 两版 NEWS 里都搜不到这个包，27 版也没有。<strong>所以 <code>project.el</code> 是 25.1 进的本体，本书第 9 章那一节讲的是对的；如果你在别处看到「27 起」「28 起」「29 起」的说法，那些都是错的。</strong></p>
+
+  <p><code>completion-styles</code> 是理解后面所有补全变化的钥匙。它的机制是：<code>completion-styles</code> 是一个样式列表，补全时<strong>依次尝试每个样式，第一个产出结果的胜出</strong>。我在 Emacs 32.0.50 上查到的默认值是：</p>
+
+  <pre class="term"><code>$ emacs --batch -Q --eval '(princ completion-styles)'
+(basic partial-completion emacs22)</code></pre>
+
+  <p>而 Emacs 31.1 手册 <code>doc/emacs/mini.texi</code> 里明确列出了<strong>默认的三个</strong>：<code>basic</code>（前缀必须从头匹配）、<code>partial-completion</code>（按 <code>-</code> 和空格分段，每段各自补全，<code>*</code> 是通配符）、<code>emacs22</code>（类似 <code>basic</code> 但忽略光标后面的文本，所以老名字）。</p>
+
+  <p>同一节手册紧接着列出<strong>定义了但不在默认里、需要你自己加</strong>的样式：<code>substring</code>、<code>flex</code>（也叫 <code>flx</code>、<code>fuzzy</code>、<code>scatter</code>）、<code>initials</code>，另外还有 <code>emacs21</code>。<strong>这里有个必须说清的事实：<code>ido</code> 和 <code>flex</code> 早就不在默认样式里了</strong>——<code>flex</code> 从来不是默认项，<code>ido</code> 则是随着 <code>completion-styles</code> 的引入（27）就从内置补全里退出、改由 <code>ido-mode.el</code> 这个单独的库提供了。</p>
+
+  <h4>9.2 Emacs 28：NonGNU ELPA 默认开启</h4>
+
+  <p>NEWS.28 的原话是：<em>「The new NonGNU ELPA archive is enabled by default alongside GNU ELPA. Thus, packages on NonGNU ELPA will appear by default in the list shown by <code>M-x list-packages</code>.」</em> 这就是为什么今天 <code>M-x list-packages</code> 默认能看到两个归档的包。</p>
+
+  <h4>9.3 Emacs 29：三个大变化</h4>
+
+  <p><strong>第一，<code>use-package</code> 和 Eglot 进了 Emacs 本体。</strong>NEWS.29 各给了独立小节，<code>use-package</code> 那节的标题就是「<em>use-package: Declarative package configuration. use-package is now shipped with Emacs.</em>」，Eglot 那节说 <code>eglot</code> 现在内置，有自己的 Info 手册 <code>(eglot) Top</code>。这一节的两条注意事项：</p>
+
+  <ul>
+    <li>NEWS 提醒你，如果想用 <code>M-x package-install</code> 把它们升级到 GNU ELPA 上的更新版本，要先把 <code>package-install-upgrade-built-in</code> 设为非 nil。我在 Emacs 32.0.50 上确认了这个变量存在（默认 <code>nil</code>），而 <code>package-upgrade-from-built-in</code> <strong>不存在</strong>——如果你在网上看到有人这么写，那多半是别的 Emacs 配置框架的变量名。</li>
+    <li>也就是说：<strong>Emacs 29+ 里 <code>use-package</code> 和 <code>eglot</code> 都是「内置的 ELPA 包」</strong>，它们被标记为内置，所以 <code>M-x list-packages</code> 里会标成 <em>built-in</em> 而不是让你升级。</li>
+  </ul>
+
+  <p><strong>第二，tree-sitter 变成编译期选项。</strong>NEWS.29 的 Installation Changes 里有一条：<em>「Emacs can be built with the tree-sitter parsing library.」</em>这是个 <code>./configure --with-tree-sitter</code> 级别的开关。<strong>它在 29 只是「能编进去」，不是「默认开」</strong>。到你手上的 Emacs 有没有它，用 8.3 节那条 <code>locate-library "tree-sitter"</code> 就能查。</p>
+
+  <p><strong>第三，ahead-of-time 原生编译。</strong>NEWS.29 有一条 Installation Changes：<em>「Ahead-of-time native compilation can now be requested via configure.」</em>也就是构建 Emacs 本身时可以把所有内置 Elisp 提前编成机器码，比「运行时才编 .eln」更快。</p>
+
+  <h4>9.4 Emacs 30：补全预览来了，project.el 上模式行</h4>
+
+  <ul>
+    <li><strong>Completion Preview（补全预览）。</strong>这是 Emacs 30 系列最重要的一次补全改动：一个叫 <code>completion-preview-mode</code> 的 minor mode，<strong>你打字时候选词就直接以幽灵文本（灰色）显示在光标后面</strong>。NEWS.31 里有一条说明它和第三方包的关系：<em>「If you use this mode together with an in-buffer completion popup interface, such as the interfaces that the GNU ELPA packages Corfu and Company provide, you can set <code>completion-preview-sort-function</code> to the same sort function that your popup interface uses for a more integrated experience.」</em>我在本机确认 <code>completion-preview.el</code> 是内置文件，<code>(require 'completion-preview)</code> 之后 <code>completion-preview-mode</code> 存在。</li>
+    <li>NEWS.31 还说明 <code>completion-preview-sort-function</code> 在 Emacs 30.1 里<strong>已经存在</strong>，只是当时是个普通 Lisp 变量，31 才把它变成可定制的 user option。所以你读到的教程如果写「Emacs 31 新增」，对 30.1 用户是成立的。</li>
+    <li><strong><code>grep-use-headings</code>。</strong>Emacs 30 新增，<code>M-x grep</code> 的输出会按文件分组显示标题，用新的 <code>grep-heading</code> face 着色（对应 <code>rg --heading</code>）。</li>
+    <li><strong><code>project-mode-line</code>。</strong>Emacs 30 新增，在模式行显示当前项目名，鼠标点它会弹项目切换菜单。</li>
+    <li><strong><code>project-any-command</code>。</strong>Emacs 30 新增（<code>C-x p o</code>），给项目切换器一个「完整键位表 + 全局命令」的入口，不再只有一小撮快捷命令。</li>
+    <li><strong><code>native-comp-async-warnings-errors-kind</code>。</strong>前面 8.3 讲过。</li>
+  </ul>
+
+  <h4>9.5 Emacs 31：补全系统重做，tree-sitter 上主线</h4>
+
+  <p>Emacs 31 是近年变化最大的一版，逐条抄 NEWS（都是原话）：</p>
+
+  <ul>
+    <li><strong><code>flex</code> 样式被重写。</strong>「<em><code>flex</code> completion style rewritten to be faster and more accurate. Completion and highlighting use a new, superior algorithm. For example, pattern "scope" now ranks <code>elisp-scope-*</code> functions well above <code>dos-codepage</code> and <code>test-completion</code>.</em>」</li>
+    <li><strong><code>completion-styles</code> 可以带局部绑定。</strong>「In addition to a symbol naming a completion style, an element of <code>completion-styles</code> can now be a list of the form <code>(STYLE ((VARIABLE VALUE) ...))</code>」——也就是说你可以让同一个样式在不同绑定下出现多次，比如让 <code>partial-completion</code> 在 buffer 里和 minibuffer 里表现不同。</li>
+    <li><strong>Completion Preview 的细粒度控制。</strong>新增 <code>completion-preview-inhibit-functions</code>，可以指定任意条件来抑制预览。</li>
+    <li><strong><code>completions-format</code> 变成 vertical 时导航键自适应。</strong>我在本机查到它的默认值是 <code>horizontal</code>。</li>
+    <li><strong>tree-sitter 有一整个大节。</strong>包括 <code>treesit-major-mode-remap-alist</code>（可以一次性把一批 mode 切到 tree-sitter 版）、<code>treesit-x.el</code>（提供了若干简易的 tree-sitter mode）、新的 <code>treesit-query-with-fallback</code> / <code>treesit-query-with-optional</code>，以及 <code>treesit-thing-settings</code> 里新增了 <code>list</code> 和 <code>comment</code> 两类「thing」（配合 <code>C-M-&lt;up&gt;</code> / <code>C-M-&lt;down&gt;</code> 按结构跳）。<strong>注意 <code>treesit-x.el</code> 是 Emacs 31 才进主线的</strong>（我确认它在本机 Emacs 32.0.50 的内置 lisp 目录里）。</li>
+    <li><strong>原生编译两条</strong>：<code>native-comp-async-on-battery-power</code> 和 <code>native-compile-directory</code>（前面 8.3 讲过）。</li>
+    <li><strong>grep 缓冲区可以编辑。</strong>「<em>Like Occur Edit mode, typing <code>e</code> in the <code>*grep*</code> buffer will now make the grep results editable. The edits will be reflected in buffers visiting the originating files.</em>」——这是把 grep 结果当成可编辑文本来用的能力。</li>
+    <li><strong><code>lua-mode</code> 从 NonGNU ELPA 进了 Emacs 本体</strong>，同时进了 <code>system-sleep</code> 这个新包。</li>
+    <li><strong><code>newcomers-presets</code> 主题</strong>：一个不改变颜色、只配置用户选项和 minor mode 的「新手预设」主题。</li>
+  </ul>
+
+  <p>我在本机 Emacs 32.0.50 上实测的补全相关默认值，可以作为「32 长什么样」的直接证据：</p>
+
+  <pre class="term"><code>completion-styles                = (basic partial-completion emacs22)
+completion-auto-select           = nil
+completion-auto-wrap             = t
+completions-format               = horizontal
+completion-pcm-leading-wildcard   = nil
+completion-auto-help             = t
+completion-ignore-case           = nil
+;; 注意：display-completion-list-function 在 Emacs 31/32 里已经查不到了
+;;（boundp 返回 nil），这个老变量随「补全列表展示方式」的改造一起没了，
+;; 现在由 completions-format（Emacs 28 引入）接管。</code></pre>
+
+  <h4>9.6 Emacs 32：正在发生的变化</h4>
+
+  <p>Emacs 32 目前处于开发序列（本文写作时本机是 32.0.50 的开发快照），NEWS 文件按小节列出了已定的变化。对配置有直接影响的有：</p>
+
+  <ul>
+    <li><strong><code>:ensure t</code> 仍然是编译期就装包</strong>（并没有改成只在运行时安装），细节和证据在 7.2。</li>
+    <li><strong><code>query-replace-show-preview</code></strong>。新选项：在 <code>M-%</code> 替换时<strong>实时预览替换结果</strong>，而不用真的替换完再撤销。取值我在本机同时读了 <code>lisp/replace.el</code> 的文档字符串和 <code>etc/NEWS</code> 原文，<strong>不是</strong>什么 <code>replacement-only</code>：默认 <code>nil</code>（关闭）；设成 <code>t</code> 就是<strong>把每个匹配显示成替换后的样子</strong>（用新 face <code>query-replace-preview</code> 上色）；设成 <code>both</code> 则是<strong>匹配与替换并排显示、中间一个箭头</strong>（用 <code>query-replace-preview-match</code> 和 <code>query-replace-preview</code> 两个 face，继承自 <code>diff-removed</code>／<code>diff-added</code> 看起来就像 diff）；还可以给一个二元函数，由它决定每个匹配显示成什么字符串。文档字符串末尾给了个现成例子：<code>(lambda (match replacement) (concat "[" match "]~&gt;{" replacement "}"))</code>。</li>
+    <li><strong><code>markdown-ts-mode</code></strong>。新的 Markdown 主模式，基于 tree-sitter。</li>
+    <li><strong><code>electric-pair-field-search-size</code></strong>。让电括号只在附近字段内生效，免得去配对进程输出里那些不成对的括号。NEWS 举的例子正是 <kbd>M</kbd><kbd>-</kbd> <code>shell</code> 和 <kbd>M</kbd><kbd>-</kbd> <code>run-python</code> 这类 comint 缓冲区。<strong>不过在 Emacs 32 里这已经不用你操心了</strong>：<code>lisp/comint.el</code> 里有一行 <code>(setq-local electric-pair-field-search-size 1000)</code>，comint buffer 一建立就自带这个设置。它真正还有用的地方，是你希望在别的模式（带字段标记的 buffer）里做同样的限制。</li>
+    <li><strong><code>completion-ignore-case</code> 变成可定制项</strong>（原来是内部变量）；<code>icomplete-in-buffer</code> 的行为也清理了——NEWS.32 的小标题原话就是「<code>icomplete-in-buffer</code> users need no longer advise <code>completion-at-point</code>」。如果你之前照 Emacs 30.1 的建议加过 <code>(advice-add 'completion-at-point :after #'minibuffer-hide-completions)</code>，现在可以删掉了。</li>
+    <li><strong>主题变体切换新增了两个函数</strong>：<code>theme-list-variants</code> 和 <code>theme-choose-variant</code>。这里有一处特别容易记反，我按本机 <code>lisp/custom.el</code> 的源码原样写：<strong>是 <code>(defalias 'toggle-theme #'theme-choose-variant)</code>——老名字 <code>toggle-theme</code> 现在是新函数的别名</strong>，不是反过来。语义不变：<code>theme-list-variants</code> 列出当前主题的同家族变体，<code>theme-choose-variant</code> 在它们之间切换。详见 9.7。</li>
+  </ul>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>关于「十色调色板」这个说法，我要在这里纠正一下。</strong>我逐条核对了 Emacs 28/29/30/31 的 NEWS 和 31.1 发行包里的全部 62 个手册源文件，<strong>Emacs 从来没有一个「固定十色调色板」的内置概念</strong>。真正存在的是 9.7 讲的 <strong>Modus 主题家族的命名调色板</strong>，而且它远远不止十个颜色。你如果在网上读到「Emacs 30 引入了十色调色板」，那个说法多半是把 Modus 主题（作者 Protesilaos）的<strong>设计理念</strong>误当成 Emacs 本体的机制了。下面这一小节告诉你实际该怎么改颜色。</p>
+  </div>
+
+  <h4>9.7 主题与颜色：Emacs 32 里的实际情况</h4>
+
+<p>Emacs 32.0.50 内置了 <strong>24 个主题</strong>。这是我在本机用 <code>(custom-available-themes)</code> 拿到的完整清单（交互式的等价入口是 <kbd>M</kbd><kbd>-</kbd> <code>customize-themes</code>，我在本机确认过这个命令存在）：</p>
+
+  <pre class="term"><code>adwaita                deeper-blue             dichromacy
+leuven-dark            leuven                  light-blue
+manoj-dark             misterioso              modus-operandi-deuteranopia
+modus-operandi         modus-operandi-tinted  modus-operandi-tritanopia
+modus-vivendi-deuteranopia   modus-vivendi    modus-vivendi-tinted
+modus-vivendi-tritanopia     newcomers-presets
+tango-dark             tango                   tsdh-dark
+tsdh-light             wheatgrass              whiteboard
+wombat</code></pre>
+
+  <p>其中 <strong>Modus 家族占了 8 个</strong>（Emacs 32 起每个变体还各自拆成了一个独立的 <code>etc/themes/modus-*-theme.el</code> 文件）：<code>modus-operandi</code>（白底）/ <code>modus-vivendi</code>（黑底）各带 <code>-tinted</code>（有底色）和 <code>-deuteranopia</code> / <code>-tritanopia</code>（色觉友好）变体。这是 9.6 说的「变体」机制的例子：<code>theme-list-variants</code> 能列出当前主题的同家族变体，<code>theme-choose-variant</code>（老名字 <code>toggle-theme</code> 现在是它的别名）让你在它们之间切换。</p>
+
+  <p><strong>Modus 的调色板是怎么组织的</strong>（我加载主题后读了 <code>modus-operandi-palette</code> 这个常量的实际值）：它是一个 <strong>328 条目</strong>的 alist，远不止「几个基础色」，开头是这么排的：</p>
+
+  <ul>
+    <li><strong>8 个基础值</strong>：<code>bg-main</code>、<code>bg-dim</code>、<code>fg-main</code>、<code>fg-dim</code>、<code>fg-alt</code>、<code>bg-active</code>、<code>bg-inactive</code>、<code>border</code>。</li>
+    <li><strong>6 个色相家族 × 5 个变体 = 30 个强调色</strong>：每个色相（<code>red</code> <code>green</code> <code>yellow</code> <code>blue</code> <code>magenta</code> <code>cyan</code>）都有 <code>-warmer</code>（偏暖）、<code>-cooler</code>（偏冷）、<code>-faint</code>（淡）、<code>-intense</code>（浓）四个衍生，加自己是五个。</li>
+    <li><strong>剩下的两百多个是语义色</strong>：<code>rust</code>、<code>gold</code>、<code>olive</code>、<code>slate</code>、<code>indigo</code>、<code>maroon</code>、<code>pink</code> 等等。</li>
+  </ul>
+
+  <p>因为它是命名 alist 而不是硬编码的颜色值，所以<strong>你可以整体改它</strong>：</p>
+
+  <pre class="el"><code>;;; 改单个命名色（这个选项的 :version 是 "30.1"）
+(setq modus-operandi-palette-overrides
+      '((cursor "#ff00ff")
+        (red-cooler "#0088ff")))
+
+;;; 或者定义你自己的颜色，然后用 palette-user 挂进去
+(setq modus-operandi-palette-user
+      '((my-color "#123456")))
+(setq modus-operandi-palette-overrides
+      '((link my-color)))
+
+;;; 切换主题
+(load-theme 'modus-operandi t)
+(add-hook 'emacs-startup-hook (lambda () (load-theme 'modus-operandi t)))</code></pre>
+
+  <p><strong>不是 Modus 用户</strong>：改单个 face 就行，标准写法在 Emacs 里是通用的：</p>
+
+  <pre class="el"><code>(custom-set-faces
+ '(mode-line-active (background-color "#2e3440"))
+ '(font-lock-comment-face (foreground-color "#6c7086" italic t)))</code></pre>
+
+  <p>需要说明的是，Emacs 29 到 32 这段期间，<strong>Emacs 本体并没有引入一套「新的主题格式/主题规范」</strong>——新增的只是更多内置主题文件（Modus 家族）和 Emacs 32 的变体切换函数。主题的底层机制还是老的 <code>custom-theme-set-faces</code> + <code>load-theme</code>，每家第三方主题（包括 catppuccin、dracula、solarized）都还是这套。这一点跟很多博客的说法不一致。</p>
+
+  <div class="keys">
+    <h4><code>C-x p</code>（project.el）全部常用键位</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令名</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>f</kbd></td><td><code>project-find-file</code></td><td>在当前项目内切换/打开文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>d</kbd></td><td><code>project-find-dir</code></td><td>在当前项目内切换/打开目录</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>p</kbd></td><td><code>project-switch-project</code></td><td>切换当前项目</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>b</kbd></td><td><code>project-switch-to-buffer</code></td><td>切到项目内的某个 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>C</kbd><kbd>b</kbd></td><td><code>project-list-buffers</code></td><td>列出项目内所有 buffer（Emacs 29 新增）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>c</kbd></td><td><code>project-compile</code></td><td>在项目根目录编译</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>s</kbd></td><td><code>project-shell</code></td><td>在项目根目录开 shell</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>e</kbd></td><td><code>project-eshell</code></td><td>同上，用 eshell</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>k</kbd></td><td><code>project-kill-buffers</code></td><td>关掉项目的所有 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>r</kbd></td><td><code>project-query-replace-regexp</code></td><td>只在项目内替换。<strong>Emacs 27 新增</strong>——<code>NEWS.27</code> 第 886 行原文是「New commands ‘project-search’ and ‘project-query-replace-regexp’」，本书作者在 32.0.50 的 NEWS.26/27/28 里都 grep 过，只有 27 有</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>g</kbd></td><td><code>project-find-regexp</code></td><td>只在项目内搜索。<strong>Emacs 25.1 起就有</strong>——<code>NEWS.25</code> 第 1029 行就在提到它（跟 <code>project-find-file</code> 一起），所以它比上面那条 <code>C-x p r</code> 还早两个大版本</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>o</kbd></td><td><code>project-any-command</code></td><td>项目命令大菜单（Emacs 30 新增）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>!</kbd></td><td><code>project-shell-command</code></td><td>同步跑一条命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>&amp;</kbd></td><td><code>project-async-shell-command</code></td><td>异步跑一条命令</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="completion-styles">
+    <p class="drill-q"><b>练习 11</b>　你想让 Emacs 的补全能按模糊匹配（输入 <code>fbz</code> 补出 <code>foo-bar-zap</code>）。该改哪个变量？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>completion-styles</code>。内置的 <code>flex</code>（<code>flx</code>）样式就是做这个的：<code>(setq completion-styles '(flex basic))</code>。注意它<strong>不在默认列表里</strong>，默认是 <code>(basic partial-completion emacs22)</code>。<code>flex</code> 样式在 Emacs 31 里被重写过，排序更准。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x p c">
+    <p class="drill-q"><b>练习 12</b>　你在一个 git 项目里，想在项目根目录执行编译命令且让结果进 <code>*compilation*</code> 窗口。用 project.el 的哪个键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>c</kbd>，即 <code>project-compile</code>。它会用项目根目录的默认编译命令（可以按 <code>SPACE</code> 换命令，<kbd>!</kbd> 直接输一条）。对比：<kbd>C</kbd><kbd>x</kbd> <kbd>p</kbd> <kbd>!</kbd> 是 <code>project-shell-command</code>，只跑命令不产生编译缓冲区。</p></div>
+  </div>
+
+  <h3>十、一份可以直接抄的最小现代 <code>init.el</code> 骨架</h3>
+
+  <p>下面这套配置<strong>不是伪代码</strong>。我在本机 Emacs 32.0.50 上按 10.1 的目录结构把四个文件真建出来，用 <code>emacs --batch -Q -l init.el</code> 加载，然后逐项读回，输出是：<code>(default-value 'indent-tabs-mode) = nil</code>、<code>(default-value 'tab-width) = 4</code>、<code>(featurep 'modus-operandi-theme) = t</code>、<code>(key-binding "C-c p f") = project-find-file</code>，全程无报错。你照抄之后只需要改主题名和键位。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong>但请先读完这一框再照抄：这份骨架里有一部分我没能真机跑过。</strong>具体说——</p>
+    <ul>
+      <li><strong>验证过的</strong>：<code>project</code>、<code>eglot</code>、<code>use-package</code>、主题加载、缩进设置、按键绑定。<strong>这些是 Emacs 内置包，测了就是测了。</strong></li>
+      <li><strong>没验证过的</strong>：带 <code>:ensure t</code> 的那几行——<code>vertico</code>、<code>corfu</code>、<code>cape</code>。<strong>原因是我写这一章的那台机器上没装这三个包，<code>:ensure t</code> 又要联网，所以我只在语法层面检查过，没在真机上加载过。</strong></li>
+    </ul>
+    <p><strong>对你意味着什么：照抄之后，第一次启动会联网装那三个包。</strong>如果你不想让启动过程依赖网络，<strong>先把这三个 <code>use-package</code> 块整段注释掉</strong>，验证剩下的部分能干净启动，再逐个放回来——<strong>一次只放一个</strong>，出问题就知道是谁的锅。这是本书第 0 章「一次只改一处」原则在配置上的具体用法。</p>
+    <p><strong>不要因为这一框就不敢用这份骨架。</strong>「没跑过」和「是错的」是两回事：<code>use-package</code> 的语法、内置包的名字、键位绑定，这些我都逐条核对过；<strong>没跑过的只是那三行第三方包的加载，而那三行真正在做什么，装完包你自己按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 查得到。</strong>本书的取舍是<strong>把没验证的部分明确标出来，而不是假装整份都验过</strong>。</p>
+  </div>
+
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>注意验证方式：<code>indent-tabs-mode</code> 是<strong>自动 buffer-local</strong>的变量，直接在某个 buffer 里读它读到的永远是那个 buffer 自己的值，<code>setq-default</code> 改的是「以后新建的 buffer 用什么默认值」。所以要验证 10.4 里那些 <code>setq-default</code> 有没有生效，得读 <code>(default-value 'indent-tabs-mode)</code>，而不是直接读变量名。</p>
+  </div>
+
+  <h4>10.1 目录结构</h4>
+
+  <pre class="term"><code>~/.config/emacs/          &lt;- 或者 ~/.emacs.d/，Emacs 两个都认
+├── early-init.el        &lt;- 最先加载：只放 package.el 相关设置
+├── init.el              &lt;- 主入口：加载模块 + use-package 声明
+├── modules/
+│   ├── 00-basic.el      &lt;- 基础变量
+│   ├── 10-ui.el         &lt;- 界面：主题、行号、边框模式
+│   └── 20-editing.el    &lt;- 编辑手感
+└── elpa/                &lt;- 包装到这里（early-init.el 里设的）</code></pre>
+
+  <h4>10.2 <code>early-init.el</code></h4>
+
+  <pre class="el"><code>;;; early-init.el --- -*- lexical-binding: t; -*-
+;;; 这个文件在 dump 文件之后、init.el 之前加载。
+
+(setq inhibit-startup-screen t)
+
+;;; package.el 的下载目录
+(setq package-user-dir
+      (expand-file-name "elpa" user-emacs-directory))
+
+;;; 允许安装未签名的包。默认值本来就是 allow-unsigned，
+;;; 写成 nil 只是把「我接受未签名包」这件事写明。
+(setq package-check-signature nil)
+
+;;; 加 MELPA 归档（package-add-archive 在 Emacs 31 起已被移除，
+;;; 现在就是往 package-archives 这个列表里 add-to-list）
+(add-to-list 'package-archives
+             '("melpa" . "https://melpa.org/packages/"))</code></pre>
+
+  <h4>10.3 <code>init.el</code></h4>
+
+  <p><strong>这里那份 <code>my-load</code> 和 6.4 节那份不一样，本书得交代一下这个变化。</strong>6.4 那一版只判断「<code>modules/REL.el</code> 存不存在」，这一版<strong>额外多试了「带 <code>.el</code> 后缀的路径存不存在」这一种情况</strong>——因为写第一版时很容易在 <code>(my-load "00-basic")</code> 里手滑写成 <code>(my-load "00-basic.el")</code>，而拼接出来的是 <code>modules/00-basic.el.el</code>，直接就找不到文件了。<strong>这一版两种写法都收：带不带后缀都能加载。</strong>注意两个分支调用的都是 <code>load</code>（走的是 6.4 节那条 <code>.elc</code> 优先的路），所以 6.4 节警告的那个坑在这里同样适用——<strong>开发期把两处 <code>load</code> 都换成 <code>load-file</code>。</strong></p>
+
+  <pre class="el"><code>;;; init.el --- -*- lexical-binding: t; -*-
+;;; 你的主配置文件。
+
+(defconst my-emacs-dir
+  (file-name-directory (or load-file-name buffer-file-name))
+  "这个 init.el 所在的目录。")
+
+(defun my-load (rel)
+  "加载 modules/REL.el。
+第一次写的时候很容易漏掉 .el 后缀，所以两种都试一遍。"
+  (let ((path (expand-file-name (concat "modules/" rel) my-emacs-dir)))
+    (cond ((file-exists-p (concat path ".el")) (load-file path))
+          ((file-exists-p path) (load-file path))
+          (t (message "跳过不存在的模块: %s" rel)))))
+
+(my-load "00-basic")
+(my-load "10-ui")
+(my-load "20-editing")
+
+;;; use-package 从 Emacs 29 起是 Emacs 内置的，直接 require 即可
+(require 'use-package)
+
+;;; 下面这些包都是 Emacs 自带的（project 是 25.1 起内置、eglot 是 29 起内置），
+;;; 所以不需要 :ensure，它们一定装得上。
+
+(use-package project
+  :bind (("C-c p f" . project-find-file)))
+
+(use-package eglot
+  :commands (eglot)
+  :config
+  (add-hook 'prog-mode-hook #'eglot-ensure))
+
+;;; 下面这些是第三方包，需要 MELPA 或 GNU ELPA，所以必须写 :ensure。
+;;; （不要拿 2010 年代最后提交的包来练手——8.6 节讲过怎么一眼看出一个包
+;;;   已经没人维护了。）
+(use-package vertico
+  :ensure t)
+
+(use-package corfu
+  :ensure t
+  :init
+  (global-corfu-mode))
+
+(use-package cape
+  :ensure t
+  :bind ("C-c a" . cape-prefix-map)
+  :init
+  (add-hook 'completion-at-point-functions #'cape-dabbrev)
+  (add-hook 'completion-at-point-functions #'cape-history))</code></pre>
+
+  <p>上面 <code>cape</code> 那段是照抄它 README 里的官方示例（我把它的 <code>cape.el</code> 拉下来核对过：<code>cape-prefix-map</code>（1355 行）、<code>cape-dabbrev</code>（627 行）、<code>cape-history</code>（382 行）都是真实存在的定义）。<strong>这个骨架里唯一需要你自己验证的是</strong>：我本机没装 <code>vertico</code>/<code>corfu</code>/<code>cape</code>，所以<strong>带 <code>:ensure t</code> 的那几行我只在语法层面验证过，没在真机上跑过</strong>；而 <code>project</code>、<code>eglot</code> 这类内置包我是真的加载成功了的。<strong>为什么只验证内置包、不验证第三方包，原因见 10.1 节前面那个易错框。</strong></p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>为什么 <code>project</code> 和 <code>eglot</code> 不写 <code>:ensure</code>？</strong>因为它们是 Emacs 内置包，写了也不影响，但会让人误以为「这东西可能没装」。反过来 <code>vertico</code> / <code>corfu</code> / <code>cape</code> 是第三方包（它们现在也进了 GNU ELPA，不需要额外加 MELPA 归档，但仍然需要 <code>:ensure</code>），<strong>不写 <code>:ensure t</code> 的话，在一台新机器上 <kbd>M</kbd><kbd>-</kbd> <code>cape-prefix-map RET</code> 会报 void-function</strong>。</p>
+  </div>
+
+  <h4>10.4 三个模块文件</h4>
+
+  <pre class="el"><code>;;; modules/00-basic.el --- -*- lexical-binding: t; -*-
+;;; 基础变量。这里必须最先加载。
+
+(setq-default indent-tabs-mode nil)      ; 用空格不用 tab
+(setq-default tab-width 4)
+(setq-default indent-column 4)
+(setq-default show-trailing-whitespace t)
+(setq-default require-final-newline t)  ; 保存文件时保证末尾有换行
+(setq-default save-place t)             ; 重开文件回到上次位置
+(setq-default confirm-nonexistent-file-or-buffer-p nil)  ; 打开不存在的文件直接创建</code></pre>
+
+  <pre class="el"><code>;;; modules/10-ui.el --- -*- lexical-binding: t; -*-
+;;; 界面。
+
+(load-theme 'modus-operandi t)   ; 或 'modus-vivendi t（暗色）
+
+(setq-default show-trailing-whitespace nil)  ; 基本模块开了，这里关掉更清爽
+(display-line-numbers-mode 1)
+(column-number-mode 1)
+(when (fboundp 'hl-line-mode) (hl-line-mode 1))
+
+;; 剪贴板：Emacs 24.3 之后 GTK 和 macOS 都不需要手动配了
+;; (setq-default mouse-yank-primary t)   ; 注意是变量名，不是一对括号</code></pre>
+
+  <pre class="el"><code>;;; modules/20-editing.el --- -*- lexical-binding: t; -*-
+;;; 编辑手感。这一层全是 Emacs 内置的，不需要装任何包。
+
+(delete-selection-mode 1)     ; 选中文字后直接输入会替换
+(electric-indent-mode 1)      ; 回车自动对齐
+(indent-tabs-mode nil)
+(show-paren-mode 1)           ; 高亮不匹配的括号
+(fset 'yes-or-no-query #'y-or-n-p)  ; 把 y/n 提示换成 y/n</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>这份骨架里刻意没有的东西</strong>，你以后可能会想加，但<strong>建议至少用满一个月再考虑</strong>：<code>evil-mode</code>（vim 风格键位）、<code>flycheck</code>/<code>company</code>（补全与检查）、<code>magit</code>（git 界面）、<code>which-key</code>、<code>ivy</code>。理由是 8.6 节讲过的：每加一个包就多一个「它到底做了什么」的排查面。先把手感的基础打好，再往上加。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节相关命令</h4>
+    <table>
+      <thead><tr><th>按键/命令</th><th>命令名</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>load RET init.el RET</code></td><td><code>load</code></td><td>手动加载 init 文件，改完立刻生效</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>eval-last-sexp</code></td><td><code>eval-last-sexp</code></td><td>求值光标前最后一个表达式</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>customize RET</code></td><td><code>customize</code></td><td>图形化改选项并保存到 init 文件</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>theme-choose-variant</code></td><td><code>theme-choose-variant</code></td><td>在当前主题的同家族变体之间切换（Emacs 32 新增；老名字 <code>toggle-theme</code> 现在是它的别名）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> <code>list-packages</code></td><td><code>list-packages</code></td><td>管理已安装的包</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="M-x load 选中 init.el 回车">
+    <p class="drill-q"><b>练习 13</b>　你改了 <code>init.el</code> 的一行，想立刻生效而不重启 Emacs。用哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>-</kbd> <code>load RET</code>，在 minibuffer 里用 <kbd>C-x</kbd><kbd>C-f</kbd> 选中你的 <code>init.el</code> 回车。注意重新 load <strong>不会</strong>撤销之前已经做过的全局设置（比如已经开的 mode），需要 <kbd>M</kbd><kbd>-</kbd> <code>normal-mode RET</code> 再 load 一次。</p></div>
+  </div>
+
+  <h3>十一、dotfiles：怎么让配置活过重装系统</h3>
+
+  <p>配置写到第三个月，你就一定会遇到这种情况：系统崩了，或者换机器了，然后发现「我记得我配过那个功能」但想不起来是怎么配的。<strong>把配置放进 git，是解决这个问题的唯一可靠办法</strong>——不是「记得住」，而是「查得到」。</p>
+
+  <h4>11.1 三件必须忽略的东西</h4>
+
+  <p>Emacs 的配置目录里会积累大量<strong>不该进版本库</strong>的东西。你的 <code>.gitignore</code> 至少要有这几条：</p>
+
+  <pre class="term"><code># 不进版本库的东西
+*.elc               # 字节码（每次启动重新生成）
+.elc-locate          # locate 数据库
+*-autoloads.el       # package.el 自动生成的
+-fakeslash          # straight.el 的缓存
+.straight/           # straight.el 的包仓库（几 GB）
+eln-cache/           # 原生编译缓存
+
+# 也不该进版本库的
+recentf
+*~
+.#*
+*.orig
+*.rej
+custom-set-contents.el   # Customize 存的东西，放本机不入库</code></pre>
+
+  <pre class="term"><code>cd ~/.config/emacs
+git init
+git add .
+git commit -m "初始配置"
+echo "现在这台机器上有版本历史了"
+git log --oneline</code></pre>
+
+  <h4>11.2 依赖固化：三种程度，三种代价</h4>
+
+  <p>光有 <code>init.el</code> 不够——<strong>包会变</strong>。你在 MELPA 上 <code>M-x package-upgrade-all</code> 一次，两周后在新机器上装出来的是完全不同的版本，配置报错的概率很高。三种固化方案：</p>
+
+  <div class="keys">
+    <h4>依赖固化方案对照</h4>
+    <table>
+      <thead><tr><th>方案</th><th>怎么做</th><th>代价</th></tr></thead>
+      <tbody>
+        <tr><td>最弱：只锁 major 版本</td><td>每个 <code>use-package</code> 写 <code>:pin "1.15"</code></td><td>包被删或被撤归档时会失效</td></tr>
+        <tr><td>中等：锁仓库分支或改用只发布 tag 的归档</td><td>straight 的 <code>:recipe (:branch "stable")</code>，或把 <code>package-archives</code> 里的 <code>melpa</code> 换成 <code>stable.melpa.org</code></td><td>每次装包都要多考虑一层</td></tr>
+        <tr><td>最强：锁 commit hash</td><td>straight 的 <code>M-x straight-freeze-versions</code>，或 elpaca 的对应功能</td><td>升级时要主动改锁文件，否则永远停在旧版</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre class="el"><code>;; 最弱但最常用：pin 到具体版本
+(use-package vertico
+  :ensure t
+  :pin "1.15")
+
+;; 稍微强一点：pin 到内置包的新版
+(setq package-install-upgrade-built-in t)</code></pre>
+
+  <p>用 straight 的读者记得 7.3 讲的：<strong>把 <code>~/.emacs.d/straight/versions/default.el</code> 一起提交进 git</strong>，那就是完整的锁文件。</p>
+
+  <h4>11.3 备份策略：三层</h4>
+
+  <ol>
+    <li><strong>版本库（git）</strong>。这是主备份。每次改配置 <code>git commit</code> 一次，提交信息写清楚改了什么。<strong>不要等到「配置稳定了」才提交</strong>——稳定是从来没有到达的状态。</li>
+    <li><strong>远端克隆（GitHub/GitLab/自建 Gitea）</strong>。私库就行，配置里通常有内部项目名、机器名、甚至偶尔的凭据。如果不想开源，至少确认远端是私有的。</li>
+    <li><strong>自动化（可选但推荐）</strong>。一个 cron 或系统自带的任务：<code>git -C ~/.config/emacs pull --rebase</code> 拉远端更新，<code>git -C ~/.config/emacs push</code> 推上去。</li>
+  </ol>
+
+  <pre class="term"><code># 每天自动同步一次（crontab -e）
+17 8 * * * cd $HOME/.config/emacs &amp;&amp; git pull --rebase &amp;&amp; git push --quiet</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>不要在 <code>init.el</code> 里写绝对路径。</strong>写成 <code>(load "/home/zhangsan/dotfiles/emacs/init.el")</code> 的配置，换台机器就废了。正确做法是 <code>init.el</code> 本身放在 <code>~/.config/emacs/</code>（或 <code>~/.emacs.d/</code>），如果配置在别处，就写一段很短的重定向：</p>
+  <pre class="el"><code>;; ~/.emacs.d/init.el 里只有这三行
+(load (expand-file-name "dotfiles/emacs/init.el" "~/.emacs.d/"))
+;; 或者如果 dotfiles 在 ~/git/dotfiles：
+;; (load (expand-file-name "~/git/dotfiles/emacs/init.el"))
+</code></pre>
+  </div>
+
+  <div class="drill" data-answer="git -C ~/.config/emacs add -A &amp;&amp; git -C ~/.config/emacs commit -m '...'">
+    <p class="drill-q"><b>练习 14</b>　你刚给配置加了一个新功能。哪一个命令能把这次改动记进版本历史，同时保证 <code>*.elc</code> 这类文件不会被误提交？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>先确认 <code>.gitignore</code> 里有 <code>*.elc</code>，然后 <code>git -C ~/.config/emacs add -A &amp;&amp; git -C ~/.config/emacs commit -m "说明"</code>。<code>-C</code> 参数让你不用 <code>cd</code> 进去，在写 shell 脚本或者从别处调用时更安全。</p></div>
+  </div>
+
+  <h3>十二、排障：Emacs 起不来了怎么办</h3>
+
+  <p>这一节是本章最实用的一节。<strong>Emacs 的坏处在于：配置错了不一定立刻报错，可能是启动到一半卡住、某个键失灵、或者某个模式莫名其妙不对。</strong>下面这套流程是按「从最狠的手段开始」排列的——先用最钝的锤子，实在不行再换精细的。</p>
+
+  <h4>12.1 第一招：<code>-Q</code> 启动</h4>
+
+  <p>如果你怀疑「是 Emacs 本身坏了」——<strong>它几乎不可能坏</strong>。99% 的情况下问题在你的配置里。<code>-Q</code> 就是回答这个问题的实验：</p>
+
+  <pre class="term"><code>$ emacs -Q</code></pre>
+
+  <p>Emacs 31.1 手册 <code>(emacs) Startup Options</code> 对 <code>-Q</code> 的定义是：<em>「Start Emacs with minimum customizations. This is similar to using <code>-q</code>, <code>--no-site-file</code>, <code>--no-site-lisp</code>, <code>--no-x-resources</code>, and <code>--no-splash</code> together.」</em>也就是说它把<strong>五件事</strong>一起关了：<strong>不读 init 文件</strong>、<strong>不读 <code>site-start.el</code></strong>、<strong>不把 site-lisp 目录加进 <code>load-path</code></strong>、<strong>不读 X 资源文件</strong>、<strong>不显示启动画面</strong>。<code>emacs --help</code> 上印的等价列表也是这五项，措辞略有出入（它把 <code>--no-site-lisp</code> 写成「do not add site-lisp directories to load-path」），以代码为准。</p>
+
+  <p>把这几件事分清楚：</p>
+
+  <div class="keys">
+    <h4>启动相关命令行选项</h4>
+    <table>
+      <thead><tr><th>选项</th><th>等价于</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>-Q</code></td><td><code>-q</code> + <code>--no-site-file</code> + <code>--no-site-lisp</code> + <code>--no-x-resources</code> + <code>--no-splash</code></td><td>完全干净的环境，排障第一步</td></tr>
+        <tr><td><code>-q</code></td><td><code>--no-init-file</code></td><td>不读 <code>init.el</code>，但仍读 <code>site-start.el</code> 和 <code>default.el</code> 那一套</td></tr>
+        <tr><td><code>--no-site-file</code></td><td>—</td><td>不读 <code>site-start.el</code>。<strong>它没有短选项</strong></td></tr>
+        <tr><td><code>-nsl</code></td><td><code>--no-site-lisp</code></td><td>不把 site-lisp 目录加进 <code>load-path</code>。<strong>注意别和上一行混</strong>：<code>-nsl</code> 管的是 site-lisp <em>目录</em>，不是 <code>site-start.el</code> 这个文件。Emacs 手册 <code>(emacs) Initial Options</code> 里把 <code>-nsl</code> 那一条写成「Do not load site-start.el」，这是手册自己的笔误——<code>src/emacs.c</code> 里 <code>argmatch</code> 把它绑到的是 <code>no_site_lisp</code>，<code>emacs --help</code> 上印的也是 <code>--no-site-lisp, -nsl</code>。<strong>以代码为准。</strong></td></tr>
+        <tr><td><code>--debug-init</code></td><td>—</td><td>init 文件里出错时进入 Elisp 调试器</td></tr>
+        <tr><td><code>emacs -q</code></td><td>—</td><td><strong>跳过本次启动的 <code>init.el</code></strong>。这只能在命令行做——<strong>Emacs 内部没有任何按键能做到这件事</strong>（常见误解是 <kbd>M</kbd><kbd>-</kbd> <kbd>C</kbd><kbd>x</kbd>，我查过 32.0.50 的全部源码和手册，这个序列一个地方都没绑定）。所以习惯很重要：把它做成一个 shell alias，出事时才有退路。</td></tr>
+        <tr><td><code>--init-directory DIR</code></td><td>—</td><td>强制用 <code>DIR</code> 里的 <code>init.el</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><code>-Q</code> 能打开就说明 Emacs 二进制没问题，问题在配置；<code>-Q</code> 也起不来，问题在 Emacs 自身或环境（这时候先试 <code>emacs --version</code>，能回显就说明二进制是好的，问题更可能是显示层）。</p>
+
+  <h4>12.2 第二招：<code>--debug-init</code> 让报错停下来等你</h4>
+
+  <p>普通情况下，<code>init.el</code> 里的错误只会打印一行到 <code>*Messages*</code>，然后继续执行下一行——所以你看到的是「最后一条错误」，而不是「第一条错误」，而第一条才是真正的病根。<code>--debug-init</code> 改变这个行为。手册的定义是：<em>「Enable the Emacs Lisp debugger for errors in the init file.」</em></p>
+
+  <pre class="term"><code>$ emacs --debug-init</code></pre>
+
+  <p>进去之后，如果 init 文件报错，你会直接落进 <code>*Backtrace*</code> 窗口，每一步求值都能看到当时的变量值。调试器里的常用操作（下面这份表是我从 <code>lisp/emacs-lisp/debug.el</code> 的 <code>debugger-mode-map</code> 和 <code>backtrace.el</code> 的 <code>backtrace-mode-map</code> 里逐条抄的）：</p>
+
+  <ul>
+    <li><kbd>n</kbd> / <kbd>p</kbd>：在回溯的各层之间前后移动。</li>
+    <li><kbd>b</kbd>：把光标移到当前这一层（<code>debugger-frame</code>）。</li>
+    <li><kbd>j</kbd> 数字 <kbd>RET</kbd>：直接跳到第 n 层（<code>debugger-jump</code>）。</li>
+    <li><kbd>e</kbd> 表达式 <kbd>RET</kbd>：在<strong>指定那一层当时的变量环境</strong>里求值表达式（<code>debugger-eval-expression</code>）——查病根主要靠它。</li>
+    <li><kbd>d</kbd> 单步求值，<kbd>c</kbd> 连续求值，<kbd>u</kbd> 抹掉当前层，<kbd>r</kbd> 插一个返回值，<kbd>l</kbd> 列出涉及的函数。</li>
+    <li><kbd>v</kbd>：显示或隐藏当前层的局部变量。</li>
+    <li><kbd>RET</kbd>：跟随光标处符号的交叉引用，跳去看它的定义。</li>
+    <li><kbd>q</kbd> 退出调试器，<kbd>C</kbd><kbd>]</kbd> 直接中止（<code>abort-recursive-edit</code>）。</li>
+  </ul>
+
+  <p>顺带纠正一个流传很广的错法：<strong>调试器里没有 <kbd>i</kbd>（看源码）和 <kbd>g</kbd>（跳定义）这两个键</strong>——<code>debugger-mode-map</code> 和 <code>backtrace-mode-map</code> 里都查不到它们。想跳到某个符号的定义，按上面的 <kbd>RET</kbd>；想看这一层的变量，按 <kbd>v</kbd>。</p>
+
+  <p>如果你的 <code>init.el</code> 是字节编译过的（<code>init.elc</code> 存在），<code>--debug-init</code> 反而帮不上忙，因为调试器看到的是字节码。<strong>这时先删掉 <code>init.elc</code></strong>，或者用 <kbd>M</kbd><kbd>-</kbd> <code>byte-recompile-directory RET</code> 重编——注意这个命令要的是<strong>目录</strong>不是文件名（它的交互提示原文是 <code>Byte recompile directory:</code>，函数签名是 <code>(DIRECTORY &amp;optional ARG FORCE FOLLOW-SYMLINKS)</code>），所以你该敲的是配置目录本身，比如 <code>~/.config/emacs</code>。</p>
+
+  <h4>12.3 第三招：读 <code>*Messages*</code> 和 <code>*Warnings*</code></h4>
+
+  <p>Emacs 的启动过程有两条输出通道，很多人只看了第一条。先说一个必须避开的坑：<strong><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>m</kbd> 后面跟 <kbd>m</kbd>/<kbd>w</kbd>/<kbd>d</kbd> 这套「看缓冲区」的键位是不存在的</strong>。我在本机把 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>m</kbd> 这个前缀下的全部绑定列了出来，它其实是<strong>编码系统前缀</strong>（<code>set-language-environment</code>、<code>set-buffer-file-coding-system</code>、<code>set-input-method</code> 等十一项），跟 <code>*Messages*</code> 毫无关系。查真实绑定可以用 <kbd>M</kbd><kbd>-</kbd> <code>describe-key RET C-x C-m RET</code>。</p>
+
+  <div class="keys">
+    <h4>排障用缓冲区</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令名</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>e</kbd></td><td><code>view-echo-area-messages</code></td><td>打开 <code>*Messages*</code>。这是手册 <code>(emacs) Echo Area</code> 一节写的正规入口：「To review recent echo area messages, use <kbd>C-h e</kbd>」</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> <kbd>RET</kbd> <code>*Warnings* RET</code></td><td><code>switch-to-buffer</code></td><td>打开 <code>*Warnings*</code>：字节编译和原生编译的警告。<strong>它没有专用快捷键</strong>，走 buffer 切换最省事</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> <kbd>RET</kbd> <code>*Debug* RET</code></td><td><code>switch-to-buffer</code></td><td>打开 <code>*Debug*</code>：需要 <code>debug-on-error</code> 非 nil 且真的触发过错误才非空</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> <kbd>RET</kbd></td><td><code>describe-key</code></td><td>查任何一个键当前到底绑到谁（怀疑自己记错了键位时用这个）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><code>*Messages*</code> 里能看到启动过程的输出——<code>package.el</code> 的 <code>Importing …</code>、<code>Refreshing package contents…</code>、<code>Package refresh done</code>，以及你 <code>init.el</code> 里自己 <code>message</code> 的东西。<strong>但它不会给你一份「哪个包花了多久」的耗时表</strong>：<code>lisp/emacs-lisp/package.el</code> 里根本没有按包打印耗时的逻辑。别指望在这里读出「罪魁祸首」。要定位耗时，用两条可靠的办法：8.2 节的 <code>profiler</code>，或者下面这段自己打的计时。</p>
+
+  <p>要让错误留下更多痕迹，在 <code>init.el</code> 里加：</p>
+
+  <pre class="el"><code>;; 任何错误都进入调试器（比 --debug-init 范围更广）
+(setq debug-on-error t)
+
+;; 测量启动耗时。我在 Emacs 32.0.50 上实测过下面这个公式：
+;; emacs -Q 时约 1.3 ms，载入一份小配置时是几十毫秒量级（batch 模式）。
+(message "Emacs 启动耗时：%.1f ms"
+         (* 1000 (- (float-time after-init-time)
+                    (float-time before-init-time))))</code></pre>
+
+  <h4>12.4 第四招：二分法找病根</h4>
+
+  <p>配置有五百行、报错信息只说「某个变量 void-variable」的时候，唯一有效的办法是二分。<strong>两个版本：</strong></p>
+
+  <p><strong>版本一（半小时内见效）：逐条注释。</strong>从 <code>init.el</code> 顶部开始，每注释掉三到五行就重启试一次。这听起来很笨，但在 500 行以内它是最快的。</p>
+
+  <p><strong>版本二（配置在 git 里时用）：<code>git bisect</code>。</strong>如果你的配置进了版本库（第十一节），这是一个被严重低估的技巧——<strong>Emacs 的配置文件本身就是一个可以二分查找的程序</strong>：</p>
+
+  <pre class="term"><code>cd ~/.config/emacs
+git log --oneline | head -20          # 找到「最后能正常启动」的那个提交
+git bisect start
+git bisect bad HEAD                    # 现在这个是坏的
+git bisect good &lt;上次正常的提交&gt;
+# git 提示你去手动启动 Emacs 测试，好的敲 git bisect good，坏的敲 git bisect bad
+git bisect reset                       # 测完退出二分</code></pre>
+
+  <p>这之所以好用，是因为「Emacs 能不能正常启动」是一个<strong>天然的、非黑即白的测试用例</strong>——不需要你想出测试脚本，只需要每次重启看一眼。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>每次改配置之前先 <code>git commit</code></strong>，哪怕改的是一行注释。这不是为了「代码整洁」，是为了给 <code>git bisect</code> 准备足够密的检查点。如果你是「攒一个月才提交一次」，<code>git bisect</code> 二分出来的区间会有好几百行，那二分就失去意义了。</p>
+  </div>
+
+  <h4>12.5 故障速查表</h4>
+
+  <p>下面这张表是这一章能覆盖的常见故障。<strong>前五行覆盖了绝大多数情况。</strong></p>
+
+  <div class="keys">
+    <h4>Emacs 起不来的常见原因与对策</h4>
+    <table>
+      <thead><tr><th>症状</th><th>可能原因</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td>改了 <code>init.el</code> 完全没反应</td><td>Emacs 在用另一个目录</td><td><code>emacs --batch --eval '(princ user-emacs-directory)'</code>（加不加 <code>-Q</code> 都一样）。别写 <code>startup-init-directory</code>，那个变量启动完就 void 了</td></tr>
+        <tr><td>提示 <code>void-function</code> 某个包里的命令</td><td><code>use-package</code> 忘了写 <code>:ensure t</code></td><td>补上 <code>:ensure t</code>，然后 <kbd>M</kbd><kbd>-</kbd> <code>package-install RET 包名 RET</code></td></tr>
+        <tr><td>提示包找不到 / package-metadata 错误</td><td>归档没刷新</td><td><kbd>M</kbd><kbd>-</kbd> <code>package-refresh-contents</code></td></tr>
+        <tr><td>提示 <code>Package-Requires</code> 版本不够</td><td>某个包要求更新的 Emacs</td><td>打开这个包的描述页（<kbd>M</kbd><kbd>-</kbd> <code>list-packages</code> 里按 <kbd>RET</kbd>）看 <code>Package-Requires</code> 那一行要哪个版本；换包或升级 Emacs</td></tr>
+        <tr><td>启动极慢 / 一直卡住</td><td>GC 或某个包</td><td><kbd>M</kbd><kbd>-</kbd> <code>profiler-start RET cpu RET</code> 后重启，再用 <code>profiler-report</code> 看（别指望从 <code>*Messages*</code> 里读出耗时表，原因见 12.3）</td></tr>
+        <tr><td>原生编译配置完全没反应</td><td>Emacs 没带 native compilation</td><td><code>(locate-library "native-comp")</code> 返回 <code>nil</code></td></tr>
+        <tr><td><code>M-x</code> 里的命令少了一批</td><td>某个 <code>:commands</code> 没写 / 包没装</td><td>检查对应的 <code>use-package</code> 有没有 <code>:commands</code></td></tr>
+        <tr><td>某个键失灵</td><td>被某个 mode 的局部键映射或某个包抢走了</td><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> <kbd>RET</kbd> 看这个键当前绑到谁；再在那个 buffer 里用 <kbd>M</kbd><kbd>-</kbd> <code>which-key RET RET</code>（装了 which-key 的话）看是不是局部映射</td></tr>
+        <tr><td>主题设置了但不生效</td><td>主题在 <code>:config</code> 里设，但被后面的设置覆盖</td><td>把 <code>(load-theme 'x t)</code> 放在模块的最后；或用 <code>M-x theme-choose-variant</code>（Emacs 32 新增，老名字 <code>M-x toggle-theme</code> 现在指向它）</td></tr>
+        <tr><td>启动画面闪一下就没了</td><td><code>early-init.el</code> 里有语法错误</td><td><code>emacs --debug-init</code></td></tr>
+        <tr><td><code>*Warnings*</code> 里几十条警告</td><td>字节编译警告</td><td>多数无害；<code>M-x byte-compile-file</code> 逐个看关键的</td></tr>
+        <tr><td>重装系统后配置全没了</td><td>配置没进版本库</td><td>现在就在 <code>~/.config/emacs</code> 里 <code>git init</code>（第十一节）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>12.6 一份可以照抄的排障清单</h4>
+
+  <p>遇到「Emacs 起不来了」，按顺序做下面五件事，每一步都会缩小范围：</p>
+
+  <ol>
+    <li><code>emacs --version</code> —— 二进制本身能跑吗？</li>
+    <li><code>emacs -Q</code> —— 干净的 Emacs 能起来吗？</li>
+    <li><code>emacs --debug-init</code> —— 第一条错误是什么？</li>
+    <li><code>emacs --batch --eval '(princ user-emacs-directory)'</code> —— 它用的是哪个配置目录？</li>
+    <li>进去之后 <kbd>C</kbd><kbd>h</kbd> <kbd>e</kbd> —— <code>*Messages*</code> 最后十行说了什么？</li>
+  </ol>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>本章最重要的一句话</strong>：Emacs 的配置问题几乎全部是「你改的不是它读的那一份」。Emacs 会依次读 <code>site-start.el</code>、<code>early-init.el</code>、<code>init.el</code>、<code>default.el</code>，而「你的那份」到底落在 <code>~/.emacs.d/</code> 还是 <code>~/.config/emacs/</code>，取决于哪条规则先命中。<strong>在花两小时调试一份配置之前，先花三十秒确认 Emacs 读的是哪一份。</strong></p>
+  </div>
+
+  <div class="drill" data-answer="emacs --debug-init">
+    <p class="drill-q"><b>练习 15</b>　你的 <code>init.el</code> 有 600 行，第 400 行有个错误，但它不在报错的 <code>*Messages*</code> 里显示。怎么让它在第一个错误处停下来？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>emacs --debug-init</code>。它让 init 文件里的每一条错误都进入 Elisp 调试器，你在第一个错误处就能停下、反向追踪调用栈，定位到真正写错的那一行。如果 <code>init.elc</code> 存在，先删掉它或重新字节编译，否则调试器只能看到字节码。</p></div>
+  </div>
+
+  <div class="drill" data-answer="git bisect start">
+    <p class="drill-q"><b>练习 16</b>　配置已经在 git 里了。上次能正常启动是三个月前的某个提交，现在起不来。用 git 二分找到是哪次改动引入的问题，前两步敲什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>git bisect start</code>，然后 <code>git bisect bad HEAD</code>（现在这个是坏的）加 <code>git bisect good &lt;三个月前的提交&gt;</code>。之后 git 会检出中间的某个提交，你手动启动 Emacs 测一次，好的敲 <code>git bisect good</code>、坏的敲 <code>git bisect bad</code>，重复直到 git 报出罪魁祸首的提交，最后 <code>git bisect reset</code> 退出。</p></div>
+  </div>
+
+  <details class="deep">
+    <summary>进阶：读 Emacs 启动脚本源码的三个位置</summary>
+    <p>遇到本文没覆盖的怪问题，值得直接去读 Emacs 的启动源码。本机 Emacs 32.0.50 的相关文件都在 <code>lisp/startup.el</code>，三个关键位置：</p>
+    <ul>
+      <li><strong>配置目录的解析</strong>：<code>startup--xdg-or-homedot</code> 函数（6.1 节引用的那段规则就在这里）。</li>
+      <li><strong>加载顺序</strong>：<code>command-line</code> 函数里 <code>site-run-file</code> 加载那几行往后（6.2 节那六步都在这个函数里；<code>early-init-file</code> 紧跟其后，<code>package.el</code> 的初始化夹在两者之间，最后是 <code>user-init-file</code>）。</li>
+      <li><strong><code>early-init.el</code> 的名字</strong>：搜 <code>early-init.el</code> 会看到一段注释解释<strong>为什么这里硬写了 <code>.el</code> 后缀</strong>——为了让 <code>startup--load-user-init-file</code> 在文件不存在时把 <code>user-init-file</code> 设成 <code>"early-init.el"</code> 而不是像 <code>.emacs</code> 那样设成 <code>"early-init"</code>。这种「为什么这么写」的注释是 Emacs 源码里最有价值的部分。</li>
+    </ul>
+    <p>在 Emacs 里读这些源码不需要找文件：<kbd>M</kbd><kbd>-</kbd> <code>find-function RET startup--xdg-or-homedot RET</code> 会直接跳到源文件对应位置。</p>
+  </details>
+</section>

@@ -1,0 +1,1013 @@
+<section class="ch" id="ch-02-first-steps" data-stage="入门" data-min="50">
+  <h2 class="ch-title">二、上手：安装、界面、按键、配置</h2>
+  <p class="ch-lead">这一章解决三件事：把 Emacs 装上并跑起来、认得屏幕上每一条横栏都是干什么的、看懂 <code>C-x C-f</code> 这种按键记号。读完你能自己装好 Emacs、知道自己的配置放在哪、在忘键时用 <code>C-h</code> 自救。本章不讲移动和编辑技巧，那是后面几章的事。</p>
+
+  <h3>先查一件事：你机器上已经有 Emacs 吗</h3>
+
+  <p>很多 Linux 和 macOS 机器出厂就带着 Emacs，但版本往往很旧。旧版本不是不能用，是会让你在网上抄到的配置全部报错。所以第一件事不是安装，是<strong>确认版本</strong>。</p>
+
+  <pre class="term"><code>$ emacs --version</code></pre>
+
+  <p>输出第一行长这样：<code>GNU Emacs 32.0.50</code>。中间那个数字是<strong>主版本号</strong>（major version），它决定了你能用上哪些新功能。冒号后面那个是<strong>次版本号</strong>（minor version），同一主版本内的增量更新。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>写本书时（2026 年）的情况是：<strong>Emacs 30</strong> 和 <strong>Emacs 31</strong> 都已正式发布，<strong>32</strong> 正在开发序列中。开发版号长成 <code>32.0.50</code> 这种样子——主版本后面的次版本是 <code>0</code>，说明它还没发布；正式的稳定版会是 <code>31.2</code>、<code>30.2</code> 这种形式。你从系统仓库装到的多半是 29 或 30。</p>
+  </div>
+
+  <p>Emacs 有一个值得知道的脾气：<strong>它极少在补丁版本里做破坏性改动</strong>。原书里说得很准——从废弃一个变量到真正删掉它，中间要隔好几个大版本。所以你在网上看到一篇写于 2018 年的文章，里面的变量名在今天的 Emacs 里大概率还能用。反过来也成立：如果你抄到一篇很新的文章，用的是 30 才引入的功能，而你跑的是 29，那就会报「Symbol's function definition is void」之类的错。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>不要为了追新而追新。Emacs 的开发版（<code>32.0.x</code> 这类）可能带 bug，插件作者也未必测过。日常使用请装稳定版；只有当你要写的配置明确需要某个新版本特性时才用开发版。</p>
+  </div>
+
+  <h4>怎么装</h4>
+
+  <p>Emacs 官方的 Windows 和 macOS 安装包在 GNU FTP 站上，解压即用，不必编译。<strong>下面给的是具体文件名而不是目录名——目录只告诉你去哪，具体文件才告诉你拿哪个。</strong>各平台最省事的路子分别是：</p>
+
+  <ul>
+    <li><strong>Linux</strong>：发行版的包管理器。Debian/Ubuntu 系是 <code>apt install emacs</code>，Fedora 系是 <code>dnf install emacs</code>，Arch 系是 <code>pacman -S emacs</code>。缺点是仓库里的版本可能偏旧，因为发行版要保证稳定性。<strong>GNU 官方的 <code>gnu/emacs/</code> 目录下只有源码包</strong>（<code>emacs-31.1.tar.xz</code> 这类），<strong>没有任何 Linux 预编译二进制</strong>，所以这条路只能走发行版包管理器，或者按上面路线 C 自己编译。如果你看到某个教程说「去 GNU 官网下 Linux 预编译包」，那个链接多半已经失效了。</li>
+    <li><strong>macOS</strong>：Homebrew 的 <code>brew install --cask emacs</code>。它跟 GNU Emacs 本身没有任何绑定关系，只是帮你下载官方构建。<strong>装出来的是 Cocoa 图形版</strong>（不是终端专用构建），双击图标开窗口，同时也能在终端里当 <code>emacs</code> 命令用；你要是想在终端窗口内跑，加 <code>-nw</code> 参数（<code>emacs -nw</code>）就行，<strong>不需要为了这件事另装一个版本</strong>。EmacsWiki 上的 <code>EmacsForMacOS</code> 页面是社区汇总的安装攻略，遇到问题先看那里。</li>
+    <li><strong>Windows</strong>：目录是 <code>gnu/emacs/windows/emacs-31/</code>，<strong>从这几个文件里挑一个</strong>：<code>emacs-31.1-installer-UCRT64.exe</code>（推荐，用 Windows 自带的 UCRT 运行库，在较新的 Windows 10/11 上兼容性最好）、<code>emacs-31.1-installer.exe</code>（标准版，自带依赖，官方 README 说「Mostly, this is the best one to install」）、不想装进系统就用免安装包 <code>emacs-31.1.zip</code>（自带依赖）或 <code>emacs-31.1-nodeps.zip</code>（最精简，不带依赖）。装好后双击 <code>bin\runemacs.exe</code> 开图形界面，或在命令行敲 <code>emacs -nw</code> 让它跑在终端窗口里。</li>
+  </ul>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>Windows 上下载前先看清文件名。</strong>那个目录里还有一组文件名带 <code>31.1_1</code> 的更新构建，和不带下划线的那组<strong>不是同一批文件</strong>，选错了装出来的版本和你预期的不一样。另外每个安装包旁边都配一个 <code>.sig</code> 签名文件，用来验证下载没被篡改，校验命令写在官方 README 里。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>Windows 上有大量第三方「Emacs 增强发行版」——它们打包了 GNU Emacs 再塞进一堆自己的插件，常用 C/C++ 编辑模式、终端工具和预置配置。行为会和官方版对不上，<strong>本书默认你用的是官方 GNU Emacs</strong>。如果你确实装了某个发行版，本章的键位和命令名仍然适用，但默认配置和启动速度会不一样。</p>
+  </div>
+
+  <p>从源码编译是另一条路，命令就是最经典的 <code>./configure</code>、<code>make</code>、<code>make install</code> 三连。Debian 系可以先用 <code>apt build-dep emacs</code> 把编译依赖装齐，再照着官方 <code>INSTALL</code> 文件做。本书不展开——对绝大多数读者，包管理器装出来的版本完全够用。</p>
+
+  <h3>启动 Emacs：四个必须认识的开关</h3>
+
+  <p>在命令行敲 <code>emacs</code> 就启动了。Emacs 启动后会占住终端不退出，这是设计如此，不是卡死了——它是个长驻程序，按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd>（<code>save-buffers-kill-terminal</code>）才能退出。</p>
+
+  <p>Emacs 的命令行选项遵循 Unix 惯例：选项用 <code>-</code> 或 <code>--</code> 开头，文件名跟在后面。你只需要先认识四个。</p>
+
+  <div class="keys">
+    <h4>本节按键：命令行开关</h4>
+    <table>
+      <thead><tr><th>开关</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>--version</code></td><td>（非交互）</td><td>打印版本号后退出</td></tr>
+        <tr><td><code>-nw</code></td><td>（非交互）</td><td>强制在终端里跑，不开图形窗口</td></tr>
+        <tr><td><code>-q</code></td><td>（非交互）</td><td>不加载你的个人配置文件 <code>init.el</code></td></tr>
+        <tr><td><code>-Q</code></td><td>（非交互）</td><td>比 <code>-q</code> 更狠：额外跳过站点级的全局配置文件（site-start.el、site-lisp）以及 X 资源</td></tr>
+        <tr><td><code>--help</code></td><td>（非交互）</td><td>打印完整帮助后退出</td></tr>
+        <tr><td><code>--daemon</code></td><td><code>server-start</code></td><td>在后台启动 Emacs 并开启服务器，立即返回命令行</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><code>-q</code> 和 <code>-Q</code> 的区别值得单独说。Emacs 启动时会读一个<strong>站点级配置文件</strong>（<code>site-start.el</code>，路径由编译时决定，常见的是 <code>/etc/emacs/site-start.el</code> 或 <code>/usr/local/etc/emacs/site-start.el</code>），那是管理员给全机器写的公共设置。个人电脑上通常没有这个文件，两个开关效果一样；但在有管理员配置的机器上，<code>-Q</code> 才是那个「回到最干净的出厂状态」的开关。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><code>-q</code> 是初学者最该学会的排错开关。哪天 Emacs 一启动就满屏红字，八成是你的配置文件写错了。这时候在终端里按 <kbd>C</kbd><kbd>g</kbd> 中断掉，然后敲 <code>emacs -q</code> 重来。如果这样就干净了，问题一定在你的 <code>init.el</code> 里——而不是 Emacs 本身出了问题。</p>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>GUI 和终端是<strong>同一个</strong> Emacs，只是外面那层壳不同。终端版没有独立窗口、没有内置图片查看器、颜色受终端能力限制。功能上几乎完全一致——本书讲的每一条命令，在两种模式下都能用。真遇到差异时本书会单独标出来。</p>
+  </div>
+
+  <div class="drill" data-answer="emacs -q">
+    <p class="drill-q"><b>练习 1</b>　你的 Emacs 一启动就报错，满屏红色。想排除是不是自己配置文件的问题，该敲哪条命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>敲 <code>emacs -q</code>。它跳过你的个人配置文件但保留系统级设置。如果这样启动就干净了，那问题在你的 <code>init.el</code> 里；如果照样报错，那问题更可能在系统配置或安装本身。</p></div>
+  </div>
+
+  <div class="drill" data-answer="-nw 强制终端模式，-q 不读个人配置，-Q 连站点级配置也不读">
+    <p class="drill-q"><b>练习 2</b>　<code>-q</code> 和 <code>-Q</code> 都能让你「用干净的 Emacs 启动」，两者差在哪？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>-q</code> 只跳过你自己的 <code>init.el</code>，站点级的全局配置照读；<code>-Q</code> 连站点级配置和 X 资源一起跳过。个人电脑上通常没有站点级文件，两个效果一样；你需要排除管理员配置的影响时用 <code>-Q</code>。</p></div>
+  </div>
+
+  <h3>客户端—服务器模式：只开一个 Emacs</h3>
+
+  <p>Emacs 的设计前提是「<strong>长驻</strong>」——开一次，用几个月。想改个配置也开一个新 Emacs，等于每次都重新启动一遍、重新加载一遍包，慢，而且窗口布局全丢。</p>
+
+  <p>Emacs 内置了一套 <strong>客户端—服务器</strong>（client-server）机制来解决这件事：一台机器上跑一个真正的 Emacs 进程当服务器，其他程序通过 <code>emacsclient</code> 把「打开某某文件」的请求递进去。</p>
+
+  <h4>开启服务器</h4>
+
+  <p>在一个已经跑起来的 Emacs 里执行 <kbd>M</kbd><kbd>x</kbd> 然后输入 <code>server-start</code> 回车，它就变成服务器了。<strong>屏幕上不会有任何提示</strong>——没有弹窗、没有消息。这不是失败了，你可以用 <code>emacsclient</code> 试着连一下，连得上就说明成了。</p>
+
+  <p>但这样只是让当前这个窗口变成服务器。你一旦关掉它，服务器也就跟着没了。真正想要的是<strong>后台常驻</strong>的服务器，用命令行开关：</p>
+
+  <pre class="term"><code>$ emacs --daemon</code></pre>
+
+  <p>这个命令会先启动 Emacs、在里面执行 <code>server-start</code>，然后立刻把控制权还给终端，Emacs 在后台等着。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>开了服务器之后，<code>emacs</code> 这个命令<strong>不会</strong>自动连到已有的服务器，它照样会新开一个完整实例。必须改用名字很像的另一个程序：<strong><code>emacsclient</code></strong>（结尾多个 l）。这是初学者最常踩的坑——敲了 <code>emacsclient</code> 却抱怨「怎么还是开新窗口」，八成是敲成了 <code>emacs</code>。</p>
+  </div>
+
+  <h4>用服务器打开文件</h4>
+
+  <pre class="term"><code>$ emacsclient README.md
+$ emacsclient -nw notes.org
+$ emacsclient -c report.tex</code></pre>
+
+  <p>三个开关的区别值得说清楚，因为它们决定了「谁在等谁」：</p>
+
+  <ul>
+    <li>不给开关：有图形界面就新开一个窗口，否则开终端窗口。命令会<strong>一直挂着</strong>，直到你把这个文件编辑完并退出，终端才把控制权还给你。这正是 <code>git commit</code> 想要的——它调你的 <code>$EDITOR</code> 写提交信息，写完关掉，<code>git</code> 才知道可以往下走。</li>
+    <li><code>-nw</code>：强制开终端窗口，同样挂着等。</li>
+    <li><code>-c</code>（<code>--create-frame</code>）：新开一个窗口，语义上跟默认一样，但显式指定了「要图形界面」。</li>
+    <li><code>-n</code>（<code>--no-wait</code>）：<strong>不等</strong>。把文件丢给 Emacs 就立刻返回终端。适合「顺手开一堆文件丢进去慢慢看」。</li>
+  </ul>
+
+  <div class="keys">
+    <h4>本节按键：服务器会话</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>server-start</code></td><td><code>server-start</code></td><td>把当前这个 Emacs 变成服务器，<strong>无任何界面反馈</strong></td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>server-stop</code></td><td><code>server-stop</code></td><td>关掉服务器</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>#</kbd></td><td><code>server-edit</code></td><td>编辑完当前这个「由客户端送来的」文件后，切换到下一个；没有下一个就通知客户端退出</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>server-edit-abort</code></td><td><code>server-edit-abort</code></td><td>中止这次客户端会话。<strong>它没有默认按键</strong>，只能 <kbd>M</kbd><kbd>x</kbd> 调用</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><kbd>C</kbd><kbd>x</kbd> <kbd>#</kbd> 在<strong>刚启动、还没碰过服务器</strong>的 Emacs 里是按不动的。这不是 bug：<code>C-x #</code> 这个绑定是在 Server 库被加载时才装上的，而 Server 库是<strong>用到才加载</strong>的。只要你执行过一次 <code>server-start</code>（或者任何其他服务器命令），它就出现了。反过来说，如果你怀疑自己的 <code>C-x #</code> 失灵了，先确认服务器真的开着。</p>
+  </div>
+
+  <p>这个「按 <kbd>C</kbd><kbd>x</kbd> <kbd>#</kbd> 切到下一个」的设计，是为了伺候最常见的场景：</p>
+
+  <pre class="term"><code>$ emacsclient A.md B.md C.md</code></pre>
+
+  <p>三个文件都塞进 Emacs 了，但 <code>emacsclient</code> 还在终端里干等着你处理 <code>A.md</code>。你在 Emacs 里存好 <kbd>C</kbd><kbd>s</kbd> 关闭，Emacs 自动跳到 <code>B.md</code>，你再存再关，轮到 <code>C.md</code>——没有下一个了，Emacs 通知客户端「完成」，<code>emacsclient</code> 退出，终端回到你面前。</p>
+
+  <h4>让命令行工具都走 Emacs</h4>
+
+  <p>一旦服务器常驻，把环境变量 <code>$EDITOR</code>（或 <code>$VISUAL</code>）设成 <code>emacsclient</code>，很多工具就自动接上了：</p>
+
+  <pre class="term"><code>$ export EDITOR=emacsclient</code></pre>
+
+  <p><code>git commit</code>（不带 <code>-m</code>）、<code>crontab -e</code>、<code>git rebase -i</code> 的编辑器步骤，都会调起你那个已经在跑、配置齐全、插件都在的 Emacs，而不是冷启动一个。这是 Emacs「长驻」理念最直接的收益。</p>
+
+  <h4>Linux 用户：交给 systemd 托管</h4>
+
+  <p>Emacs 自带一个 systemd 用户单元文件 <code>emacs.service</code>，默认安装在 <code>${prefix}/lib/systemd/user/</code> 下（<code>/usr</code> 装的话就是 <code>/usr/lib/systemd/user/emacs.service</code>；也可以在编译时用 <code>--with-systemduserunitdir</code> 改）。用它可以让 Emacs 登录后自动以守护进程方式起来：</p>
+
+  <pre class="term"><code>$ systemctl --user enable emacs
+$ systemctl --user start emacs</code></pre>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>这一段是 <strong>Linux 专有</strong>的。macOS 用 <code>brew services</code>，Windows 用服务管理或计划任务。systemd 不是 Emacs 的一部分，是操作系统提供的服务管理器；Emacs 只是附带了一个单元文件。用不用随你，它只是个方便——<code>emacs --daemon</code> 一样能用。</p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>第一次用 <code>emacsclient</code> 前，先确认服务器活着。直接敲 <code>emacsclient</code> 不带参数，服务器在的话它会开一个新窗口，服务器不在则会报 <code>emacsclient: can't find socket; have you started the server?</code> 之类的错误（终端没有图形界面时措辞会略有不同）。这比猜要快。</p>
+  </div>
+
+  <div class="drill" data-answer="emacsclient（结尾多个 l），不是 emacs">
+    <p class="drill-q"><b>练习 3</b>　你已经用 <code>emacs --daemon</code> 开了后台 Emacs。在终端里想用那个实例打开一个文件，该敲哪个命令？敲错了会有什么后果？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>敲 <code>emacsclient 文件名</code>。敲成 <code>emacs</code> 的话，Emacs 不会去连已有的服务器，而是<strong>再启动一个全新的完整实例</strong>——窗口多开一个、启动时间白付一次、配置状态还和原来那个对不上。这是最常见的误操作。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x # 即 server-edit，但要先执行过 server-start 之后这个键才存在">
+    <p class="drill-q"><b>练习 4</b>　用 <code>emacsclient</code> 一次打开三个文件后，命令行还在等着。你在 Emacs 里存好关掉第一个，想切到第二个，用哪个键？另外，这个键在你「刚启动、还没开过服务器」的 Emacs 里能按吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>用 <kbd>C</kbd><kbd>x</kbd> <kbd>#</kbd>，命令是 <code>server-edit</code>。它在你「刚启动、还没开过服务器」的 Emacs 里<strong>按不动</strong>：<code>C-x #</code> 是在 Server 库被加载时才装上的全局绑定，而 Server 库是用到才加载的。执行过一次 <code>server-start</code> 之后它才出现。</p></div>
+  </div>
+
+  <h3>认屏幕：Emacs 的界面分区</h3>
+
+  <p>Emacs 的窗口自上而下就四块。认全了它们，你以后看截图、别人录屏、书里的插图才不会迷路。</p>
+
+  <h4>欢迎界面</h4>
+
+  <p>第一次启动会看到一张欢迎页，上面有介绍和入口。要关掉它，按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd>，命令是 <code>save-buffers-kill-terminal</code>（退出 Emacs 的常规按键，官方手册里也常笼统称作 quit Emacs）。</p>
+
+  <p>很多人第一反应是「把这个讨厌的页面关掉」。原书的作者也这么说，但他的建议反常识：<strong>头几个星期先留着</strong>。欢迎页、菜单栏、工具栏这些「界面元素」的价值在于——你还没记住某个功能在哪的时候，它们是你唯一能问的地方。等你把 Emacs 用熟了再关，那时你已经不需要它提醒你了。</p>
+
+  <p>关掉它的办法是设 <code>inhibit-startup-screen</code> 为 <code>t</code>，这个变量默认是 <code>nil</code>（也就是显示欢迎页）。</p>
+
+  <h4>模式行</h4>
+
+  <p>正中间那条横线叫<strong>模式行</strong>（mode line），是 Emacs 的状态栏。在一个全新的 <code>*scratch*</code> 缓冲区里，它渲染出来大致是这样：</p>
+
+  <pre class="term"><code>-UUU:--- F1  *scratch*      All L4     (Lisp Interaction ElDoc) ---</code></pre>
+
+  <p>从左到右你能读出：</p>
+
+  <ul>
+    <li><strong>文件编码信息</strong>：<code>-UUU:---</code> 那一段，<strong>一共 6 个字符</strong>。前 3 个告诉你这个缓冲区用的什么编码方案；第 4 个（<code>:</code> 后面的）告诉你文件有没有换行符；最后 2 个告诉你「读进来的换行符该怎么写回去」和「存盘时结尾要不要补一个换行符」。<strong>这一段一次讲不清很正常</strong>——它的每个位置都有合法值，本书不在这里展开。<strong>第 3 章会把这一段拆成 6 个格子逐个解释</strong>，现在你只要知道「最左边这 3 个字符是编码方案（<code>utf-8</code> 会显示成 <code>U</code>），冒号是分隔符，冒号后面 3 个字符分别管换行符的两端和结尾」就够用了。</li>
+    <li><strong>frame 编号</strong>：<code>F1</code>。Emacs 把「一个 frame」（可以理解为独立窗口）都编号，服务器模式下同时开着好几个窗口时靠它区分。</li>
+    <li><strong>缓冲区名</strong>：<code>*scratch*</code>。两边带星号是 Emacs 的约定：<strong>星号表示「这个缓冲区关联着文件，但文件还没存盘」</strong>。名字前有个 <code>%</code> 或者被改写过，说明对应文件在磁盘上被 Emacs 之外的东西改动过，存盘时会问你怎么办。</li>
+    <li><strong>位置</strong>：<code>All L4</code>。<code>L4</code> 是「第 4 行」；<code>All</code> 表示光标在整个缓冲区范围内，按 <code>C-x =</code> 类命令时会作用于全文。这个区域可以设置成显示百分比、行列号或者时间。</li>
+    <li><strong>模式列表</strong>：<code>(Lisp Interaction ElDoc)</code>。括号里第一个是<strong>主模式</strong>（major mode，决定这个缓冲区怎么编辑、语法怎么高亮），后面跟着的是启用的<strong>次模式</strong>（minor mode，可以叠加，随时开关的附加行为）。<strong>这一段是 Emacs 里信息量最大的地方</strong>——遇到「为什么我的 Emacs 行为怪怪的」，八成能在模式列表里找到答案。</li>
+  </ul>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>不确定光标在哪，看 <kbd>C</kbd><kbd>h</kbd> <kbd>w</kbd>：<code>where-is</code> 会在回显区告诉你当前所在行列的百分比。它绑在 <kbd>C</kbd><kbd>h</kbd> <kbd>w</kbd> 上（<kbd>C</kbd><kbd>h</kbd> 家族的一员）。注意别和 <kbd>M</kbd><kbd>-</kbd> 混了——后者是 <code>negative-argument</code>，见后面「万能参数」一节。</p>
+  </div>
+
+  <h4>回显区和小模式行</h4>
+
+  <p>模式行下面紧贴着的那一行叫<strong>回显区</strong>（echo area）。Emacs 平时不往那儿写字，所以看着是空的；一旦你敲了半个键、或者执行了一个命令，它就会显示提示和结果。前面讲过的 <code>C-x-</code> 那个带横杠的「等下一个键」提示，就显示在这里。</p>
+
+  <p>回显区正下方那条更窄的线叫<strong>小模式行</strong>（minibuffer）或 <strong>迷你缓冲区</strong>。它是 Emacs 的命令行输入框。<kbd>M</kbd><kbd>x</kbd> 提示你输命令名、<kbd>C</kbd><kbd>s</kbd> 提示你输搜索词、<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 提示你输文件名，全在这儿敲。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>小模式行几乎总是处于「可用但空闲」状态，所以你根本不会注意到它。它的特点是：<strong>敲 <kbd>C</kbd><kbd>g</kbd> 随时能取消</strong>，然后焦点自动回到缓冲区，什么事都没发生。忘了当前在问什么，按 <kbd>C</kbd><kbd>g</kbd> 就对了。</p>
+  </div>
+
+  <h4>菜单栏、工具栏、滚动条</h4>
+
+  <p>顶部那条写着 <em>File  Edit  Buffer  Tools  Help</em> 的是<strong>菜单栏</strong>（menu bar）。图形界面下鼠标点它就行；终端下要用键盘打开。每个主模式和次模式也可以往菜单栏里加自己的一级菜单，所以有些模式一激活，菜单栏就多出一项来。</p>
+
+  <p>菜单栏下面那条图标是<strong>工具栏</strong>（tool bar），图标是<strong>上下文相关</strong>的——你在什么模式、什么缓冲区，就显示什么图标，比如 Emacs 里有个内置的 <code>dired</code>（目录浏览器）打开目录时，工具栏会变成文件操作按钮。</p>
+
+  <p>右边那条细长的叫<strong>滚动条</strong>（scroll bar）。变量 <code>scroll-bar-mode</code> 控制它：<code>nil</code> 表示不显示，<code>left</code> 放左边，<code>right</code> 放右边，<code>both</code> 两边都放。<strong>默认值随平台和编译方式而变</strong>：官方文档写的是，在 GTK+ 版 Emacs（Linux）、MS-Windows 和 macOS 上默认放右边，在不用 GTK+ 的 X11 上默认放左边。官方发行版基本都是右边。</p>
+
+  <p>这三样都可以用命令开关：</p>
+
+  <div class="keys">
+    <h4>本节按键：界面元素</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>F</kbd><kbd>1</kbd><kbd>0</kbd></td><td><code>menu-bar-open</code></td><td>打开菜单栏。终端 Emacs 里这是你唯一的入口</td></tr>
+        <tr><td><kbd>M</kbd><kbd>`</kbd></td><td><code>tmm-menubar</code></td><td>打开<strong>纯键盘</strong>驱动的菜单栏：左右方向键换菜单、回车选条目</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>menu-bar-mode</code></td><td><code>menu-bar-mode</code></td><td>开关菜单栏</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>tool-bar-mode</code></td><td><code>tool-bar-mode</code></td><td>开关工具栏</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>scroll-bar-mode</code></td><td><code>scroll-bar-mode</code></td><td>开关滚动条（设成 <code>left</code>、<code>right</code>、<code>both</code> 或 <code>nil</code>；默认值随平台而变）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>xterm-mouse-mode</code></td><td><code>xterm-mouse-mode</code></td><td>让终端 Emacs 支持鼠标点击</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>w</kbd></td><td><code>where-is</code></td><td>在回显区显示光标位置的行列信息</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td><code>keyboard-quit</code></td><td>取消当前操作（打了一半的键、正在问的小模式行、卡住的命令）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原书写「用 <kbd>M</kbd><kbd>'</kbd> 打开纯键盘菜单栏」，这是<strong>错的</strong>。<kbd>M</kbd><kbd>'</kbd> 在 Emacs 里是 <code>abbrev-prefix-mark</code>（给缩写加前缀），跟菜单无关。正确的键是 <kbd>M</kbd><kbd>`</kbd>（Meta 加一个<strong>反引号</strong>，在数字 1 左边那个键），命令是 <code>tmm-menubar</code>。记不住就 <kbd>M</kbd><kbd>x</kbd> <code>tmm-menubar</code>。</p>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>终端版能不能用鼠标，<strong>分版本</strong>。<strong>Emacs 30 及以前</strong>，终端 Emacs 默认<strong>不能</strong>点菜单栏和滚动条，需要你手动 <kbd>M</kbd><kbd>x</kbd> <code>xterm-mouse-mode</code>。<strong>Emacs 31 起</strong>，在「兼容的终端」里这个模式<strong>默认就开着</strong>，开箱即用鼠标。</p>
+    <p>但「兼容」是有条件的：你的终端必须支持 Emacs 读写系统剪贴板、以及上报鼠标按下和移动事件。绝大多数现代终端（iTerm2、Windows Terminal、GNOME Terminal、kitty、Alacritty 等）都符合；通过 <code>emacs --daemon</code> 启动、或者挂在某些不完整的终端环境里，就可能不算。实在发现鼠标没反应，手动开一次即可。</p>
+    <p>不管哪个版本，<kbd>F</kbd><kbd>1</kbd><kbd>0</kbd> 和 <kbd>M</kbd><kbd>`</kbd> 都是纯键盘的路子，<strong>在任何终端下都可靠</strong>，推荐优先记这个。</p>
+  </div>
+
+  <div class="drill" data-answer="M-` 即 tmm-menubar；F10 是 menu-bar-open；M-' 是 abbrev-prefix-mark 不是菜单">
+    <p class="drill-q"><b>练习 5</b>　你在终端版 Emacs 里，想用纯键盘的方式操作菜单栏（左右方向键切换菜单那种）。按哪个键？命令名是什么？另外，<kbd>M</kbd><kbd>'</kbd> 行不行？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>M</kbd><kbd>`</kbd>（Meta 加反引号），命令是 <code>tmm-menubar</code>。<kbd>F</kbd><kbd>1</kbd><kbd>0</kbd>（<code>menu-bar-open</code>）也行，它会展开第一个菜单然后你可以用方向键走。<kbd>M</kbd><kbd>'</kbd> <strong>不行</strong>——它是 <code>abbrev-prefix-mark</code>，给缩写加前缀用的，跟菜单没关系。</p></div>
+  </div>
+
+  <div class="drill" data-answer="模式行右侧的括号列表，第一个是主模式，后面是次模式">
+    <p class="drill-q"><b>练习 6</b>　模式行上 <code>(Lisp Interaction ElDoc)</code> 这一段是什么意思？括号里的第一个和后面的分别代表什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>括号里第一个是<strong>主模式</strong>（major mode），决定这个缓冲区怎么编辑、语法怎么高亮、哪些键可用；后面跟的全是<strong>次模式</strong>（minor mode），是可叠加、随时开关的附加行为。调试配置问题时先看这一段——某个奇怪的次模式开着，就足以解释奇怪行为。</p></div>
+  </div>
+
+  <h3>按键记号法：把 <code>C-x C-f</code> 读出来</h3>
+
+  <p>Emacs 的按键写法是出了名的难认。网上看到 <code>C-M-S-p</code> 你完全不知道该按哪几个键。本节的目标是：看到任何一串记号，你能立刻翻译成手指动作。</p>
+
+  <h4>修饰键</h4>
+
+  <p>记号里的前缀就是修饰键（modifier key）。你现在用得到的只有三个：</p>
+
+  <div class="keys">
+    <h4>本节按键：修饰键</h4>
+    <table>
+      <thead><tr><th>记号</th><th>含义</th><th>在哪</th></tr></thead>
+      <tbody>
+        <tr><td><code>C-</code></td><td>Control，控制键</td><td>键盘左下角 <kbd>Ctrl</kbd></td></tr>
+        <tr><td><code>M-</code></td><td>Meta，<strong>在绝大多数键盘上就是 <kbd>Alt</kbd></strong>（macOS 上是 <kbd>⌥</kbd> Option）</td><td>空格键右边</td></tr>
+        <tr><td><code>S-</code></td><td>Shift，上档键</td><td>左右 <kbd>Shift</kbd></td></tr>
+        <tr><td><code>s-</code></td><td>Super，<strong>不是 Shift</strong>，是小写 s</td><td>现代键盘没有专职键，但 Emacs 仍认这个记号</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>还有两个你用不上的修饰键记号，<strong>网上老文章里会出现，但今天它们不是失效的</strong>：<code>H-</code>（Hyper）和 <code>A-</code>（Alt）。它们和 <code>s-</code>（Super）一样，是 Emacs 至今仍然支持的三个「稀有的修饰键」，只是绝大多数键盘发不出这些修饰位。所以用 <code>kbd</code> 函数写 <code>"H-x"</code> 或 <code>"A-x"</code> 是<strong>能正常解析的</strong>，各自得到一个带 Hyper／Alt 修饰位、但和任何默认绑定都不相同的键向量。注意它们<strong>不等价于 <code>M-</code></strong>——多数键盘上标着 Alt 的那个键发的是 Meta，不是 Alt。</p>
+    <p>实在没有这些修饰键的键盘，Emacs 提供了一个临时加修饰位的手法：<kbd>C</kbd><kbd>x</kbd> <kbd>@</kbd> 之后跟一个字母，<strong>这个修饰位会加到下一个字符上</strong>。<kbd>C</kbd><kbd>x</kbd> <kbd>@</kbd> <kbd>h</kbd> 加 Hyper，<kbd>C</kbd><kbd>x</kbd> <kbd>@</kbd> <kbd>s</kbd> 加 Super，<kbd>C</kbd><kbd>x</kbd> <kbd>@</kbd> <kbd>a</kbd> 加 Alt——所以 <kbd>C</kbd><kbd>x</kbd> <kbd>@</kbd> <kbd>h</kbd> 然后 <kbd>C</kbd><kbd>a</kbd>，等于按出 <code>Hyper-Control-a</code>。这招很少用到，知道有就行。</p>
+  </div>
+
+  <p>「<code>M-</code> 就是 Alt」这件事值得强调，因为很多 Vim 用户出于肌肉记忆会去找 <code>Escape</code>。Emacs 里按 <kbd>Esc</kbd> 前缀确实也有效（Emacs 认 <kbd>Esc</kbd> 等价于 <kbd>M</kbd>），但你要按的是 <kbd>Alt</kbd>，不是 <kbd>Esc</kbd>。</p>
+
+  <details class="deep">
+    <summary>进阶：把 Caps Lock 改成 Control，以及自定义键盘</summary>
+    <p>你已经知道 <kbd>C</kbd><kbd>-</kbd> 在 Emacs 里有多常用。但对大多数人来说，键盘左下角那个 <kbd>Ctrl</kbd> 是个<strong>很不舒服的位置</strong>——要用无名小指去够，还得把手掌撑开。Emacs 用户的「左小指痛」（作者戏称 Emacs pinky）就是这么来的。</p>
+    <p><strong>原书给出的头号建议是：把 Caps Lock 这个键重新映射成 Control，然后完全不用左下角那个原始的 Ctrl。</strong>大写锁定键离手指更近、发力更顺，改造之后 <kbd>C</kbd><kbd>-</kbd> 组合会舒服得多。</p>
+    <p>这么建议是有历史原因的：当年的 <strong>Space Cadet</strong> 键盘（大名鼎鼎的 MIT 人工智能实验室键盘）上，<strong>Control 键占据的正是今天 Caps Lock 的位置</strong>。也就是说 Emacs 最早的键位设计里，Ctrl 本来就在那儿，是后来的 PC 键盘把 Ctrl 挪到了左下角。把它映射回去，等于把 Emacs 还原回它设计时最顺手的布局。这个习惯在 Emacs 之外也有用，所以值得养成。</p>
+    <h4>怎么改</h4>
+    <ul>
+      <li><strong>Windows</strong>：原书推荐用 <code>SharpKeys</code> 这类工具改注册表，把 Caps Lock 映射成左 Ctrl。它改的是注册表，所以不需要进 BIOS，也不需要重启。</li>
+      <li><strong>macOS 和 Ubuntu</strong>：系统自带。在「键盘设置」里把 Caps Lock 的行为改成 Control 就行，不装任何额外软件。</li>
+      <li><strong>其他 Linux 发行版</strong>：可能得手工改 <code>xmodmap</code> 映射。</li>
+    </ul>
+    <p>改之前想清楚一件事：<strong>你之后就没有 Caps Lock 了</strong>，想临时打个大写，得用 <kbd>Shift</kbd> 或者 <kbd>C</kbd><kbd>-</kbd> <code>u</code> 然后字母。这个过渡期会有点别扭，但通常一两周就适应了，而且省下来的力气会在以后几千次 <kbd>C</kbd><kbd>-</kbd> 里还回去。</p>
+    <h4>更进一步：可编程的人体工学键盘</h4>
+    <p>如果你用的是<strong>带可编程固件的人体工学机械键盘</strong>，还能再往前走一步：<strong>让所有修饰键都完全不用小指</strong>。这类键盘常见两种能力——<strong>拇指键</strong>（拇指能碰到的额外按键）和<strong>分层</strong>（按住某个键之后，这一排键变成另一套功能）。</p>
+    <p>如果你的键盘有这些能力，就把 <kbd>Ctrl</kbd>（至少是它）挪到食指或拇指轻松够到的位置，比如某个拇指键或某个分层上。<strong>Emacs 原生支持这种改法，你只要让操作系统或键盘固件把键报成 Ctrl 就行</strong>——Emacs 这边不用任何配置，它只关心「你按下的这个键报的是什么修饰键」。</p>
+    <p>这一步属于硬件投资，不是必需品。但如果你已经在折腾 Emacs 了，这通常是投入产出比最高的一笔：它对<strong>每一个命令</strong>都有效，而不是只优化某一处。</p>
+  </details>
+
+  <h4>前缀键与完整键</h4>
+
+  <p>Emacs 有一套自己的术语，用错了会看不懂文档：</p>
+
+  <ul>
+    <li><strong>按键</strong>（key）：一次键盘或鼠标动作。比如「按下 Ctrl 然后按 x」是一串按键，「按 Ctrl+a 是 <kbd>Ctrl</kbd> 再按 a」也是。</li>
+    <li><strong>完整键</strong>（complete key）：一串<strong>足以触发一个命令</strong>的按键。<kbd>C</kbd><kbd>d</kbd> 就是完整键。</li>
+    <li><strong>前缀键</strong>（prefix key）：一串<strong>还没说完</strong>的按键，后面还要接。<kbd>C</kbd><kbd>x</kbd> 就是前缀键。</li>
+    <li><strong>按键映射表</strong>（key map，Emacs 里叫 keymap）：一个前缀键后面挂着的一整张表，记录了每个可能的续键对应哪个命令。</li>
+    <li><strong>无效</strong>（invalid）：Emacs 完全不认识的按键序列。按了会在回显区报错。</li>
+  </ul>
+
+  <p>为什么要搞前缀键这种东西？因为键盘能表达的组合太少了。按键修饰符最多三四层，加上几十个字母，理论上限也就三四百个组合，而 Emacs 光命令就有几千条。前缀键是<strong>把有限的按键空间切成树</strong>，让每个前缀下面再挂一层子前缀，从而理论上可以无限扩展。</p>
+
+  <p>这就是为什么 Emacs 把最核心的东西全挂在 <kbd>C</kbd><kbd>x</kbd> 下面：<kbd>C</kbd><kbd>x</kbd> 后面还有 <kbd>C</kbd><kbd>x</kbd>、<kbd>C</kbd><kbd>f</kbd>、<kbd>C</kbd><kbd>k</kbd>、<kbd>C</kbd><kbd>s</kbd>……两层、三层地铺开。图省事的设计不会这么干，但 Emacs 宁可难记也要保证任何一个功能都能有一个纯键盘的入口。</p>
+
+  <h4>读三个真实的例子</h4>
+
+  <p><strong><kbd>C</kbd><kbd>d</kbd></strong>：按住 Ctrl，按 d。它是完整键，触发命令 <code>delete-char</code>，删掉光标后面那个字符。</p>
+
+  <p><strong><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd></strong>：两段。第一段是前缀键 <kbd>C</kbd><kbd>x</kbd>——你按下 x 之后，回显区会显示 <code>C-x-</code>（末尾带个横杠），Emacs 在告诉你「我在等你按下续键」。第二段 <kbd>C</kbd><kbd>f</kbd> 才是完整键，合起来触发 <code>find-file</code>，弹出小模式行问你要打开哪个文件。</p>
+
+  <p>敲 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 时<strong>不用松开 Ctrl</strong>。按住 Ctrl 先按 x，再按 f，一气呵成。保持手指不离开修饰键这个习惯，原书作者管它叫保持<strong>节奏</strong>（tempo），到后面讲编辑技巧时还会再出现。</p>
+
+  <p><strong><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>P</kbd></strong>：三段前缀键。<kbd>C</kbd><kbd>x</kbd> 是第一层，<kbd>8</kbd> 是第二层——按 <kbd>8</kbd> 之后 Emacs 仍在等，因为后面还挂着东西。最后的 <kbd>P</kbd> 才是完整键，效果是<strong>插入一个段落符号 ¶</strong>。这个 keymap 里塞满了 Unicode 里的生僻符号：</p>
+
+  <div class="keys">
+    <h4>本节按键：<kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> 符号表</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>P</kbd></td><td>（直接插入）</td><td>¶ 段落符号，U+00B6</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>&lt;</kbd></td><td>（直接插入）</td><td>« 左双尖括号，U+00AB</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>&gt;</kbd></td><td>（直接插入）</td><td>» 右双尖括号，U+00BB</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>?</kbd></td><td>（直接插入）</td><td>¿ 反问号，U+00BF</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>C</kbd></td><td>（直接插入）</td><td>© 版权符号，U+00A9</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>L</kbd></td><td>（直接插入）</td><td>£ 英镑符号，U+00A3</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>R</kbd></td><td>（直接插入）</td><td>® 注册商标符号，U+00AE</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>S</kbd></td><td>（直接插入）</td><td>§ 章节符号，U+00A7</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>Y</kbd></td><td>（直接插入）</td><td>¥ 日元符号，U+00A5</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>这些符号是 Unicode 里「Latin-1 补充区」的字符，绝大多数键盘上都找不到专门的键，Emacs 就用这个 keymap 收纳它们。</p>
+
+  <h4>带 Shift 的组合，和终端打不出来的键</h4>
+
+  <p>看一个容易卡住新手的例子：<kbd>C</kbd><kbd>M</kbd><kbd>%</kbd>，命令是 <code>query-replace-regexp</code>（正则替换）。</p>
+
+  <p>难点在于 <kbd>%</kbd> 这个字符。在美式键盘上，<kbd>%</kbd> 是数字 <kbd>5</kbd> 键上的<strong>上档字符</strong>——按住 <kbd>Shift</kbd> 再按 <kbd>5</kbd> 才出来。所以想打出 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd>，你得<strong>同时按住三个键</strong>：Ctrl、Alt（Meta）、Shift，再按 <kbd>5</kbd>。</p>
+
+  <p>忘了按 Shift 会怎样？你打出来的是 <kbd>C</kbd><kbd>M</kbd><kbd>5</kbd>，是完全不同的东西。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 在<strong>终端版 Emacs 里很可能打不出来</strong>。原因是终端协议本身表达不了「Ctrl+Alt+Shift+字符」这种四层组合——这是终端技术的限制，不是 Emacs 的问题。图形界面版没这个问题（当然，前提是你的系统能把它发给 Emacs）。<strong>所以本书强烈建议：能用图形界面就别用终端版</strong>。实在只能用终端，正则替换可以改用不带 Shift 的替代路径，例如 <kbd>M</kbd><kbd>%</kbd> 对普通文本已经够用。</p>
+  </div>
+
+  <h4>尖括号写法</h4>
+
+  <p>有些键没有对应的字母，文档里写成尖括号包着的样子：<code>&lt;tab&gt;</code>、<code>&lt;f1&gt;</code>、<code>&lt;return&gt;</code>、<code>&lt;escape&gt;</code>、<code>&lt;left&gt;</code>、<code>&lt;f12&gt;</code>。它们指的不是字符本身，而是键盘上那个有名字的键。</p>
+
+  <p>唯一的坑是：<strong>不要把 <code>&lt;tab&gt;</code> 跟字母 T、A、B 搞混</strong>。文档里写 <code>C-q</code> 才是「先按 Ctrl 再按 q」；写 <code>&lt;tab&gt;</code> 是指键盘上那个 Tab 键——虽然它在某些键盘上确实挨着 Q。</p>
+
+  <h4>万能的脱身键</h4>
+
+  <p>无论你按了半个键、命令卡住了、还是小模式行正问着一个你不想回答的问题，<kbd>C</kbd><kbd>g</kbd>（<code>keyboard-quit</code>）都能把你拽出来。这大概是 Emacs 里最该形成肌肉记忆的一个键。</p>
+
+  <p>常见的触发场景：<kbd>C</kbd><kbd>x</kbd> 按下去之后你后悔了（回显区里那个 <code>C-x-</code> 提示会被取消掉）；<kbd>C</kbd><kbd>s</kbd> 的搜索输入了一半不想搜了；某个第三方插件慢得像是死了。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>真的卡死到连 <kbd>C</kbd><kbd>g</kbd> 都没反应时，连按两下 <kbd>C</kbd><kbd>g</kbd>。第一次是打断当前命令；如果还是没反应，第二次会提示你输入 <code>quit</code> 然后回车，Emacs 立刻退出到命令行（<strong>有未保存的缓冲区时会先问你</strong>，答 <code>y</code> 保存）。</p>
+  </div>
+
+  <div class="drill" data-answer="C-x 8 P 插入段落符号 ¶">
+    <p class="drill-q"><b>练习 7</b>　想插入一个段落符号 ¶，该按哪串键？它有几层前缀？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>P</kbd>。三层：<kbd>C</kbd><kbd>x</kbd> 是第一层前缀，<kbd>8</kbd> 是第二层前缀，只有最后的 <kbd>P</kbd> 才是完整键。同一个 keymap 里还有 <kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>&lt;</kbd>（«）、<kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>S</kbd>（§）等等。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-g（keyboard-quit）">
+    <p class="drill-q"><b>练习 8</b>　你按了 <kbd>C</kbd><kbd>x</kbd> 之后发现按错了，正卡在「等下一个键」的状态。按哪个键退出？命令名是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>g</kbd>，命令 <code>keyboard-quit</code>。它是 Emacs 的万能取消键：取消半截按键序列、取消正在问你的小模式行、打断卡住的命令。养成随手 <kbd>C</kbd><kbd>g</kbd> 的习惯，你就不怕「我是不是已经搞坏了」。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-M-% 是 query-replace-regexp；终端打不出来是终端协议限制，图形界面可以">
+    <p class="drill-q"><b>练习 9</b>　<kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 要同时按住几个键？为什么在终端版 Emacs 里可能按不出来？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>要同时按住 <kbd>Ctrl</kbd>、<kbd>Alt</kbd>（Meta）、<kbd>Shift</kbd> 三个修饰键再按数字 <kbd>5</kbd>，因为 <kbd>%</kbd> 是 5 键上的上档字符。终端版打不出来是因为<strong>终端协议表达不了四层组合键</strong>，属于终端技术的限制；图形界面版一般没问题。命令是 <code>query-replace-regexp</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="把 Caps Lock 重新映射成 Control，因为左下角的 Ctrl 用小指够着太累">
+    <p class="drill-q"><b>练习 10</b>　你觉得老按左下角那个 <kbd>Ctrl</kbd> 手很酸。原书给的头号建议是什么？为什么这个位置值得改？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>把 <strong>Caps Lock 重新映射成 Control</strong>，之后完全不用左下角那个原始 <kbd>Ctrl</kbd>。值得改是因为 <kbd>C</kbd><kbd>-</kbd> 组合在 Emacs 里用得极多，而左下角要靠无名小指发力，够着别扭。历史上这也确实是 Emacs 的原设计——当年 Space Cadet 键盘上 Control 占的正是今天 Caps Lock 的位置，是后来的 PC 键盘把它挪到了左下角。代价是暂时失去 Caps Lock，打大写改用 <kbd>Shift</kbd> 或 <kbd>C</kbd><kbd>-</kbd> <code>u</code> 加字母。</p></div>
+  </div>
+
+  <h3><kbd>M</kbd><kbd>x</kbd>：没有按键的命令怎么调</h3>
+
+  <p>Emacs 有几千条命令，但绑了键的只有一小部分。剩下的怎么办？答案是 <kbd>M</kbd><kbd>x</kbd>。</p>
+
+  <p>按 <kbd>M</kbd><kbd>x</kbd>，小模式行弹出 <code>M-x:</code> 提示，你输入命令名，回车执行。</p>
+
+  <pre class="term"><code>M-x lunar-phases RET</code></pre>
+
+  <p>Emacs 里真有这么个命令 <code>lunar-phases</code>，它会开一个新窗口显示从今天起的月相表。看完按 <kbd>C</kbd><kbd>x</kbd> <kbd>1</kbd> 回到单窗口。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>Emacs 圈子里「跑一下 <kbd>M</kbd><kbd>x</kbd> lunar-phases」是个玩笑，因为它专挑一个<strong>没人需要</strong>的命令来举例。但笑点恰恰在于：<kbd>M</kbd><kbd>x</kbd> 这个机制的存在，意味着<strong>Emacs 的每一个功能你都能拿到</strong>，哪怕它既没按键也没出现在菜单里。</p>
+  </div>
+
+  <h4>什么命令能进 <kbd>M</kbd><kbd>x</kbd></h4>
+
+  <p>不是所有东西都能用 <kbd>M</kbd><kbd>x</kbd> 调。<strong>命令</strong>（command）是 Emacs 的一类特殊函数：它被标记为 <strong>interactive</strong>（交互式），意思是「能被人直接调用」。标记为 interactive 的函数，Emacs 才知道可以把它挂到按键上、放进 <kbd>M</kbd><kbd>x</kbd> 的候选列表里。</p>
+
+  <p>反过来说，<strong>没标记 interactive 的函数你既不能用 <kbd>M</kbd><kbd>x</kbd> 调，也不能绑到键上</strong>。这类函数是给别的 Elisp 代码调用的内部工具。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>在 <kbd>M</kbd><kbd>x</kbd> 提示符里按 <kbd>Tab</kbd> 会列出所有候选命令，而且<strong>每敲一个字符就收窄一次</strong>。只剩一个候选时，Emacs 直接替你补全；你也可以直接按回车，效果和 <kbd>Tab</kbd> 一样，但会顺带把它执行掉。养成「忘了就 <kbd>M</kbd><kbd>x</kbd> 输前几个字母再 <kbd>Tab</kbd>」的习惯，你永远不需要背命令表。</p>
+  </div>
+
+  <h4>更窄的入口：<kbd>M</kbd><kbd>X</kbd></h4>
+
+  <p>从 <strong>Emacs 28</strong> 开始，多了一个 <kbd>M</kbd><kbd>X</kbd>（大写 X），命令是 <code>execute-extended-command-for-buffer</code>。它和 <kbd>M</kbd><kbd>x</kbd> 的区别是：候选列表<strong>只保留跟当前缓冲区有关的命令</strong>——也就是当前主模式专用、当前次模式启用的、以及在当前键映射表里绑定了的命令。</p>
+
+  <p>在一个写 Python 的缓冲区里按 <kbd>M</kbd><kbd>X</kbd>，不会给你列出几百个跟 Python 毫无关系的命令。在 <code>*scratch*</code> 里按，它给你的候选就少得多——因为 <code>*scratch*</code> 用的是 <code>lisp-interaction-mode</code>（就是前面模式行上那个 <code>Lisp Interaction</code>），这是个几乎不绑定任何东西的交互式 Elisp 模式。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>这个命令的实际键位绑定在 Emacs 内部记作 <code>M-X</code>（Meta 加大写 X），不是 <code>M-S-x</code>。你如果要在配置文件里写这个绑定，用 <code>(kbd "M-X")</code>。原因很技术：Emacs 的 <code>kbd</code> 函数把 <code>M-S-x</code> 解析成「Meta 加上带 Shift 修饰位的 x」，跟 Meta 加字符 <code>X</code> 是<strong>两个不同的键向量</strong>，只有后者是真正绑定了的。日常敲键盘不用管这个区别（按住 Meta 再按 Shift+x 出来的就是 X），但写配置时会咬人。</p>
+  </div>
+
+  <h3>万能参数：给命令加个数字</h3>
+
+  <p>很多命令有「不同档位」的行为。向下移动一个词和向下移动三个词是同一条命令，只是参数不同。Emacs 用<strong>前缀参数</strong>（prefix argument，也叫 universal argument）来表达这件事，键是 <kbd>C</kbd><kbd>u</kbd>。</p>
+
+  <p>它的规则简单到有点反直觉：</p>
+
+  <ul>
+    <li>光按一次 <kbd>C</kbd><kbd>u</kbd>，代表数字 <strong>4</strong>。</li>
+    <li>再按一次变 <strong>16</strong>（4 乘 4）。</li>
+    <li>第三次 <strong>64</strong>，第四次 <strong>256</strong>，以此类推。</li>
+  </ul>
+
+  <p>Emacs 源码里 <code>universal-argument</code> 的文档字符串就是这么写的，它自己的注释是「不带数字和负号时提供 <strong>4</strong> 作为参数，重复按则<strong>每次乘以 4</strong>」。</p>
+
+  <p>最好记的例子是：<kbd>C</kbd><kbd>u</kbd> 然后按 <kbd>a</kbd>，屏幕上出现 4 个 a；<kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>u</kbd> 然后 <kbd>a</kbd>，出现 16 个 a。</p>
+
+  <p>但这些其实都是<strong>默认档</strong>。想要任意数字，直接打就行：<kbd>C</kbd><kbd>u</kbd> 然后 <kbd>3</kbd> 然后 <kbd>a</kbd>，就是 3 个 a。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>万能参数<strong>自己什么都不做</strong>。它只是挂在命令前面的一个「数字」，Emacs 读完就等着你敲下一个真正要执行的命令，然后把数字传给它。所以 <kbd>C</kbd><kbd>u</kbd> 之后如果按 <kbd>C</kbd><kbd>g</kbd>，什么都没发生——这完全正常。<kbd>M</kbd><kbd>x</kbd> 也能接受前缀参数：<kbd>C</kbd><kbd>u</kbd> <kbd>4</kbd> <kbd>M</kbd><kbd>x</kbd> <code>lunar-phases</code> 就是「显示未来 4 天的月相」。</p>
+  </div>
+
+  <h4>你打的字母其实也是个命令</h4>
+
+  <p>这里藏着一个很值得知道的设计。你按下 <kbd>a</kbd>，屏幕上出现字母 a——这看起来是「键盘直接写字」，但实际上 Emacs 把每个字符都绑定到了同一条命令上：<code>self-insert-command</code>，它的工作就是「把最后按下的那个键插进缓冲区」。</p>
+
+  <p>这个设计的好处是：普通字符从此和其他所有命令<strong>受同一套规则管辖</strong>。它可以被取消绑定、可以被重绑定、可以吃前缀参数。所以 <kbd>C</kbd><kbd>u</kbd> <kbd>a</kbd> 能插 4 个 a 才成为可能——前缀参数对 <code>self-insert-command</code> 生效，意思就变成了「插入 N 份」。</p>
+
+  <h4>三种写法，一样的意思</h4>
+
+  <p>Emacs 为「给命令一个数字」准备了好几条路。它们是<strong>刻意冗余</strong>的：每一种写法都对应你手上某种修饰键，好让你保持手指不离开键盘。</p>
+
+  <div class="keys">
+    <h4>本节按键：前缀参数</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>u</kbd></td><td><code>universal-argument</code></td><td>数字 <strong>4</strong>。连按第 n 次是 4 的 n 次方</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>u</kbd></td><td><code>universal-argument</code></td><td>数字 <strong>16</strong></td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> 然后数字</td><td><code>digit-argument</code></td><td>任意正整数，比如 <kbd>C</kbd><kbd>u</kbd> <kbd>1</kbd><kbd>0</kbd> 是 10</td></tr>
+        <tr><td><kbd>C</kbd><kbd>0</kbd> … <kbd>C</kbd><kbd>9</kbd></td><td><code>digit-argument</code></td><td>直接给 0 到 9</td></tr>
+        <tr><td><kbd>M</kbd><kbd>0</kbd> … <kbd>M</kbd><kbd>9</kbd></td><td><code>digit-argument</code></td><td>同上，用 Meta 写</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>0</kbd> … <kbd>C</kbd><kbd>M</kbd><kbd>9</kbd></td><td><code>digit-argument</code></td><td>同上，用 Ctrl+Meta 写</td></tr>
+        <tr><td><kbd>C</kbd><kbd>-</kbd> ＋下一键</td><td><code>negative-argument</code></td><td><strong>负</strong>数：把接下来的参数取负。<strong>这是一个前缀键，后面必须再跟一个键</strong>（比如 <kbd>C</kbd><kbd>-</kbd> <kbd>C</kbd><kbd>f</kbd> 就是「往回移动一段」）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> ＋下一键</td><td><code>negative-argument</code></td><td>同上。也就是键盘上的 <kbd>C</kbd><kbd>-</kbd>（Ctrl 和减号在同一排时）、<kbd>M</kbd><kbd>-</kbd>（Alt+减号）、<kbd>C</kbd><kbd>M</kbd><kbd>-</kbd>（Ctrl+Alt+减号）<strong>三个键绑的是同一条命令</strong>，本书作者在本机 Emacs 32.0.50 上逐个查过</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>-</kbd> ＋下一键</td><td><code>negative-argument</code></td><td>同上</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>文档里写 <code>C--</code>（<kbd>C</kbd><kbd>-</kbd>），意思是「Ctrl 加减号键」，<strong>不是</strong>「先按 Ctrl、松开、再按减号」。后者在 Emacs 里不是合法的按键序列——Emacs 无法区分你打算表达的这两件事，而你松手再按减号的结果是在屏幕上打了个普通减号。Emacs 记法里的连字符永远是「修饰键的连接符」，不是两个独立的按键。</p>
+  </div>
+
+  <h4>负数让命令反过来</h4>
+
+  <p>前缀参数是<strong>方向性</strong>的，这是它最巧的地方。同一条命令，正着和倒着是相反的操作。</p>
+
+  <p>在缓冲区末尾的 <code>alpha beta gamma</code> 上试：</p>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>d</kbd> 单独用，命令是 <code>kill-word</code>，<strong>向前</strong>杀掉一个词。</li>
+    <li><kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>d</kbd>，<code>backward-kill-word</code>，<strong>向后</strong>杀掉一个词。</li>
+  </ul>
+
+  <p>两种写法结果一样，但<strong>打字速度差很多</strong>。<kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>d</kbd> 全程 Meta 手不松开，是一次连贯的动作；而 <kbd>C</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>d</kbd> 你得先按 Ctrl 加减号、松开 Ctrl、再按住 Meta 按 d，节奏全断了。</p>
+
+  <p>原书作者管这个叫保持<strong>节奏</strong>（tempo）。这也是为什么 Emacs 要给同一个操作准备 <kbd>C</kbd><kbd>-</kbd>、<kbd>M</kbd><kbd>-</kbd>、<kbd>C</kbd><kbd>M</kbd><kbd>-</kbd> 三种看起来完全冗余的写法——它们各自对应「你另一只手正按着哪个修饰键」。Emacs 把这个冗余当成特性，因为在这里，<strong>少一次松手比少记一个键更重要</strong>。</p>
+
+  <div class="drill" data-answer="M-x lunar-phases RET">
+    <p class="drill-q"><b>练习 11</b>　想用 Emacs 查未来几天的月相，输入什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>x</kbd> <code>lunar-phases</code> 回车。命令名是 <code>lunar-phases</code>，确实存在。输入命令名时按 <kbd>Tab</kbd> 可以补全。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-X 即 execute-extended-command-for-buffer；配置里要写 (kbd "M-X") 而不是 (kbd "M-S-x")">
+    <p class="drill-q"><b>练习 12</b>　Emacs 28 引入了一个「只列出跟当前缓冲区有关的命令」的入口。日常怎么敲？如果要把它写进配置文件，<code>kbd</code> 里该写什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>日常按 <kbd>M</kbd><kbd>X</kbd>（Meta 加大写 X），命令是 <code>execute-extended-command-for-buffer</code>。写配置时用 <code>(kbd "M-X")</code>。<strong>不要写 <code>(kbd "M-S-x")</code></strong>——Emacs 会把它解析成「Meta 加带 Shift 修饰位的小写 x」，那是另一个键向量，并没有绑定。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-u = 4，C-u C-u = 16，每次乘 4">
+    <p class="drill-q"><b>练习 13</b>　<kbd>C</kbd><kbd>u</kbd> 单独按代表数字几？连按两次呢？<kbd>C</kbd><kbd>u</kbd> 之后按 <kbd>a</kbd> 屏幕上会出现几个 a？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>单独按是 <strong>4</strong>，连按两次是 <strong>16</strong>（每次乘 4），三次 64，四次 256。<kbd>C</kbd><kbd>u</kbd> 之后按 <kbd>a</kbd> 出现 <strong>4 个 a</strong>。想要任意数字就 <kbd>C</kbd><kbd>u</kbd> 后面直接打数字，比如 <kbd>C</kbd><kbd>u</kbd> <kbd>1</kbd><kbd>0</kbd> <kbd>a</kbd> 是 10 个。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-- M-d 向后删词，全程不松 Meta；C-- M-d 效果一样但要松 Ctrl 再按 Meta">
+    <p class="drill-q"><b>练习 14</b>　在光标处向后删掉前一个词，用 <kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>d</kbd> 和用 <kbd>C</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>d</kbd> 效果一样吗？打字速度呢？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>效果完全一样，都是 <code>backward-kill-word</code>。但速度差很多：<kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>d</kbd> 全程 Meta 手不松开，一气呵成；<kbd>C</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>d</kbd> 要先按住 Ctrl 加减号、<strong>松开 Ctrl</strong>、再按住 Meta 按 d。这正是原书说的「保持节奏（tempo）」：Emacs 故意把同一个操作绑到 C-、M-、C-M- 三种前缀上，就是为了让每种手型都能不松手地打出来。</p></div>
+  </div>
+
+  <h3>自救系统：<kbd>C</kbd><kbd>h</kbd> 家族</h3>
+
+  <p>如果这一章只能记住一节，就是这一节。</p>
+
+  <p>Emacs 有一个说法叫「<strong>自文档化</strong>」：它内部的一切——每个命令、每个变量、每个 face（界面元素的配色和字体）、每个模式——都带着一段说明文字，Emacs 随时能把它取出来给你看。这套机制让 Emacs 在某种程度上能自己回答「我是谁、我干了什么、我被谁绑定了」。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>为什么这件事值得这么大力气讲？因为<strong>你的 Emacs 和别人的不一样</strong>。你可能改过键位，装过插件，开过某个奇怪的次模式。上网问只能得到泛泛的回答，只有你机器上这个 Emacs 自己知道确切答案。「我知道我不知道，但我知道去哪儿查」——这个能力比记住任何一个键都重要。</p>
+  </div>
+
+  <h4>五条最该背下来的命令</h4>
+
+  <p>全部挂在 <kbd>C</kbd><kbd>h</kbd> 下面。<strong>先解决一个会挡住所有人的问题：万一你的键盘发不出 <kbd>C</kbd><kbd>h</kbd>。</strong>不少笔记本键盘和精简终端会把 <kbd>C</kbd><kbd>h</kbd> 吃掉（它和 Backspace 发的是同一个字节），Emacs 于是把你的按键当成「退格」。三个都能用的替代入口：</p>
+
+  <ul>
+    <li><strong><kbd>M</kbd><kbd>x</kbd> <code>help-command</code></strong>——<strong>这个永远管用</strong>，因为 <kbd>M</kbd><kbd>x</kbd> 只依赖 Meta 键。本节表格里 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 的功能，写成 <kbd>M</kbd><kbd>x</kbd> <code>describe-mode</code> <kbd>RET</kbd> 效果完全一样（本章后面所有表格你都可以这样替换）。</li>
+    <li><strong><kbd>F1</kbd></strong>——Emacs 的帮助键表里确实把 <kbd>F1</kbd> 也绑成了帮助菜单，但<strong>它是否在你的终端里真的绑上了，取决于终端的 terminfo 和你的 Emacs 构建</strong>。本书作者在 32.0.50 上实测，<kbd>C</kbd><kbd>h</kbd> 绑的是 <code>help-command</code>，而 <kbd>F1</kbd> 在裸 Emacs 里<strong>没有全局绑定</strong>。<strong>结论：别把 <kbd>F1</kbd> 当成保底方案</strong>，先试一下，敲了没反应就用上面那条。</li>
+    <li><strong><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>h</kbd></strong>——如果 <kbd>C</kbd><kbd>h</kbd> 能发出来但你不想每次都记具体字母，按两下 <kbd>C</kbd><kbd>h</kbd>（<code>help-for-help</code>）会弹出一个<strong>列出全部帮助子命令的菜单</strong>，用方向键选、回车执行。</li>
+  </ul>
+
+  <p>确认一下你这台机器上 <kbd>C</kbd><kbd>h</kbd> 到底通不通：把它按住，按一下 <kbd>h</kbd>。屏幕上应该弹出一个 <code>*Help*</code> 缓冲区。什么反应都没有，说明你的终端把它吃掉了，上面三条选一条用。</p>
+
+  <div class="keys">
+    <h4>本节按键：自文档化五件套</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd></td><td><code>describe-mode</code></td><td>当前缓冲区主模式（和已启用的次模式）的说明，含该模式新增的键位。<strong>进到一个新模式第一件该做的事</strong></td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd></td><td><code>describe-key</code></td><td>按下你好奇的那个键，Emacs 告诉你它绑到哪个命令。性价比最高的一个</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd></td><td><code>describe-function</code></td><td>查某个<strong>函数</strong>：签名、文档、源码位置</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd></td><td><code>describe-variable</code></td><td>查某个<strong>变量</strong>：当前值、含义、源码位置</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>x</kbd></td><td><code>describe-command</code></td><td>查某个<strong>命令</strong>。Emacs 28 新增，比 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 更专注，搜命令时优先用它</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>它们都是「问完一个问题，弹出一个 <code>*Help*</code> 缓冲区」的形式。用完按 <kbd>q</kbd> 关掉。</p>
+
+  <p>前三者的区别只在查的对象：<code>describe-function</code> 查函数，<code>describe-variable</code> 查变量，<code>describe-mode</code> 查当前模式。<code>describe-key</code> 不用输名字——它提示你「按下按键」，然后你直接敲。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 的最大价值是：<strong>它查的是「你现在的 Emacs」，不是「平均的 Emacs」</strong>。同一个键在 Python 模式和文本模式可能绑不同的命令——<kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 会如实告诉你此刻在这个缓冲区里它到底是什么。</p>
+  </div>
+
+  <p><code>describe-mode</code> 的输出比你以为的更全：除了列出该模式<strong>绑了键</strong>的那些命令（带按键），它末尾还有一段 <em>Other commands for this mode, not bound to any keys</em>，专门列出这个模式定义了但<strong>没绑键</strong>的命令。所以「一个模式有哪些命令」这个问题，<kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 基本能一次答完。</p>
+
+  <h4><code>*Help*</code> 缓冲区里的三个快捷键</h4>
+
+  <p>从 Emacs 28 起，任何 <code>*Help*</code> 缓冲区里都有三个单键快捷键，能直接跳到更深的地方：</p>
+
+  <div class="keys">
+    <h4>本节按键：<code>*Help*</code> 缓冲区内</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>i</kbd></td><td><code>help-goto-info</code></td><td>跳到 Info 手册里这个条目的完整说明</td></tr>
+        <tr><td><kbd>s</kbd></td><td><code>help-view-source</code></td><td>跳到这个符号的<strong>源码定义</strong>处</td></tr>
+        <tr><td><kbd>c</kbd></td><td><code>help-customize</code></td><td>直接打开这个变量的 Customize 设置界面</td></tr>
+        <tr><td><kbd>l</kbd> / <kbd>r</kbd></td><td><code>help-go-back</code> / <code>help-go-forward</code></td><td>在 <code>*Help*</code> 缓冲区里前后翻</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>help-follow-symbol</code></td><td>对光标处那个符号查帮助</td></tr>
+        <tr><td><kbd>q</kbd></td><td>（常规）</td><td>关掉 <code>*Help*</code> 缓冲区</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><kbd>s</kbd> 那个特别值得说：Emacs 自己分不清哪些是「核心」（C 语言写的）哪些是「Elisp 写的」。<kbd>s</kbd> 会正确地把两种都指给你看，并且<strong>Emacs 里没有任何秘密</strong>——你装的所有第三方包，里面的一切也都能这样查到源码。</p>
+
+  <h4>忘了某个前缀键下有什么？后面加 <kbd>C</kbd><kbd>h</kbd></h4>
+
+  <p>这是 Emacs 最优雅的一个技巧。<strong>绝大多数前缀键，后面加 <kbd>C</kbd><kbd>h</kbd>（或 <kbd>?</kbd>、<kbd>F1</kbd>），Emacs 就把这个前缀键表里所有绑定列出来</strong>——超链接形式，可以鼠标点。少数自己给 <kbd>C</kbd><kbd>h</kbd> 和 <kbd>?</kbd> 派了别的用处的键表不支持这招，但它们都支持 <kbd>F1</kbd>。</p>
+
+  <p>比如你只记得「有个 <kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> 开头的键能打段落符号，但忘了是哪个」，敲 <kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>C</kbd><kbd>h</kbd>，一张表就摆在你面前。</p>
+
+  <h4>手册：Info 手册</h4>
+
+  <p>Emacs 自带一整套完整的用户手册，写在 <strong>TeXinfo</strong> 格式里（GNU 全生态的文档格式）。按 <kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 打开它。Emacs 内置的 Info 阅读器带超链接，比命令行里那个 <code>info</code> 工具好用得多。</p>
+
+  <p>手册入口有好几个，容易混：</p>
+
+  <div class="keys">
+    <h4>本节按键：Info 手册入口</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd></td><td><code>info</code></td><td>打开 Info 浏览器，自己选手册</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd></td><td><code>info-emacs-manual</code></td><td><strong>直接打开 Emacs 手册</strong>，最常用的一条</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>R</kbd></td><td><code>info-display-manual</code></td><td>按名字打开任意一本已安装的手册，例如输 <code>elisp-intro</code> 打开 Elisp 入门</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>x</kbd></td><td><code>describe-command</code></td><td>查命令；输出里带跳到 Info 的超链接</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>?</kbd></td><td><code>help-for-help</code></td><td>「帮助的帮助」，不知道按什么就按这个</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原书写「用 <kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 查命令的文档」，这条<strong>今天仍然有效，但用途窄</strong>。<kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 在 Emacs 里还绑着，指向 <code>Info-goto-emacs-command-node</code>，而它<strong>并不显示命令的文档</strong>——它是跳到「命令在手册里的那一节」，也就是打开 Info 手册对应节点。官方手册至今仍然推荐它（它认得 Emacs 之外的其他手册）。不过想直接看命令的说明文字，现在更该按 <kbd>C</kbd><kbd>h</kbd> <kbd>x</kbd>（<code>describe-command</code>，Emacs 28 起），直接给你文档字符串。</p>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>注意 <kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd>（小写 r）和 <kbd>C</kbd><kbd>h</kbd> <kbd>R</kbd>（大写 R）是两条不同的命令：前者是 <code>info-emacs-manual</code>，一步直达 Emacs 手册；后者是 <code>info-display-manual</code>，让你按名字挑一本。这两个最容易记混，因为它们长得几乎一样。</p>
+  </div>
+
+  <h4>在手册里怎么走</h4>
+
+  <p>Info 阅读器（<code>Info-mode</code>，专门用于阅读手册的模式）自己有一整套按键。它的设计像网页浏览器，但按键不一样，而且这些按键<strong>只在 Info 缓冲区里有效</strong>，在别的缓冲区按了没用。</p>
+
+  <div class="keys">
+    <h4>本节按键：Info 手册导航</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>SPC</kbd></td><td><code>Info-scroll-up</code></td><td><strong>往下翻一屏</strong>，翻到底自动跳到下一个节点。日常通读手册就用它</td></tr>
+        <tr><td><kbd>]</kbd></td><td><code>Info-forward-node</code></td><td>下一个节点（深入一层）</td></tr>
+        <tr><td><kbd>[</kbd></td><td><code>Info-backward-node</code></td><td>上一个节点（退一层）</td></tr>
+        <tr><td><kbd>n</kbd> / <kbd>p</kbd></td><td><code>Info-next</code> / <code>Info-prev</code></td><td>下一个 / 上一个<strong>同级</strong>节点，也就是兄弟章节</td></tr>
+        <tr><td><kbd>u</kbd></td><td><code>Info-up</code></td><td>回到<strong>父节点</strong>（上一层目录）</td></tr>
+        <tr><td><kbd>l</kbd> / <kbd>r</kbd></td><td><code>Info-history-back</code> / <code>Info-history-forward</code></td><td>按<strong>浏览历史</strong>后退 / 前进，像浏览器一样</td></tr>
+        <tr><td><kbd>TAB</kbd></td><td><code>Info-next-reference</code></td><td>跳到本文提到的<strong>下一个交叉引用</strong>（文档之间的链接）</td></tr>
+        <tr><td><kbd>RET</kbd></td><td><code>Info-follow-nearest-node</code></td><td>打开光标所在处的链接</td></tr>
+        <tr><td><kbd>m</kbd></td><td><code>Info-menu</code></td><td>按名字挑当前节点的菜单项（输名字，支持 <kbd>Tab</kbd> 补全）</td></tr>
+        <tr><td><kbd>q</kbd></td><td><code>quit-window</code></td><td>关掉当前这个手册窗口</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><kbd>SPC</kbd> 和 <kbd>]</kbd> 的区别值得单独体会。<kbd>SPC</kbd> 是「像翻书一样往下读」——它把当前节点读完，会自动接上下一个节点或下一个子节点，一路顺下去；<kbd>]</kbd> 是「明确地跳到下一个节点」。<strong>通读手册用 <kbd>SPC</kbd>，来回对照着查用 <kbd>]</kbd> 和 <kbd>[</kbd></strong>。</p>
+  </div>
+
+  <details class="deep">
+    <summary>进阶：Info 里另外几个高价值的按键</summary>
+    <p>下面这些同样只在 Info 缓冲区里有效，初学阶段用不上，但知道有它们，以后查手册会省事：</p>
+    <ul>
+      <li><kbd>g</kbd>（<code>Info-goto-node</code>）——<strong>按名字直接跳到某个节点</strong>。手册里某个功能你知道在哪但不知道节点名时，比一层层点快得多。</li>
+      <li><kbd>i</kbd>（<code>Info-index</code>）——打开当前节点的索引条目，按字母排好了全部主题，输入关键词过滤。查「某个功能叫什么」用这个。</li>
+      <li><kbd>s</kbd>（<code>Info-search</code>）——在当前节点里搜字符串；<kbd>S</kbd>（<code>Info-search-case-sensitively</code>）区分大小写。</li>
+      <li><kbd>f</kbd>（<code>Info-follow-reference</code>）——跳到光标处提到的那个引用。</li>
+      <li><kbd>?</kbd>（<code>Info-summary</code>）——打印当前节点的菜单（大纲），<strong>迷路时按它回到该去的地方</strong>。</li>
+      <li><kbd>&lt;</kbd> / <kbd>&gt;</kbd>（<code>Info-top-node</code> / <code>Info-final-node</code>）——直接跳到整本手册的开头或结尾。</li>
+    </ul>
+    <p>原书只列了其中一部分，并把它们描述成「命令的前后节点」这类含糊说法；上面是按 Emacs 32 的 <code>Info-mode-map</code> 逐条核对过的准确含义。</p>
+  </details>
+
+  <h4>不知道名字，只记得大概：apropos</h4>
+
+  <p>你经常处在这种处境：知道要找什么，但不知道它叫什么。Emacs 为此准备了一整套 <strong>apropos</strong>（法语，「关于」）命令，作用是<strong>按模式搜索</strong>。</p>
+
+  <div class="keys">
+    <h4>本节按键：apropos 家族</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd></td><td><code>apropos-command</code></td><td>搜<strong>命令</strong>名。最常用的一条，支持正则</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd></td><td><code>apropos-documentation</code></td><td>搜<strong>文档字符串</strong>——只记得功能不记得名字时用这个</td></tr>
+<tr><td><kbd>M</kbd><kbd>x</kbd> <code>apropos</code></td><td><code>apropos</code></td><td>「全搜」：函数、变量、face 一起搜，范围比上面几条都宽</td></tr>
+<tr><td><kbd>M</kbd><kbd>x</kbd> <code>apropos-library</code></td><td><code>apropos-library</code></td><td>列出某个<strong>已加载的库/包里定义的</strong>所有变量和函数。注意它只认<strong>当前已经加载过</strong>的库——想研究一个还没加载的包，得先 <code>require</code> 它</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>apropos-value</code></td><td><code>apropos-value</code></td><td>按<strong>值</strong>搜。不知道变量名但知道它当前是什么值时的救命招</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>apropos-user-option</code></td><td><code>apropos-user-option</code></td><td>列出所有能通过 Customize 设置的选项</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>举两个例子：<kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd> 然后输 <code>-word$</code>，列出所有以 <code>-word</code> 结尾的命令。<kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd> 然后输 <code>.+</code>（匹配一切），会吐出成千上万条——原书说这是发现隐藏功能的好办法，但第一次做可能会被刷屏吓到。</p>
+
+  <p>Emacs 的命名是有规律的，看多了能形成直觉：命令名末尾常常标明它作用的对象，<code>-word</code> 对词、<code>-line</code> 对行、<code>-buffer</code> 对缓冲区、<code>-window</code> 对窗口、<code>-paragraph</code> 对段落。认得这个规律，apropos 的命中率会高很多。</p>
+
+  <details class="deep">
+    <summary>进阶：让 apropos 的结果按相关度排序</summary>
+    <p>apropos 的默认排序方式是<strong>按名字字母序</strong>。搜 <code>-word$</code> 时，最相关的命令往往散在长长的列表中间，不太好找。</p>
+    <p>有个变量专门管这件事：<code>apropos-sort-by-scores</code>，<strong>默认是 <code>nil</code></strong>（不按相关度排）。把它设成 <code>t</code> 之后，结果会按「命令名里包含你输入的关键词的比重」重新排序，最像的排最前面；设成 <code>verbose</code> 还会在每条后面显示算出来的分数。</p>
+    <pre class="term"><code>M-x customize-option RET apropos-sort-by-scores RET</code></pre>
+    <p>它是<strong>变量不是命令</strong>，所以必须通过 Customize 这类改设置的入口来改，不能直接在 <kbd>M</kbd><kbd>x</kbd> 里敲。这是初学者常踩的一个坑：<kbd>M</kbd><kbd>x</kbd> 只能调用命令，变量得走 Customize 或者 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 查。</p>
+    <p>还有一个相关的：<code>apropos-documentation-sort-by-scores</code> 控制 <kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd>（<code>apropos-documentation</code>）的排序，它的默认值是 <code>t</code>——也就是说，搜文档字符串时<strong>默认就已经按相关度排了</strong>，不需要你改。</p>
+  </details>
+
+  <h4>快捷速查：<kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>q</kbd></h4>
+
+  <p>从 <strong>Emacs 29</strong> 起多了一个功能：<kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>q</kbd>，命令 <code>help-quick-toggle</code>，会在窗口底部弹出一张常用键位速查表。</p>
+
+  <p>它就是当年 80 年代人桌上那块盖在键盘上的透明塑料板的电子版——<strong>救急用的，不是用来精通 Emacs 的</strong>。当你一时想不起来「保存文件是哪个键」，扫一眼就够。按 <kbd>q</kbd> 关掉。</p>
+
+  <div class="drill" data-answer="C-h k 即 describe-key；C-h m 是 describe-mode">
+    <p class="drill-q"><b>练习 15</b>　想查「<kbd>C</kbd><kbd>s</kbd> 到底是干什么的」，按 <kbd>C</kbd><kbd>h</kbd> 然后哪个键？而「当前这个缓冲区是什么模式」，又是哪个键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>查按键用 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd>（<code>describe-key</code>），它提示你按下按键然后如实报告。查模式用 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd>（<code>describe-mode</code>），它不用输名字，直接看当前缓冲区。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-h x 是 describe-command（Emacs 28+），直接给文档字符串；C-h F 跳的是命令在手册里的节点">
+    <p class="drill-q"><b>练习 16</b>　查一个<strong>命令</strong>的文档，Emacs 28 之后推荐按哪个键？原书教的 <kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 是什么状态？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>推荐 <kbd>C</kbd><kbd>h</kbd> <kbd>x</kbd>，命令 <code>describe-command</code>，Emacs 28 新增，直接显示命令的文档字符串。<kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 也还能按，官方手册仍然推荐，但它做的是另一件事：跳到这条命令在 Info 手册里的对应节点，而不是把文档摆在你面前。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x 8 C-h：前缀键后面加 C-h（或 F1）就列出该键表所有绑定">
+    <p class="drill-q"><b>练习 17</b>　你只记得「<kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> 后面有个键能打段落符号」，但忘了是哪个。敲哪串键能让 Emacs 把整个键表列给你？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>敲 <kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>C</kbd><kbd>h</kbd>。规则是：<strong>绝大多数前缀键后面加 <kbd>C</kbd><kbd>h</kbd>（或 <kbd>?</kbd>、<kbd>F1</kbd>）</strong>，Emacs 就把这个键映射表里的全部绑定列出来，带超链接可点。找到 <kbd>P</kbd> 那行就知道是段落符号了。</p></div>
+  </div>
+
+  <div class="drill" data-answer="SPC 往下读（读完自动进下一节点）；] 跳下一个节点；u 回父节点；l/r 走浏览历史；? 回本节点目录">
+    <p class="drill-q"><b>练习 18</b>　在 Info 手册里，<kbd>SPC</kbd>、<kbd>]</kbd>、<kbd>u</kbd>、<kbd>l</kbd>/<kbd>r</kbd>、<kbd>?</kbd> 这几个键各自是干什么的？其中哪个适合「从头通读手册」？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>SPC</kbd> 往下翻一屏，读完当前节点会<strong>自动接上下一个节点</strong>——<strong>通读手册用它</strong>。<kbd>]</kbd> 明确跳到下一个节点（<kbd>[</kbd> 反向），<kbd>n</kbd>/<kbd>p</kbd> 在兄弟节点间移动。<kbd>u</kbd> 回到父节点（上一层）。<kbd>l</kbd>/<kbd>r</kbd> 是按<strong>浏览历史</strong>后退和前进，像浏览器一样。<kbd>?</kbd> 打印当前节点的菜单（大纲），<strong>迷路时按它就能回到该去的地方</strong>。</p></div>
+  </div>
+
+  <h3>配置 Emacs：文件在哪、怎么改</h3>
+
+  <p>Emacs 的所有个性化都写在一个文件里，叫<strong>初始化文件</strong>（init file）。它是一段 Elisp 代码，Emacs 启动时读它、执行它。</p>
+
+  <h4>先查你自己的文件在哪</h4>
+
+  <p>不同平台、不同版本、甚至同一台机器的不同 Emacs，初始化文件的位置都可能不一样。<strong>所以不要背路径，直接问 Emacs 本身</strong>：</p>
+
+  <pre class="term"><code>M-x customize-option RET user-init-file RET</code></pre>
+
+  <p>或者按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输 <code>user-init-file</code>。Emacs 会把<strong>它此刻真正使用的那个路径</strong>显示给你。启动时回显区闪过的那行 <code>Loading /home/you/.emacs.d/init.el...</code> 也是同一个答案。</p>
+
+  <p>常见的几种情况：</p>
+
+  <ul>
+    <li><strong>传统路径</strong> <code>~/.emacs.d/init.el</code>——绝大多数 Linux 和 macOS 用户的配置在这。</li>
+    <li><strong>XDG 路径</strong> <code>~/.config/emacs/init.el</code>——<strong>Emacs 27.1 开始支持</strong>（本书作者在 Emacs 32.0.50 自带的 <code>etc/NEWS.27</code> 里查过：那一版第 192 行写着 “Emacs can now use the XDG convention for init files.”，归属的版本小节是 “Startup Changes in Emacs 27.1”），也可以用环境变量 <code>XDG_CONFIG_HOME</code> 改这个位置。<strong>规则和很多人的直觉相反</strong>：Emacs <strong>优先用传统路径</strong>，只有当 <code>~/.emacs.d/</code>、<code>~/.emacs</code>、<code>~/.emacs.el</code> <strong>全都不存在</strong> 时才轮到 XDG 路径。官方文档写得很直白：<em><code>~/.emacs.d</code>、<code>~/.emacs</code> 和 <code>~/.emacs.el</code> 只要存在就永远优先，想用 XDG 路径你必须先把它们删掉或改名</em>。另外，如果两条路径都不存在，Emacs 会<strong>自己创建 <code>~/.emacs.d/</code></strong> 并从此使用它——<strong>所以在一台全新机器上，你什么都不用做就会得到 <code>~/.emacs.d/init.el</code>，而不是 <code>~/.config/emacs/init.el</code>。</strong></li>
+    <li><strong>Windows</strong>——Emacs 在 Windows 上把 <code>~</code> 解析到用户的应用数据目录（<code>%APPDATA%</code>）而不是 <code>C:\Users\你</code>，所以配置在 <code>%APPDATA%\.emacs.d\init.el</code> 一带。同样，用 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 查 <code>user-init-file</code> 最稳。</li>
+  </ul>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>配置出问题时的标准流程：先用 <code>emacs -q</code> 确认「问题出在我的配置」，然后把 <code>init.el</code> 注释掉一半，再启动一次。反复二分，很快能定位到出问题的那几行。Emacs 报错时通常会在 <code>*Messages*</code> 缓冲区里给出具体是哪一行；按 <kbd>C</kbd><kbd>g</kbd> 之后按 <kbd>C</kbd><kbd>h</kbd> <kbd>e</kbd>（<code>view-echo-area-messages</code>）就能把它翻出来。</p>
+  </div>
+
+  <h4>early-init-file：一个更早加载的文件</h4>
+
+  <p>从 <strong>Emacs 29</strong> 起，Emacs 会先读一个 <code>early-init.el</code>，再读普通的 <code>init.el</code>。它就在 init 文件同一个目录里（比如 <code>~/.emacs.d/early-init.el</code>）。</p>
+
+  <p>为什么要多一个？因为有些设置必须在包系统启动<strong>之前</strong>生效，否则不起作用。典型例子是<strong>禁止 Emacs 启动时自动激活已装的包</strong>：变量 <code>package-enable-at-startup</code>（默认 <code>t</code>）控制这件事——非 <code>nil</code> 时 Emacs 会在读 init 文件<strong>之前</strong>把已装的包激活，这个过程可能触发字节编译、联网、甚至报错。把「别自动激活」写进 <code>early-init.el</code>，就能赶在它之前拦下来：</p>
+
+  <pre class="el"><code>(setq package-enable-at-startup nil)</code></pre>
+
+  <p>官方文档明确说了：因为这个变量的值在读普通 init 文件<strong>之前</strong>就被用到，所以它<strong>必须写在 <code>early-init.el</code> 里</strong>。哪怕你用 Customize 改它并存了档，Emacs 也会把设置写进 <code>early-init.el</code>。之后想手动激活包，按 <kbd>M</kbd><kbd>x</kbd> <code>package-initialize</code> 就行。</p>
+
+  <p>如果你现在还不需要它，<strong>完全可以先不建这个文件</strong>——Emacs 找不到就跳过，不会报错。</p>
+
+  <h4>两条改配置的路</h4>
+
+  <p>Emacs 给了你两种改设置的方式，新手常犯的错是「只用一种然后抱怨另一种很难用」。</p>
+
+  <p><strong>路线一：Customize 图形界面。</strong>按 <kbd>M</kbd><kbd>x</kbd> <code>customize</code>，出来一棵分组树，每一项都有复选框、下拉框、输入框。改完点 <strong>Apply</strong> 生效，点 <strong>Apply and Save</strong> 存进文件。Emacs 会自动帮你写好对应的 Elisp。</p>
+
+  <p>它的硬限制是：<strong>不是所有变量都支持 Customize</strong>。支持的那些，也只暴露其中一部分选项——变量自己声明能 Customize 什么，Customize 就只能显示什么。这是原理性的，不是没做全。</p>
+
+  <p><strong>路线二：直接写 Elisp。</strong>配置文件的本质就是一段 Elisp，你在 <code>init.el</code> 里写 <code>(setq tab-width 4)</code> 和在 Customize 里把 Tab Width 拖到 4，效果完全一样。强大、无限制，代价是要学一点 Elisp。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>原作者的建议很中肯：<strong>先用 Customize，等你写顺手了 Elisp 再切过去</strong>。它确实笨重，但不会写错。对初学者来说「不会错」比「省事」重要得多。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键：Customize 入口</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize</code></td><td><code>customize</code></td><td>打开全部分组的树</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-option</code></td><td><code>customize-option</code></td><td>按名字直达某个变量</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-group</code></td><td><code>customize-group</code></td><td>按名字进入某个分组，比如 <code>python</code></td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-face</code></td><td><code>customize-face</code></td><td>改配色。命令在光标所在的 face 上时会自动填好名字</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-mode</code></td><td><code>customize-mode</code></td><td>配置<strong>当前缓冲区的主模式</strong>。学一门语言就配一次，很值</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-themes</code></td><td><code>customize-themes</code></td><td>列出已安装主题并切换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-changed</code></td><td><code>customize-changed</code></td><td>列出相对某个 Emacs 版本新增的选项。升级后用它发现新功能</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-saved</code></td><td><code>customize-saved</code></td><td>列出你已保存的所有设置。追踪「这个怪行为是哪来的」很好用</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-browse</code></td><td><code>customize-browse</code></td><td>纯树形浏览器，不显示每项的说明文字</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-unsaved</code></td><td><code>customize-unsaved</code></td><td>列出<strong>改过但还没保存</strong>的设置。怀疑自己有临时改动时用它</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>改完记得点 <strong>Apply and Save</strong>。<strong>只点 Apply 的话，这次会话有效，下次启动就白搭了</strong>——这是新手最常见的「我明明改了怎么没反应」。</p>
+
+  <p>你通过 Customize 做的所有修改，最后是以 Elisp 代码的形式写进配置文件的。默认情况下它直接写进你的 init 文件本身（变量 <code>custom-file</code> 默认是 <code>nil</code>，意思就是「就用 <code>user-init-file</code>」）。所以 Customize 存的东西会以 <code>custom-set-variables</code>、<code>custom-set-faces</code> 这些函数调用的形式出现在 <code>init.el</code> 里，你可以打开它看 Emacs 到底替你写了什么，也可以手工改。</p>
+  <p>如果你不想让 Customize 往 init 文件里塞东西，可以指定一个单独的文件。在 init 文件开头写两行（两行都要，缺一不可）：</p>
+  <pre class="el"><code>(setq custom-file "~/.config/emacs-custom.el")
+(load custom-file)</code></pre>
+  <p>之后 Customize 就只往 <code>emacs-custom.el</code> 里写，init 文件保持干净。记得改完这条之后 Customize 里的 <strong>Apply and Save</strong> 才对新文件生效。</p>
+
+  <details class="deep">
+    <summary>进阶：Apply、Apply and Save、Revert 这三个按钮的准确区别</summary>
+    <p>Customize 底部那一排按钮，语义比看上去微妙，弄错会留下「改了却不生效」或者「回退不干净」的烂摊子：</p>
+    <ul>
+      <li><strong>Apply</strong>——只让改动<strong>当前这一次会话</strong>生效，<strong>不写文件</strong>。关掉 Emacs 就没了。用来「先试试看，不喜欢就算了」。</li>
+      <li><strong>Apply and Save</strong>——当前会话生效，<strong>并且写进配置文件</strong>，下次启动还在。这才是真正「改了」的那一下。</li>
+      <li><strong>Revert…</strong>——回退。它带一个下拉菜单，有几个选项：<strong>Revert This Session's Customizations</strong> 只撤销你在这个缓冲区里改动过的那些项；<strong>Erase Customizations</strong> 则是把 Customize 为你做过的改动<strong>整块删掉</strong>（从文件里移除），适合「我改乱了，想让 Emacs 忘掉我」的情况。</li>
+    </ul>
+    <p><strong>一个要记住的规律：只要你还没点 Save，就还能干净地回退；一旦点了 Save，回退就只能靠 Erase，或者自己去配置文件里手工撤销。</strong>这也是为什么「不确定就先 Apply」是个好习惯——Apply 是可以反悔的，Save 不是。</p>
+    <p>原书这一点讲得准确，值得原样保留：<strong>Revert 只影响当前 Customize 缓冲区里显示的那些项，不是全局撤销</strong>。你要是改了五个变量但只看得到一个，Revert 就只动那一个。</p>
+  </details>
+
+  <h4>改完怎么生效</h4>
+
+  <p>从网上抄了一段 Elisp 想知道有没有用，不必每次都重启 Emacs：</p>
+
+  <div class="keys">
+    <h4>本节按键：即时求值</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>eval-buffer</code></td><td><code>eval-buffer</code></td><td>把当前整个缓冲区当 Elisp 逐行执行。改完 <code>init.el</code> 存了盘，跑这个</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>eval-region</code></td><td><code>eval-region</code></td><td>只执行选中的部分。想试一个片段时用它</td></tr>
+        <tr><td><kbd>M</kbd><kbd>-</kbd> 然后 <kbd>E</kbd></td><td><code>eval-expression</code></td><td>在小模式行里直接算一个表达式，不影响文件</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原书写「重新启动 Emacs 是最简单的方法，作者推荐用它」——这在<strong>排错</strong>时是对的（全新环境能排除干扰），但如果你只是想确认一段配置<strong>语法对不对</strong>，<kbd>M</kbd><kbd>x</kbd> <code>eval-buffer</code> 更快，几十毫秒就有结果。如果 <code>eval-buffer</code> 报语法错误，那你的配置确实坏了，重启多少次都一样。</p>
+  </div>
+
+  <h4>包管理器：装第三方插件</h4>
+
+  <p>Emacs 自带包管理器 <code>package.el</code>。它的工作方式类似手机上的应用商店：联网抓取各个仓库的包索引，合并成一张列表，你挑着装。</p>
+
+  <p><strong>开箱自带两个官方仓库</strong>：GNU ELPA（<code>elpa.gnu.org</code>）和 NonGNU ELPA（<code>elpa.nongnu.org</code>）。这两个是官方维护的，包都经过基本审核。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>MELPA 不是 Emacs 自带的。</strong>它是一个<strong>社区志愿者运营</strong>的第三方仓库，收包很杂但数量远超官方 ELPA，几乎所有主流插件都会先发到那里。用它需要在配置里<strong>手动加一条仓库地址</strong>——Emacs 不会自动配好。<strong>另外 MELPA 的服务器由志愿者维护，可能不稳定甚至哪天关掉</strong>，所以别把它当成唯一依赖。EmacsWiki 的 ELPA 页面有当前的仓库清单。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键：包管理器</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>package-list-packages</code></td><td><code>package-list-packages</code></td><td>抓取索引并列出所有可安装的包，带超链接可点</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>package-install</code></td><td><code>package-install</code></td><td>知道包名时直接装，输名字回车即可（支持 <kbd>Tab</kbd> 补全）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>package-refresh-contents</code></td><td><code>package-refresh-contents</code></td><td>重新抓一遍索引。Emacs 开着几天不关，本地索引会过期</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>装好的包落在 <code>package-user-dir</code> 指向的目录下（现代版本默认是 <code>~/.config/emacs/elpa/</code>，和 <code>package-archives</code> 一样遵守 XDG 规则跟着 <code>user-emacs-directory</code> 走）。<strong>但装了包不等于生效</strong>——Emacs 靠<strong>激活</strong>（activate）这一步把包的代码真正加载进来，默认在启动时自动做（<code>package-enable-at-startup</code> 为 <code>t</code>），但如果你动了那个变量，或者刚装完新包还没重启，就得让它重新扫一遍目录。这部分属于配置工程，本书后面的章节会展开。</p>
+
+  <h4>主题：换个配色</h4>
+
+  <p>Emacs 21 之后，界面的配色由<strong>主题</strong>（theme）控制。默认情况下<strong>不启用任何主题</strong>（变量 <code>custom-enabled-themes</code> 默认是 <code>nil</code>），走的是 Emacs 自己的经典外观。手动挑一个主题：</p>
+
+  <pre class="term"><code>M-x customize-themes RET</code></pre>
+
+  <p>这个列表里 <strong>Emacs 28.1 起就自带一批</strong>：<code>modus-operandi</code>（浅色）和 <code>modus-vivendi</code>（深色）是其中的代表——本书作者在 32.0.50 自带的 <code>etc/NEWS.28</code> 第 2843 行读到 “New themes ‘modus-vivendi’ and ‘modus-operandi’”，那一行归属的小节是 “Changes in Specialized Modes and Packages in Emacs 28.1”；同一批里还有 <code>tango</code>／<code>tango-dark</code>、<code>leuven</code>、<code>wheatgrass</code> 等。<strong>Emacs 30 又给 Modus 家族补齐了 8 个色觉友好变体</strong>（<code>etc/NEWS.30</code> 第 1968 行：“The highly accessible Modus themes collection has eight items”），所以你现在能选到 <code>modus-operandi-tinted</code>、<code>modus-operandi-deuteranopia</code> 这些，是 30 才有的。自己挑一个试。不喜欢就再换，或者干脆禁用主题回到默认。主题本身也是普通包，用 <code>package-install</code> 装，装完出现在这个列表里。</p>
+
+  <p>顺带一提：不少主题成对提供「浅色／深色」两个变体，比如 <code>modus-operandi</code> 和 <code>modus-vivendi</code>、<code>tango</code> 和 <code>tango-dark</code>。装了成对的主题之后，用 <kbd>M</kbd><kbd>x</kbd> <code>theme-choose-variant</code> 可以在两者之间切换。注意这个名字有点误导：它切的是<strong>主题家族里的变体</strong>，不是操作系统那种跟随日落自动切换深浅的模式。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>Emacs <strong>可以同时启用多个主题</strong>，后启用的覆盖先启用的，面板（panel）、face 的属性是叠加的。所以关掉一个主题，另一个的效果可能还留着——真要干净，回到默认主题。</p>
+  </div>
+
+  <details class="deep">
+    <summary>进阶：终端 Emacs 里颜色不对、或者想让主题配色显示出来</summary>
+    <p>图形界面下主题基本都能正确显示，终端 Emacs 里经常不是——终端能显示多少颜色，由你的终端程序和 Emacs 之间的协商结果决定。下面几招用来排查和修正。</p>
+    <h4>先看清 Emacs 眼里的「可用颜色」</h4>
+    <p><kbd>M</kbd><kbd>x</kbd> 然后输 <code>list-colors-display</code> 回车，会开一个窗口列出当前环境<strong>实际支持的颜色</strong>，每种还标上名字。这个名字就是你在 Customize 里填颜色时能用的名字（比如 <code>OrangeRed</code>、<code>DarkGreen</code>）。</p>
+    <p>图形界面下，Emacs 能用多少颜色只受显示器色深限制，几乎整个 RGB 色彩空间都能取；终端下就受终端限制，这个命令给出的才是<strong>真实可用的那一小撮</strong>。</p>
+    <h4>24 位真彩色（truecolor）</h4>
+    <p>现在的终端大多不止传统的 16 色或 256 色，而是支持 <strong>24 位真彩色</strong>——每个颜色分量 8 位，能显示一千六百多万种颜色。主题里那些细腻的颜色过渡要靠它才显示得出来。Emacs 对这件事的支持是逐步加的：</p>
+    <ul>
+      <li><strong>Emacs 26</strong> 起：Emacs 能识别「有能力的终端」并自动启用 24 位颜色。</li>
+      <li><strong>Emacs 28</strong> 起：如果你的终端明明支持真彩色，但系统<strong>缺 terminfo 数据库</strong>（termcap/terminfo 描述终端能力的数据库），Emacs 判断不出来。这时可以设环境变量 <code>COLORTERM=truecolor</code> 告诉它。Emacs 源码里确实会读这个变量。</li>
+      <li><strong>Emacs 29</strong> 起：终端的 terminfo 条目里带 <code>Tc</code> 能力标记的话，Emacs 会自动用 24 位颜色——<strong>大多数现代终端不需要你再手工设 <code>COLORTERM</code> 了</strong>。</li>
+    </ul>
+    <p>还是不对怎么办？<kbd>M</kbd><kbd>x</kbd> <code>info-apropos</code> 然后输入 <code>Colors on a TTY</code>，会给你一条指向官方手册里那个 FAQ 节点的链接，那里按操作系统分门别类地讲了怎么配终端。<strong>注意 <code>info-apropos</code> 是搜手册内容的，和 <kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd> 搜命令名是两回事</strong>——<code>info-apropos</code> 搜的是 Info 手册里的文字和节点名。</p>
+  </details>
+
+  <div class="drill" data-answer="M-x eval-buffer，或 M-x eval-region 只求值选区">
+    <p class="drill-q"><b>练习 19</b>　你改了 <code>init.el</code> 并存了盘，想立刻知道这批改动有没有语法错误，不必重启 Emacs。该用什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>x</kbd> <code>eval-buffer</code>，把整个文件当 Elisp 执行一遍。有语法错误会立刻报出来。只想试一小段就选中它按 <kbd>M</kbd><kbd>x</kbd> <code>eval-region</code>。（注意：如果配置已经把 Emacs 弄坏了，这些命令本身可能也执行不了，那就退回 <code>emacs -q</code> 排查。）</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-h v user-init-file">
+    <p class="drill-q"><b>练习 20</b>　网上教程说「去改 <code>~/.emacs.d/init.el</code>」，但你的 Emacs 好像用的不是这个路径。最可靠的办法是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输 <code>user-init-file</code>，Emacs 会显示<strong>它此刻真正使用的那个路径</strong>。这一步不能省：从 <strong>Emacs 27.1</strong> 起支持 XDG 路径（<code>~/.config/emacs/</code>），但<strong>传统路径优先</strong>——<code>~/.emacs.d/</code> 之类只要存在就用它，两边都没有才会创建 <code>~/.emacs.d/</code>；Windows 上 <code>~</code> 又指向 <code>%APPDATA%</code> 而非 <code>C:\Users\你</code>。<strong>没有任何一个默认路径是全局固定的</strong>，所以「问一下变量」是唯一稳妥的办法。</p></div>
+  </div>
+
+  <div class="drill" data-answer="MELPA 是第三方社区仓库，需手动加；Emacs 自带的是 GNU ELPA 和 NonGNU ELPA">
+    <p class="drill-q"><b>练习 21</b>　MELPA 是 Emacs 自带的包仓库吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>不是。</strong>Emacs 开箱自带的只有两个官方仓库：GNU ELPA 和 NonGNU ELPA。MELPA 是<strong>社区志愿者运营的第三方仓库</strong>，需要在配置里手动加地址才能用，而且因为服务器由志愿者维护，可能不稳定，重要依赖别只压在它上面。</p></div>
+  </div>
+
+  <h3>现在的 Emacs：30、31、32 带来了什么</h3>
+
+  <p>原书写于 Emacs 29 前后。核心的东西（按键、移动、编辑）一个字都没过时，但周边生态确实往前走了不少。这一节把「你今天装的 Emacs 和书里描述的有什么差别」一次说清。</p>
+
+  <h4>原生编译：从可选变成默认</h4>
+
+  <p>这是最值得知道的一条。<strong>Emacs 30.1 起，原生编译（native compilation）默认开启了</strong>——官方 NEWS 里写得很直接。</p>
+
+  <p>原生编译做的事，是把你 <code>init.el</code> 和各个包里的 Elisp 代码翻译成机器码并存成缓存，下次启动直接加载编译好的产物。省掉的是「逐行解释 Elisp」的时间。效果因机器和配置而异，但方向是对的：<strong>Emacs 启动变快了，而且差距在扩大</strong>。</p>
+
+  <p>这也是原生编译一直没有被淘汰的原因——它一直存在，但因为各种原因总是默认关闭、文档又少，很多人不知道它是什么。Emacs 30 把它扶正了。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>想知道「我这套配置启动到能干活花了多久」：Emacs 启动时会记下起始时刻，存放在变量 <code>before-init-time</code> 里。在小模式行按 <kbd>M</kbd><kbd>-</kbd>，然后输入这行算式回车，就得到从启动到现在的秒数：</p>
+    <pre class="term"><code>(- (float-time) (float-time before-init-time))</code></pre>
+    <p>刚启动完马上执行，得到的数字就约等于启动耗时。改完配置重启后再看一次，你就知道那几行改动是快了还是慢了。</p>
+  </div>
+
+  <h4>其他和你有关的版本变化</h4>
+
+  <ul>
+    <li><strong>Emacs 28</strong>：加入了 <kbd>M</kbd><kbd>X</kbd>（<code>execute-extended-command-for-buffer</code>）和 <kbd>C</kbd><kbd>h</kbd> <kbd>x</kbd>（<code>describe-command</code>），以及 <code>*Help*</code> 缓冲区里的 <kbd>i</kbd> / <kbd>s</kbd> / <kbd>c</kbd> 快捷键。本章前面都讲过了。</li>
+    <li><strong>Emacs 29</strong>：加入了 <kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>q</kbd> 快捷速查（<code>help-quick-toggle</code>）；<code>use-package</code> 和 <code>Eglot</code> 进核心；<code>early-init.el</code> 成为标准做法。<strong>注意 XDG 配置目录不是 29 才有的</strong>——那是 <strong>27.1</strong>（本书作者在 32.0.50 自带的 <code>etc/NEWS.27</code> 第 192 行查过），见 2.6 节。</li>
+    <li><strong>Emacs 30</strong>：原生编译默认开启；Unicode 支持更新到 15.1；内置 Org 升级到 9.7。</li>
+    <li><strong>Emacs 31</strong>：<strong>在兼容的终端里 <code>xterm-mouse-mode</code> 默认开启</strong>，终端版终于开箱支持鼠标；<code>site-start.el</code> 的加载顺序提前到 <code>early-init.el</code> 之前（管理员现在能覆盖更多早期设置）；新增了用户 Lisp 目录机制。</li>
+    <li><strong>Emacs 32</strong>：仍在开发序列中（版本号形如 <code>32.0.x</code>）。日常使用请等它正式发布。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>这五年的版本变化有个共同点：<strong>新东西大多是「默认更聪明」，而不是「键位大改」</strong>。Emacs 一直在克制地保持向后兼容——这正是它值得信任的地方，也是你照着几年前的教程敲键仍然有效的原因。真正需要你警惕的只有两类：<strong>被移除的废弃变量</strong>（Emacs 会隔好几个大版本才动手，但动手就是真删），和<strong>少数几个新增的默认绑定</strong>（比如 Emacs 31 的终端鼠标）。</p>
+  </div>
+
+  <h3>本章小结</h3>
+
+  <p>回头看这一章装进去的东西：</p>
+
+  <ol>
+    <li><strong>版本意识</strong>：<code>emacs --version</code> 先看一眼。Emacs 极少做破坏性改动，但你得知道自己在哪个版本上，因为少数默认值会跨版本变。</li>
+    <li><strong>干净启动</strong>：<code>-q</code> 排除个人配置，<code>-Q</code> 再排除站点级配置。配置出错时的第一反应。</li>
+    <li><strong>长驻</strong>：<code>emacs --daemon</code> 配 <code>emacsclient</code>（<strong>注意结尾多个 l</strong>），配合 <code>$EDITOR</code> 让命令行工具都接上来。<kbd>C</kbd><kbd>x</kbd> <kbd>#</kbd> 是那个「做完一个换下一个」的键，但它要服务器开着才存在。</li>
+    <li><strong>认屏幕</strong>：欢迎界面、模式行、回显区、小模式行。模式行右侧括号里第一个是主模式，后面是次模式——排查异常行为先看它。</li>
+    <li><strong>按键记号</strong>：<code>C-</code> 是 Control、<code>M-</code> 是 Alt、<code>S-</code> 是 Shift。理解前缀键和完整键的区别。看不懂就 <kbd>C</kbd><kbd>g</kbd> 取消。</li>
+    <li><strong>不背命令</strong>：<kbd>M</kbd><kbd>x</kbd> 加 <kbd>Tab</kbd> 补全能调出任何 interactive 命令。<kbd>C</kbd><kbd>u</kbd> 是数字 4，每多按一次就<strong>乘以 4</strong>（4、16、64、256），用它表达「做 N 次」和「反过来做」。</li>
+    <li><strong>自救</strong>：<kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 查键、<kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 查函数、<kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 查变量、<kbd>C</kbd><kbd>h</kbd> <kbd>x</kbd> 查命令、<kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 查模式。绝大多数前缀键后面加 <kbd>C</kbd><kbd>h</kbd>（或 <kbd>F1</kbd>）列出该键表全部绑定。<kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd> 模糊搜索，<kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd> 开手册。<strong>忘了就查，这不是丢人的事，是正确用法。</strong></li>
+    <li><strong>配置</strong>：<kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> <code>user-init-file</code> 查出你自己的路径（别背网上的路径）。Customize 改完要点 <strong>Apply and Save</strong>。<kbd>M</kbd><kbd>x</kbd> <code>eval-buffer</code> 试配置。装包用 <code>package.el</code>，官方仓库是 GNU ELPA 和 NonGNU ELPA，MELPA 是第三方要手动加。</li>
+  </ol>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>如果这一章你只记住一件事，就记住这个：<strong>Emacs 的每一个功能你都能自己查到。</strong>你不需要背命令表，不需要记住某个功能在菜单的哪个角落，甚至不需要知道它叫什么名字。知道「按 <kbd>C</kbd><kbd>h</kbd> 然后能问 Emacs 问题」，剩下的都可以现场查。这一条比本章所有具体键位加起来都重要。</p>
+  </div>
+
+  <p>下一章开始讲<strong>移动</strong>——在 Emacs 里怎么高效地移动光标，这是它最反直觉、也最需要肌肉记忆的部分。</p>
+</section>

@@ -7,3 +7,12 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Site build output
+_site/
+
+# Agent & test leftovers（含本机绝对路径与测试截图，不得进入公开仓库）
+.zcode/
+.playwright-mcp/
+gui-test-360/
+__pycache__/

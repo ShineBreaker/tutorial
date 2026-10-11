@@ -1,0 +1,1523 @@
+<section class="ch" id="ch-14-workflow" data-stage="精通" data-min="55">
+  <h2 class="ch-title">十四、现代工作流实战</h2>
+  <p class="ch-lead">前面十三章把 Emacs 的「内功」讲完了：移动、编辑、Elisp、配置。这一章讲「干活」——你在真实项目里每天要用的六件事：用 Magit 提交代码、用 LSP 补全和调试、用 project.el 管住一个大项目、用 Dired 和书签在文件间穿梭、用 Org-mode 管待办和数据、把 Emacs 接进 shell 与外部工具。读完你能配出一套能替代 VS Code 日常开发的工作流，并且知道每一块该用内置的、该用第三方的、以及它们的代价是什么。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>本章所有关于 Emacs 内置功能的断言，都在<strong>本机 GNU Emacs 32.0.50</strong> 上用 <code>emacs --batch -Q</code> 逐条查过源码或运行时行为；关于第三方包的版本与维护状态，查的是 <strong>2026 年 10 月 3 日</strong>的 GNU ELPA / MELPA 包索引与 GitHub 仓库。凡是我没查到、或者查到的结果和网上流传的说法不一样的，我都会单独标出来——这类地方恰恰是最容易照抄出错的地方。</p>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>先说版本坐标。</strong>截至 2026 年 10 月，Emacs 的稳定版是 <strong>31.1，发布于 2026 年 8 月 24 日</strong>（这三个日期来自 Emacs 源码树里的 <code>etc/HISTORY</code> 文件：30.1 是 2025-02-23，30.2 是 2025-08-14，31.1 是 2026-08-24）。本章写作时开发版是 32.0.50。本书讲的是「原书（Emacs 26–30 时代）的内容 + 今天的正确做法」，所以凡是 28/29/30/31 变过的地方我都会写清楚「从哪个版本开始是这样」。</p>
+  </div>
+
+  <h3>一、版本控制：Magit 全流程</h3>
+
+  <p><strong>版本控制</strong>（version control，记录你对文件的每一次改动、并且随时可以回退的系统）你已经在 VS Code 里用过 Git 了。Emacs 自带一套叫 <code>vc</code> 的版本控制框架和它的 Git 后端 <code>vc-git</code>，但今天没人用它——不是因为它坏了，而是因为它设计上假设「你已经知道该敲什么命令」，而不是把 Git 的状态摊开给你看。<strong>Magit</strong>（读作「马吉特」）是 Emacs 社区重写的 Git 前端，核心理念只有一句：<em>把所有 Git 状态放进一个可编辑的文本缓冲区，让它像普通文本一样被搜索、跳转、复制。</em></p>
+
+  <h4>1.1 安装：Magit 需要什么</h4>
+
+  <p>Magit 是第三方包，装在 <strong>MELPA</strong>（Mel 的 ELPA，Emacs 的第三方包仓库；和官方保守的 GNU ELPA 并列，访问 <code>https://melpa.org</code>）里。截至 2026-10-03，MELPA 上的 Magit 版本是 <code>20261002</code>，上游仓库 <code>github.com/magit/magit</code> 最后一次提交是 2026-10-02，维护非常活跃（GitHub API 查到的 stars 约 7230）。</p>
+
+  <p>它<strong>不是</strong>单文件包，会自动拉四个依赖：<code>compat</code>、<code>cond-let</code>、<code>llama</code>、以及内置的 <code>transient</code>。我在本机装的 Magit 4.7.0 的文件头里读到它自己的声明：</p>
+
+  <pre class="el"><code>;; Package-Version: 4.7.0
+;; Package-Requires: (
+;;     (emacs        "28.1")
+;;     (compat       "31.0")
+;;     (cond-let      "1.1")
+;;     (llama         "1.0")</code></pre>
+
+  <p>也就是说 <strong>Magit 需要 Emacs 28.1 或更高</strong>。装法（<code>M-x package-install</code> 之后依次输入 <code>RET</code>）：</p>
+
+  <pre class="term"><code>M-x package-install RET
+magit RET</code></pre>
+
+  <p>如果你用第 13 章讲的 <code>use-package</code>，配置文件是这样：</p>
+
+  <pre class="el"><code>(use-package magit
+  :bind (("C-m g" . magit-status)   ; 用 C-m g 打开状态缓冲区
+         ("C-m l" . magit-log)      ; 直接看提交历史
+         ("C-m b" . magit-blame)))  ; 对当前行查 blame</code></pre>
+
+  <p><strong><code>transient</code> 是什么？</strong>它是 Emacs 从 28 版起自带的「弹出式菜单」库（<code>lisp/transient.el</code>）。Magit 3.0 之后所有的 Magit 操作菜单都建立在它之上——你按 <kbd>g</kbd> 之后弹出来的那块浮层，里面一列列写着「What」「How to」「Display」的可选项，就是 transient 画出来的。这个东西很好用，但也是新手最容易不适应的地方，下面会专门讲。</p>
+
+  <h4>1.2 状态缓冲区：一切从 <code>magit-status</code> 开始</h4>
+
+  <p><strong>Magit 模式</strong>（Magit mode）是一种「单缓冲区多窗口」的界面：你在一个文件里编辑，<kbd>C-x C-m</kbd> 之后多出一块小窗显示仓库状态，两块窗共享同一个缓冲区。命令是 <code>magit-status</code>（快捷键 <kbd>C-x C-m</kbd>，绑定在 <code>global-magit-mode-keymap</code> 上）。</p>
+
+  <p>Magit 缓冲区里按 <kbd>j</kbd> 会弹出一块 transient 面板，可以直接跳到各个分区。这些分区名是 Magit 的词汇表，先记住六个：</p>
+
+  <ul>
+    <li><strong>Untracked files</strong>（未跟踪文件）：Git 完全不认识的新文件。</li>
+    <li><strong>Unstaged changes</strong>（未暂存的改动）：你改了，但还没 <code>git add</code>。</li>
+    <li><strong>Staged changes</strong>（已暂存的改动）：<code>git add</code> 过、还没 <code>git commit</code>。</li>
+    <li><strong>Stashes</strong>（贮藏）：<code>git stash</code> 存起来的东西。</li>
+    <li><strong>Unpushed commits</strong>（未推送的提交）：本地提交了，还没 <code>git push</code>。</li>
+    <li><strong>Conflicts</strong>（冲突）：合并时两边改了同一处。</li>
+  </ul>
+
+  <p>「暂存」（stage）这个概念是 Git 独有的，两段式提交：先 <code>git add</code> 把改动放进暂存区，再 <code>git commit</code> 把暂存区打包成一个提交。你可以在一个仓库里暂存一部分文件、分两次提交，这是 Git 最有用的能力之一，也是 VS Code 的图形界面做得最别扭的地方。</p>
+
+  <h4>1.3 暂存与提交</h4>
+
+  <p>Magit 里所有字母键都在 transient 面板上等你选，所以不用背。常用的是这几个：</p>
+
+  <ul>
+    <li><strong>暂存/取消暂存单个文件</strong>：光标放在文件名那行，按 <kbd>s</kbd>，弹出 transient 面板，选 Stage changes（暂存改动）还是 Unstage changes。如果按 <kbd>s</kbd> 之前先按 <kbd>SPC</kbd>（空格），Magit 会把光标移到下一个文件——这是 Magit 的通用技巧，叫 <strong>hunk/file cycling</strong>：<kbd>SPC</kbd> 移动，<kbd>S-a</kbd> 暂存然后自动跳下一个。</li>
+    <li><strong>逐块暂存</strong>：如果一个文件里有好几处改动，你只想暂存其中一段，就在 <em>diff</em>（差异视图，Magit 显示「这一行代码改前改后」的表格）里把光标移到某个 <strong>hunk</strong>（改动块）上按 <kbd>s</kbd>，弹出的面板里有 Stage this hunk。</li>
+    <li><strong>丢弃改动</strong>：在文件那行按 <kbd>x</kbd>，选 Discard changes。<strong>这一步不可逆</strong>，Emacs 不会给你撤销的机会。</li>
+    <li><strong>提交</strong>：按 <kbd>c</kbd>，在 <code>*Magit-Commit*</code> 这个缓冲区里写提交信息。<kbd>C-c C-c</kbd> 完成并关闭，<kbd>C-c C-k</kbd> 放弃。</li>
+  </ul>
+
+  <p>提交信息缓冲区（<code>log-edit</code>）里有两个 Emacs 帮你写提交信息的工具：<code>M-p</code> 插入模板、<code>M-t</code> 往提交里加一行 <code>Signed-off-by:</code>（这个是 <strong>DCO</strong>，Developer Certificate of Origin 的缩写，很多开源项目强制要求）。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>最常见的 Magit 事故：暂存错了但已经 commit。</strong>如果你 commit 之后发现某个文件不该进去，处理顺序是：先 <kbd>l</kbd>（<code>magit-log</code>）找到那次提交，按 <kbd>c</kbd> 选 <em>Commit</em> 区域的 <em>Reset this commit to HEAD~</em>（把这次提交撤掉，改动回到暂存区），确认后再重新提交。<strong>不要</strong>用 <code>git reset --hard</code>——那个命令会连工作区的未提交改动一起抹掉。</p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>在 diff 视图里，<kbd>n</kbd> / <kbd>p</kbd> 跳到下一个/上一个区块（<code>magit-section-forward</code> / <code>magit-section-backward</code>，区块就是一个 hunk 或一个文件），<kbd>M-n</kbd> / <kbd>M-p</kbd> 跳到同级的前后区块，<kbd>TAB</kbd> 折叠/展开当前区块，<kbd>^</kbd> 跳到父区块，<kbd>0</kbd> 把 diff 的上下文行数恢复默认，<kbd>+</kbd> / <kbd>-</kbd> 增加/减少上下文，<kbd>SPC</kbd> / <kbd>DEL</kbd> 上下滚动，<kbd>C-c</kbd> <kbd>C-d</kbd> 是 <code>magit-diff-while-committing</code>（一边写提交信息一边实时看 diff）。这些键定义在 <code>magit-section-mode-map</code> 和 <code>magit-mode-map</code> 里，所有 Magit 缓冲区通用，属于「学一次到处用」的那一类。</p>
+  </div>
+
+  <h4>1.4 看历史：log 与 rebase</h4>
+
+  <p>命令 <code>magit-log</code>（<kbd>l</kbd>）。Magit 不弹外部窗口，而是把 log 直接显示在当前的 diff / file 缓冲区里——所以你能在看 diff 的同时用 <kbd>M-n</kbd> 逐条翻历史，这是 Magit 比命令行 git log 顺手得多的地方。</p>
+
+  <p>常用的历史操作都挂在 <kbd>l</kbd> 的 transient 面板上：</p>
+
+  <ul>
+    <li><strong>复现某次提交</strong>：光标在一条提交上按 <kbd>c</kbd>，选 <em>Cherry-pick</em>，把那次提交的改动拿到当前分支。历史上还有一个独立命令 <code>magit-cherry-pick</code>，绑定在 <kbd>A</kbd>（对应命令行 <code>git cherry-pick</code>）。</li>
+    <li><strong>丢弃某次提交</strong>：同一位置按 <kbd>c</kbd>，选 <em>Remove this commit</em>（内部走的是 <code>git revert</code>，会产生一个新提交，<strong>不会</strong>改写历史）。真要改写历史要用下面两种。</li>
+    <li><strong>改写历史：rebase</strong>。Magit 把交互式 rebase 做成了一个带复选框的缓冲区：每条提交左边有个复选框和 <code>pick</code>、<code>reword</code>、<code>edit</code>、<code>squash</code>、<code>fixup</code>、<code>drop</code> 六个动作，你在缓冲区里直接改这些单词，然后 <kbd>C-c C-c</kbd> 提交给 git 真的执行。这比自己敲 <code>git rebase -i HEAD~5</code> 打开一个临时文件改要安全得多——因为你在改的是 Magit 自己的缓冲区，改错了 <kbd>C-c C-k</kbd> 就能丢掉。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>rebase 会改写历史</strong>，所以<strong>只能</strong>用在你自己的、还没 push 给别人的分支上。如果一条提交已经推到远端共享给别人了，rebase 之后别人 pull 就会冲突得莫名其妙——这是新手最常见的「我把同事的仓库搞坏了」。Magit 在这一点上帮不了你，它不判断分支有没有共享。</p>
+  </div>
+
+  <h4>1.5 blame 与 bisect</h4>
+
+  <p><strong>Blame</strong>（逐行追溯）回答的是「这一行代码是谁、哪一次提交写的」。命令 <code>magit-blame</code>，绑定在 <kbd>b</kbd>。它会创建一个 <code>*magit-blame*</code> 缓冲区，每一行源码左边加上「提交哈希 + 作者 + 日期」。在这个缓冲区里：</p>
+
+  <ul>
+    <li><kbd>n</kbd> / <kbd>p</kbd>：<code>magit-blame-next-chunk</code> / <code>magit-blame-previous-chunk</code>，跳到下一处/上一处「改动很近」的相邻行（Magit 会把连续的同提交行合并成一组，按键在组之间跳，不是逐行跳）。</li>
+    <li><kbd>N</kbd> / <kbd>P</kbd>：跳到同一提交内的相邻块（不想离开当前 commit 时用）。</li>
+    <li><kbd>b</kbd> / <kbd>r</kbd>：只看新增行 / 只看被删的行。</li>
+    <li><kbd>C-m</kbd>：<code>magit-show-commit</code>，跳到那个提交的详情。</li>
+    <li><kbd>c</kbd>：<code>magit-blame-cycle-style</code>，轮换 blame 的显示样式。</li>
+    <li><kbd>q</kbd>：关闭（也有 <kbd>C-c</kbd> <kbd>C-q</kbd>）。</li>
+  </ul>
+
+  <p><strong>Bisect</strong>（二分查找）回答的是「从好版本到坏版本之间，是哪一次提交引入的 bug」。原理很简单：bug 有 N 个提交时，把 N 减半，所以只需要 log2(N) 次测试——1000 个提交只要 10 次。Magit 把状态机做进了仓库配置里：<code>magit-bisect-start</code> 开始，<code>magit-bisect-good</code> / <code>magit-bisect-bad</code> 标记，<code>magit-bisect-reset</code> 结束。</p>
+
+  <p>Magit 的 bisect 缓冲区里每条候选提交右边有一列按钮，直接按 <kbd>b</kbd> 标 bad、<kbd>g</kbd> 标 good、<kbd>h</kbd> 打开来看它改了什么、<kbd>m</kbd> 跳到某个提交手动改。关键的好处在最后：</p>
+
+  <pre class="term"><code>The first bad commit is:
+  abc1234  Fix the thing   (Jane Doe, 2026-03-02)</code></pre>
+
+  <p>Magit 会把结论保留在仓库里，你 <kbd>l</kbd> 打开 log 时，这个结论会挂在提交上面，直到你 <code>magit-bisect-reset</code>。</p>
+
+  <h4>1.6 那内建的 <code>vc</code> 怎么办</h4>
+
+  <p>Emacs 的 <code>vc</code>（<code>lisp/vc/vc.el</code> 和 <code>lisp/vc/vc-git.el</code>，两个文件在本机 Emacs 32.0.50 里都存在）是官方自带的版本控制框架。它的全局键是：</p>
+
+  <ul>
+    <li><kbd>C-x v v</kbd> — <code>vc-next-action</code>（版本控制的「下一步」，对不同后端分别是 update / commit）</li>
+    <li><kbd>C-x v i</kbd> — <code>vc-include</code>（相当于 <code>git add</code>）</li>
+    <li><kbd>C-x v c</kbd> — <code>vc-checkin</code>（相当于 <code>git commit</code>）</li>
+    <li><kbd>C-x v a</kbd> — <code>vc-update</code>（相当于 <code>git pull</code>）</li>
+    <li><kbd>C-x v b</kbd> — <code>vc-branch</code>，<kbd>C-x v =</kbd> — <code>vc-revert</code>，<kbd>C-x v s</kbd> — <code>vc-svn-command</code></li>
+  </ul>
+
+  <p>进了文件缓冲区之后会多一个 <code>vc-mode</code>（主模式），里面绑了 <kbd>C-c C-v</kbd>（update）、<kbd>C-c C-c</kbd>（checkin）、<kbd>C-c C-p</kbd>（log）、<kbd>C-c C-k</kbd>（revert）等。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>结论：两者不要同时开。</strong>如果你已经决定用 Magit，就不要去 <code>M-x customize</code> 里动 <code>vc-handled-backends</code>，也不要给 <code>vc-git</code> 绑键。两个前端共用一套「这个文件被修改了吗」的钩子，混用会出现 Magit 缓冲区不刷新、<code>C-x v v</code> 抢走按键这类问题。反过来，如果你就是想要一个零配置的「<kbd>C-x v v</kbd> 提交一下」，那 <code>vc</code> 完全够用，只是没有 Magit 的状态视图。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>Magit 有两个「模式」容易混：<code>global-magit-mode</code>（全局次模式，负责让 <kbd>C-x C-m</kbd> 到处能用）和 <code>magit-mode</code>（在文件里显示 Git 的状态标记，比如行尾那个 <code>+-</code> 符号）。初学者常常只想开第二个，结果发现 <kbd>C-x C-m</kbd> 没反应。<strong>两个都要开</strong>。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>Magit 会把整份 diff 塞进 Emacs 的 undo 历史。</strong>一个几千行的改动会让 <code>buffer-size-limit</code> 报警、<kbd>M-x garbage-collect</kbd> 变慢、甚至触发 <code>undo-list-too-big</code>。Magit 4.x 已经处理了大部分场景，但你要是处理特别大的生成文件，加上 <code>(setq magit-verbose-default t)</code> 看看发生了什么。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键（Magit 与 vc）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C-x</kbd> <kbd>C-m</kbd></td><td><code>magit-status</code></td><td>打开 Magit 状态缓冲区</td></tr>
+        <tr><td><kbd>C-m</kbd> <kbd>g</kbd></td><td><code>magit-status</code></td><td>同上（需自己绑定，本书推荐）</td></tr>
+        <tr><td><kbd>C-m</kbd> <kbd>l</kbd></td><td><code>magit-log</code></td><td>看提交历史</td></tr>
+        <tr><td><kbd>C-m</kbd> <kbd>b</kbd></td><td><code>magit-blame</code></td><td>逐行追溯</td></tr>
+        <tr><td><kbd>j</kbd>（Magit 内）</td><td><code>magit-status-jump</code></td><td>跳到各个状态分区</td></tr>
+        <tr><td><kbd>s</kbd>（Magit 内）</td><td><code>magit-stage</code> / <code>magit-unstage</code></td><td>暂存 / 取消暂存</td></tr>
+        <tr><td><kbd>SPC</kbd>（Magit 内）</td><td>—</td><td>移动到下一个改动并循环</td></tr>
+        <tr><td><kbd>c</kbd>（Magit 内）</td><td><code>magit-commit</code></td><td>提交或复现某次提交</td></tr>
+        <tr><td><kbd>l</kbd>（Magit 内）</td><td><code>magit-log</code></td><td>看历史 / rebase</td></tr>
+        <tr><td><kbd>b</kbd>（Magit 内）</td><td><code>magit-blame</code></td><td>打开 blame</td></tr>
+        <tr><td><kbd>B</kbd>（Magit 内）</td><td><code>magit-bisect</code></td><td>开始二分查找</td></tr>
+        <tr><td><kbd>x</kbd>（Magit 内）</td><td><code>magit-delete-thing</code></td><td>弹出面板后可选择丢弃改动（不可逆）</td></tr>
+        <tr><td><kbd>q</kbd>（Magit 内）</td><td><code>magit-mode-bury-buffer</code></td><td>收起 Magit 窗口</td></tr>
+        <tr><td><kbd>n</kbd> / <kbd>p</kbd>（Magit 内）</td><td><code>magit-section-forward</code> / <code>magit-section-backward</code></td><td>下一个 / 上一个区块（hunk 或文件）</td></tr>
+        <tr><td><kbd>M-n</kbd> / <kbd>M-p</kbd>（Magit 内）</td><td><code>magit-section-forward-sibling</code></td><td>同级的前后区块</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-d</kbd>（Magit diff 内）</td><td><code>magit-diff-while-committing</code></td><td>边写提交信息边看 diff</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>v</kbd> <kbd>v</kbd></td><td><code>vc-next-action</code></td><td>内建 vc：下一步</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>v</kbd> <kbd>i</kbd></td><td><code>vc-include</code></td><td>内建 vc：暂存</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>v</kbd> <kbd>c</kbd></td><td><code>vc-checkin</code></td><td>内建 vc：提交</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="M-x magit-status 或 C-x C-m；不要用内置 vc 的 C-x v v">
+    <p class="drill-q"><b>练习 1</b>　你刚装好 Emacs，什么都没配。想提交一个文件，应该按哪个键？为什么不该按 <kbd>C-x</kbd> <kbd>v</kbd> <kbd>v</kbd>？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>M-x magit-status</code>（即 <kbd>C-x</kbd> <kbd>C-m</kbd>）。<kbd>C-x</kbd> <kbd>v</kbd> <kbd>v</kbd> 是内置 <code>vc</code> 的入口，理论上也能提交，但如果你打算用 Magit 就不该碰它——两套前端混用会互相干扰。而且 <code>vc</code> 要求先手工设置 <code>vc-handled-backends</code>，对零基础读者不友好。</p></div>
+  </div>
+
+  <div class="drill" data-answer="光标放在该文件行上按 s，在 transient 面板里选 Stage changes">
+    <p class="drill-q"><b>练习 2</b>　在 Magit 状态缓冲区里，光标停在一个已修改但未暂存的文件名上，要把它加进暂存区，按什么键、选哪一项？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>s</kbd>，在弹出的 transient 面板里选 <em>Stage changes</em>。想暂存后自动跳到下一个文件，就先按 <kbd>SPC</kbd> 把光标移到下一个改动，再按 <kbd>s</kbd>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x C-m 打开 magit-log，在提交上按 c 选 Remove this commit（走 git revert，不改写历史）">
+    <p class="drill-q"><b>练习 3</b>　你 commit 之后发现某个文件不该进这次提交，已经 push 了。Emacs 里怎么撤销这次提交？为什么不用 rebase？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>在 <code>magit-log</code> 里选中那次提交，按 <kbd>c</kbd>，在 transient 面板的 <em>Commit</em> 区选 <em>Remove this commit</em>——它内部用的是 <code>git revert</code>，会生成一个新提交来抵消原来的改动，<strong>不改写历史</strong>。rebase 会改写提交哈希，提交一旦 push 给别人，别人 pull 就会冲突，所以共享过的分支上只能用 revert。</p></div>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>下一节讲语言支持：<code>auto-mode-alist</code> / <code>interpreter-mode-alist</code> 是怎么决定「一个文件用什么模式打开」的，内置 tree-sitter 模式覆盖了哪些语言，以及 Eglot 和 flycheck 该选哪个。</p>
+  </div>
+
+  <h3>二、语言支持</h3>
+
+  <p>Emacs 自己不认识 Rust、TypeScript、Go。它的办法很朴素：<strong>用正则表达式去认</strong>。这一节从「Emacs 怎么给一个文件挑主模式」讲起，然后依次引入语法高亮、语义支持（LSP）、调试器（DAP）和结构视图。</p>
+
+  <h4>2.1 <code>auto-mode-alist</code>：Emacs 怎么决定用哪个模式</h4>
+
+  <p><strong>major mode</strong>（主模式）是 Emacs 给一个缓冲区选的「语言」。它同时决定：语法高亮规则、缩进规则、注释怎么定义（注释在哪结束）、以及这个模式下有哪些键。<strong>minor mode</strong>（次模式）是可选的开关，可以叠加。</p>
+
+  <p>Emacs 判断「这个文件该用哪个 major mode」由命令 <code>set-auto-mode</code> 完成，它按下面这个顺序一条条试，全落空才放弃（这段顺序对着 <code>lisp/files.el</code> 里的 <code>set-auto-mode</code> 核过）：</p>
+
+  <ol>
+    <li><strong>目录局部变量</strong>：先看文件所在目录的 <code>.dir-locals.el</code> 和 buffer 局部变量里有没有指定模式。</li>
+    <li><strong>按 shebang 猜</strong>：拿 buffer 第一行去匹配 <code>auto-mode-interpreter-regexp</code>，把认出来的解释器名（如 <code>python3</code>）拿去查 <strong><code>interpreter-mode-alist</code></strong>。这个变量默认就有一条 <code>("python[0-9.]*" . python-mode)</code>，所以一个没有 <code>.py</code> 后缀、但第一行是 <code>#!/usr/bin/env python3</code> 的文件，也会被 Python 模式打开。</li>
+    <li><strong>按内容猜</strong>：<code>magic-mode-alist</code>，默认是空的，留给用户自己写内容特征规则。</li>
+    <li><strong>按文件名猜</strong>：用文件名（含后缀）去查 <code>auto-mode-alist</code>。这个变量是<strong>正则表达式 → 函数</strong>的列表（「alist」就是「关联列表」，Emacs 里最常见的「表」结构），按 <code>suffix . mode</code> 匹配<strong>文件名</strong>，匹配上了就用它。扩展名 <code>.rs</code> 对应 <code>rust-ts-mode</code>、<code>.ts</code> 对应 <code>typescript-ts-mode</code>，都是这条规则。</li>
+    <li><strong>兜底</strong>：<code>magic-fallback-mode-alist</code>（默认同样为空）。</li>
+    <li><strong>全都不是</strong>：用 <code>fundamental-mode</code>（基础模式），也就是纯文本，什么高亮都没有。</li>
+  </ol>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>最常被说错的一条：<code>auto-mode-alist</code> 匹配的是文件名，不是文件内容。</strong>靠 shebang 认出解释器模式走的是另一个变量 <code>interpreter-mode-alist</code>，而它<strong>比文件名匹配更早</strong>执行——所以一个叫 <code>Makefile.am</code> 却以 <code>#!/bin/sh</code> 开头的文件，Emacs 会先用 shebang 认成 <code>sh-mode</code>，压根轮不到 <code>auto-mode-alist</code>。</p>
+  </div>
+
+  <p>你想加一条自己的规则，就往 <code>auto-mode-alist</code> 前面插。因为是从上往下匹配，插在前面才能覆盖内置规则：</p>
+
+  <pre class="el"><code>;; 让 .log 结尾的文件用 js-mode 打开（log 里有 json 行）
+(add-to-list 'auto-mode-alist '("\\.log\\'" . js-mode) t)
+;; 去掉末尾的 t，就是追加到末尾（优先级最低）
+
+;; 或者直接改文件关联
+(assoc-set! auto-mode-alist "\\.foo\\'" 'fundamental-mode)</code></pre>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>想知道 Emacs 到底给当前缓冲区选了什么模式：按 <kbd>C-h</kbd> <kbd>m</kbd>（<code>describe-mode</code>）看当前主模式的说明，或者看模式行右上角的名字。想知道「为什么是这个模式」，用 <kbd>M-x describe-function RET auto-mode-alist</kbd> 然后顺着点进去看；shebang 那条路要查的是 <code>interpreter-mode-alist</code>。</p>
+  </div>
+
+  <h4>2.2 <code>syntax-propertize-function</code>：给没有主模式的格式打补丁</h4>
+
+  <p><strong>语法高亮</strong>的原理是：Emacs 把缓冲区切成一个个 <strong>region</strong>（区域），每个区域打一个 <strong>font-lock</strong>（字体锁定）属性指定用什么 face（字体样式）显示。这个「用什么正则切、每个块算什么」的规则表叫 <strong>syntax table</strong>（<code>lisp/emacs-lisp/syntax.el</code>）。</p>
+
+  <p>假如你天天处理一种 Emacs 不认识的格式（比如公司内部的 <code>.tpl</code> 模板），正确做法<strong>不是</strong>硬塞一个不相关的主模式，而是给它写一张专用语法表，再用变量 <code>syntax-propertize-function</code> 挂到 <code>fundamental-mode</code> 上。Emacs 32 的 Elisp 手册里文档化的就是这条路径（<code>doc/lispref/syntax.texi</code>）。完整例子——给一种 <code>"字符串"</code>、<code>&lt;类型&gt;</code> 的格式加高亮：</p>
+
+  <pre class="el"><code>(defvar myfmt-syntax-table
+  (let ((table (make-syntax-table)))
+    (modify-syntax-entry ?\" "\"" table)   ; 双引号是字符串定界符
+    (modify-syntax-entry ?\\ "\\" table)   ; 反斜杠是转义符
+    table))
+
+(defvar myfmt-font-lock-keywords
+  `((("「[^」]*」") . font-lock-string-face)        ; 「中文引号」当字符串
+    (("\_&lt;[A-Za-z_][A-Za-z0-9_]*\_&gt;") . font-lock-type-face))) ; &lt;Server&gt; 当类型名
+
+;; syntax-propertize-function 要的是一个「函数」，
+;; 它接受 start / end 两个位置参数，在这段范围内打 syntax-table 文本属性。
+;; 规则用 syntax-propertize-rules 这个宏声明，一次扫描同时处理所有规则。
+(defun myfmt--syntax-propertize (start end)
+  (syntax-propertize-rules
+    ("\_&lt;[A-Za-z_][A-Za-z0-9_]*\_&gt;" (0 (string-to-syntax "w_")))))
+
+(add-hook 'fundamental-mode-hook
+          (lambda ()
+            (setq-local syntax-table myfmt-syntax-table)
+            (setq-local syntax-propertize-function #'myfmt--syntax-propertize)
+            (setq-local font-lock-defaults '(myfmt-font-lock-keywords))))
+
+;; 最后把 .tpl 关联到 fundamental-mode，靠上面那个 hook 生效
+(add-to-list 'auto-mode-alist '("\\.tpl\\'" . fundamental-mode))</code></pre>
+
+  <p>四段的意思分别是：造一张新语法表；声明 font-lock 的搜索规则；写一个 <code>syntax-propertize-function</code>（Emacs 会在 <code>syntax-ppss</code> 和语法字体化时反复调用它，所以它必须把该模式用到的<strong>所有</strong>语法属性都打上）；最后把 <code>.tpl</code> 关联到 <code>fundamental-mode</code>。这里不需要自己 <code>define-derived-mode</code>，因为 <code>syntax-propertize-function</code> 本来就是设计成挂在基础模式上的。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>老教程里的 <code>syntax-propertize</code> 宏和今天的文档对不上。</strong>Emacs 32 的 Elisp 手册（<code>doc/lispref/syntax.texi</code>、<code>modes.texi</code>）文档化的入口是 <strong>变量 <code>syntax-propertize-function</code></strong> 加宏 <code>syntax-propertize-rules</code>；我在本机 32.0.50 上 <code>(documentation 'syntax-propertize)</code> 只查到「接受一个 <code>pos</code> 参数」的<em>函数</em>，整棵 <code>lisp/</code> 里 grep 也没找到那个接受 <code>(syntax-table keywords [mode])</code> 的老宏定义。<strong>不同 Emacs 版本的裁剪方式可能不一样</strong>（你可以自己敲 <kbd>M-x</kbd> <code>syntax-propertize</code> 看补全列表），<strong>但按手册那条路写最稳</strong>——上面那段就是这么写的。</p>
+
+    <p>另外有一个坑：<strong><code>syntax-propertize-function</code> 一旦非 <code>nil</code>，Emacs 会把 <code>syntax-table</code> 文本属性全部清掉再让你重打</strong>，所以它必须是完整的，不能只打你关心的那一部分——从 CC Mode 派生的模式尤其不能这么干，因为 CC Mode 用了另一套机制来维护这些属性（手册原文就这么警告）。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>什么时候压根不该走这条路？</strong>如果那种语言已经有成熟的主模式（哪怕第三方包提供的），直接换模式。写语法表只适合「没有模式、但格式很稳定」的场景——CSV、JSONL 日志、某种 IDL。代价是：语法表只管颜色，不管缩进、不管注释命令、不管代码结构。一份两千行的 Elisp 只为了高亮去写，值得掂量一下。</p>
+  </div>
+
+  <h4>2.3 内置 tree-sitter 模式：现在开箱覆盖 18 种语言</h4>
+
+  <p><strong>Tree-sitter</strong> 是 2017 年后兴起的增量解析库：给一段文本，它产出一棵<strong>语法树</strong>，而不是一行行地做正则匹配。这带来两个传统正则做不到的好处——缩进跟着语法树走（不会因为字符串里有个括号就乱），以及高亮不受多行结构影响。</p>
+
+  <p>Emacs <strong>从 29 版开始内置了 tree-sitter 解析库</strong>（NEWS.29 里明确写了「Emacs can be built with the tree-sitter parsing library」，并且可以用 <code>--without-tree-sitter</code> 关掉），并在 29、30、31 里逐步加入了用 tree-sitter 实现的内置模式。我在 Emacs 32.0.50 的 lisp 目录里数了一遍，一共 <strong>18 个内置的 <code>*-ts-mode</code></strong>：</p>
+
+  <pre class="term"><code>lisp/progmodes/:  c-ts-mode  cmake-ts-mode  dockerfile-ts-mode  elixir-ts-mode
+                   go-ts-mode  heex-ts-mode  java-ts-mode  json-ts-mode
+                   lua-ts-mode  php-ts-mode  ruby-ts-mode  rust-ts-mode
+                   typescript-ts-mode
+其它目录:          html-ts-mode  markdown-ts-mode  mhtml-ts-mode
+                   toml-ts-mode  yaml-ts-mode</code></pre>
+
+  <p>也就是说：C、C++、Go、Rust、Java、PHP、Ruby、Lua、Elixir、CMake、Dockerfile、JSON、TypeScript、HTML、Markdown、YAML、TOML、MHTML——这 18 种语言<strong>装好 Emacs 就有了</strong>，不用装任何包。<strong>Python 不在内置列表里</strong>（<code>python-ts-mode</code> 还没进 Emacs），JS 的内置模式是 <code>typescript-ts-mode</code>（它同时管 <code>.js</code>）。</p>
+
+  <p>要更多语言（Python、OCaml、Haskell、Elisp……）就得装第三方包：</p>
+
+  <pre class="el"><code>(use-package tree-sitter
+  :diminish t
+  :config
+  (global-tree-sitter-mode))
+
+(use-package tree-sitter-langs
+  :after tree-sitter
+  :config
+  (global-tree-sitter-mode)
+  (add-to-list 'tree-sitter-extra-modes #'tree-sitter-python-mode)
+  (add-to-list 'tree-sitter-extra-modes #'tree-sitter-haskell-mode))</code></pre>
+
+  <p><code>tree-sitter</code> 包在 MELPA（版本 <code>20260116</code>），仓库 <code>github.com/emacs-tree-sitter/elisp-tree-sitter</code>（约 854 stars，最近提交 2026-09-01；注意仓库已经改名，老的 <code>alexanderkasting/tree-sitter.el</code> 已经不存在了）。<code>tree-sitter-langs</code> 也在 MELPA（<code>20260729</code>），仓库 <code>github.com/emacs-tree-sitter/tree-sitter-langs</code>。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>tree-sitter 不是免费的。</strong>它要求 Emacs 是<strong>带 tree-sitter 库编译</strong>的构建（发行版打包时可能没带，Guix、Nix、Homebrew 一般都带）。而且每个语言都要有对应的 <strong>parser</strong>（用 C 写的动态库），<code>tree-sitter-langs</code> 会自动下载它们——这意味着第一次用某个语言时有编译延迟和磁盘占用。语法高亮不精确的文件树还会让缩进出错，这是它最大的实际风险：<strong>先用内置模式验证一遍，再决定要不要接 tree-sitter。</strong></p>
+  </div>
+
+  <h4>2.4 Eglot 还是 flycheck：先讲清楚这两者不是一回事</h4>
+
+  <p>这是初学者最常混淆的地方。<strong>LSP</strong>（Language Server Protocol，语言服务器协议）是微软定的一套标准：编辑器负责界面和文件，语言服务器（一个独立进程）负责真正的语义分析——跳转定义、查引用、重命名、自动补全、诊断报错。<strong>Eglot</strong> 是 Emacs 内置的 LSP 客户端；<strong>flycheck</strong> 是第三方检查器框架，它跑的是 linter / type checker / 编译器，不是 LSP。</p>
+
+  <table>
+    <thead><tr><th>维度</th><th>Eglot（LSP，内置）</th><th>flycheck（检查器，第三方）</th></tr></thead>
+    <tbody>
+      <tr><td>从哪来</td><td>Emacs 29 起内置（<code>lisp/progmodes/eglot.el</code>），也能从 ELPA 升级</td><td>MELPA 包 <code>flycheck</code>（2026-10-03 版本 <code>20260902</code>），仓库 <code>github.com/flycheck/flycheck</code></td></tr>
+      <tr><td>做什么</td><td>跳转定义、查引用、重命名、补全、格式化、诊断</td><td>运行外部检查器并收集诊断（语法错、类型错、lint 警告）</td></tr>
+      <tr><td>需要外部程序吗</td><td>要，每种语言一个 language server（<code>pyright</code>、<code>rust-analyzer</code>…）</td><td>要，每种检查器一个可执行程序（<code>flake8</code>、<code>shellcheck</code>…）</td></tr>
+      <tr><td>快慢</td><td>启动慢（每次要起一个语言服务器进程），之后很快</td><td>启动快（通常是一次性命令），但每次检查都要重跑</td></tr>
+      <tr><td>适合</td><td>大型项目、多语言、需要「改一处全项目更新」</td><td>小项目、只想快速知道「有没有明显错误」</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>选择标准，我给你三条：</strong></p>
+
+  <ol>
+    <li><strong>只用一种语言、代码量在几千行以内</strong>——先不上 LSP，用内置高亮 + 需要时手动跑检查。省下的启动时间和配置时间比功能值钱。</li>
+    <li><strong>需要「改一个函数名，全项目 80 处调用点自动更新」</strong>——必须 Eglot（或等价的 LSP 客户端），flycheck 做不了这件事。</li>
+    <li><strong>你在意「跨文件查找谁调用了这个函数」</strong>——还是 Eglot。这是 LSP 的核心价值，语法高亮和检查器都给不了。</li>
+  </ol>
+
+  <p>Eglot 的配置很小，核心只有一行 <code>eglot-ensure</code>：打开文件时，如果该语言的 server 没起，就起一个。</p>
+
+  <pre class="el"><code>(use-package eglot
+  :diminish t
+  :hook ((python-mode . eglot-ensure)
+         (python-ts-mode . eglot-ensure)
+         (rust-ts-mode . eglot-ensure)
+         (go-ts-mode . eglot-ensure)
+         (c-ts-mode . eglot-ensure)
+         (c++-ts-mode . eglot-ensure)
+         (typescript-ts-mode . eglot-ensure)
+         (rust-mode . eglot-ensure))
+  :config
+  (setq eglot-autoshutdown t   ; 关掉文件后自动关掉语言服务器，省内存
+        eglot-report-progress nil)  ; 别在 mode line 上刷进度
+  :commands
+  ((:eval eglot-ensure) eglot-find-declaration eglot-find-references
+   eglot-rename eglot-format eglot-code-actions))</code></pre>
+
+  <p>「有语言服务器找不到」的报错，答案在变量 <code>eglot-server-programs</code> 里（定义在 <code>lisp/progmodes/eglot.el</code>）。它的结构和普通 alist 有一个关键区别：<strong>key（CAR）可以是一个<em>模式名列表</em></strong>，所以 <code>alist-get</code> 在这里经常返回 <code>nil</code>，得自己筛：</p>
+
+  <pre class="term"><code>;; alist-get 对这种「列表 key」无效，会返回 nil
+(alist-get 'go-ts-mode eglot-server-programs)   ;; =&gt; nil
+
+;; 正确写法：把 key 展开成列表再筛
+(cl-remove-if-not
+ (lambda (e) (and (listp (car e))
+                  (memq 'go-ts-mode (car e))))
+ eglot-server-programs)
+;; =&gt; ((("go-mode" "go-dot-mod-mode" "go-dot-work-mode"
+;;          "go-ts-mode" "go-mod-ts-mode" "go-work-ts-mode") "gopls"))
+
+;; 意思：打开 go 文件时启动 gopls（CDR 可以是程序名，
+;; 也可以是 (程序名 :server-args ("-x" "-y")) 这样的列表）</code></pre>
+
+  <p><code>java-mode</code> 其实<strong>已经在默认表里</strong>了（默认给的是 <code>jdtls</code> 和 <code>java-language-server</code> 供你挑），所以一般的 Java 项目不用自己加。只有当你想指定额外参数、或者想让某门语言走一个默认表里没有的程序时，才自己加一条：</p>
+
+  <pre class="el"><code>(add-to-list 'eglot-server-programs
+             '((java-mode java-ts-mode)
+               ("jdtls" :server-args ("-data" "/tmp/jdtls-ws"))))</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>网上大量教程说「Eglot 默认把 <kbd>C-c C-d</kbd> 绑成跳到定义」。这不是真的。</strong>我在 Emacs 32.0.50 的 <code>lisp/progmodes/eglot.el</code> 里查了 <code>eglot-mode-map</code> 的完整定义，它<strong>只有一条绑定</strong>：把 <kbd>C-h</kbd>（<code>display-local-help</code>）重映射到 <code>eldoc-doc-buffer</code>，也就是看文档。其余全部动作都要用 <kbd>M-x</kbd>，命令名见下表。<strong>所以务必自己绑键</strong>，否则「Eglot 装了却没反应」是最常见的新手困惑。</p>
+  </div>
+
+  <p>如果你两个都想留（我推荐的折中：LSP 负责跳转重命名，flycheck 负责额外的 linter），配置是这样：</p>
+
+  <pre class="el"><code>(use-package flycheck
+  :diminish t
+  :config
+  (global-flycheck-mode 1)
+  (add-hook 'python-mode-hook 'flycheck-mode)
+  ;; flycheck 会在 Eglot 诊断之外再加一层，例如：
+  (add-hook 'sh-mode-hook 'flycheck-mode))</code></pre>
+
+  <p>代价是诊断信息可能重复显示（同一个错误两边各报一次）。真要两个都用，flycheck 的新式诊断可以用 <code>(setq flycheck-diagnostic-functions '(flycheck-define-diagnostic))</code> 让它们走同一条渲染通道。</p>
+
+  <h4>2.5 dap-mode：调试器也走协议</h4>
+
+  <p><strong>调试</strong>（debugging）在 Emacs 里一直很弱——内置的 <code>debug.el</code> 面向的是调试 Emacs 自己的 Lisp，不是你的程序。<strong>dap-mode</strong> 补上了这一块：<strong>DAP</strong>（Debug Adapter Protocol，调试适配器协议）是 LSP 的调试版对应物，一个统一协议加上一个适配器进程，就能驱动 gdb、lldb、Delve（Go）、debugpy（Python）、Chrome DevTools（前端）等等。</p>
+
+  <p>安装：MELPA 包 <code>dap-mode</code>（2026-10-03 的版本是 <code>20260616</code>），仓库 <code>github.com/emacs-lsp/dap-mode</code>（约 1386 stars，最近提交 2026-06-19；注意它已经从 <code>jimeh/dap-mode</code> 搬到 <code>emacs-lsp</code> 组织下了，旧地址已不存在）。</p>
+
+  <pre class="el"><code>(use-package dap-mode
+  :diminish t
+  :commands (dap-debug dap-debug-last dap-debug-recent dap-continue
+            dap-next dap-step-in dap-step-out dap-eval)
+  :config
+  (dap-mode 1)
+  (dap-ui-mode 1))</code></pre>
+
+  <p>常用的交互式命令（我直接从 <code>dap-mode.el</code> 源码里列出来的，都是真实存在的函数名）：<code>dap-debug</code>、<code>dap-debug-last</code>、<code>dap-debug-recent</code>、<code>dap-continue</code>、<code>dap-next</code>、<code>dap-step-in</code>、<code>dap-step-out</code>、<code>dap-debug-restart</code>、<code>dap-eval</code>、<code>dap-eval-region</code>、<code>dap-eval-thing-at-point</code>、<code>dap-breakpoint-toggle</code>、<code>dap-switch-thread</code>、<code>dap-switch-stack-frame</code>、<code>dap-stop-thread</code>、<code>dap-disconnect</code>、<code>dap-up-stack-frame</code>、<code>dap-down-stack-frame</code>。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>我没法给你一份「 dap-mode 默认键位表」，因为它没有一个静态的默认键位表。</strong>我读了 <code>emacs-lsp/dap-mode</code> 仓库当前源码：<code>dap-mode-map</code>（<code>dap-mode.el</code> 第 2076 行）里<strong>只有两条鼠标绑定</strong>（行号边距点击切换断点），键盘绑定分散在 <code>dap-ui.el</code> 的各个小键表里，而主键位要靠你在 <code>use-package</code> 的 <code>:bind</code> 里自己定。dap-mode 的新 UI（<code>dap-ui</code>，2024 年之后）替换了老的 <code>dap-hydra</code>，行为和网上老教程不一样。<strong>正确做法</strong>：先按上面的命令把 <code>:bind</code> 写好，然后用 <kbd>C-h m</kbd> 在调试缓冲区里查当时的真实键位。</p>
+  </div>
+
+  <h4>2.6 树形视图与折叠</h4>
+
+  <p>最后一块是「看结构」。Emacs 内置了几套，各有各的用处：</p>
+
+  <ul>
+    <li><strong>Imenu</strong>（<code>M-x imenu</code>，默认全局键是 <kbd>M-g</kbd> <kbd>i</kbd>；我实测 Emacs 32.0.50 上 <kbd>M-</kbd><kbd>&lt;</kbd><kbd>i</kbd> 并没有绑定）：按当前 buffer 的主模式抽出所有顶层定义（函数名、类名、标题），在一个小窗里列出。这是<strong>最通用</strong>的一套，主模式提供 <code>imenu-create-index-function</code> 就能用。</li>
+    <li><strong>Outline</strong>（<code>lisp/outline.el</code>）：<strong>折叠</strong>机制。老的 <code>hideshow.el</code> 已经并进 <code>outline.el</code>，命令名全部加了 <code>outline-</code> 前缀，绑定也换成了 <kbd>C-c</kbd> 双键：<kbd>C-c</kbd> <kbd>C-c</kbd> 折叠当前段（<code>outline-hide-entry</code>）、<kbd>C-c</kbd> <kbd>C-d</kbd> 折叠整棵子树（<code>outline-hide-subtree</code>）、<kbd>C-c</kbd> <kbd>C-a</kbd> 全部展开（<code>outline-show-all</code>）、<kbd>C-c</kbd> <kbd>C-s</kbd> 展开子树、<kbd>C-c</kbd> <kbd>C-n</kbd> / <kbd>C-c</kbd> <kbd>C-p</kbd> 上下跳可见标题。<strong>「全部折叠」没有单独一个键</strong>，常用做法是 <kbd>M-x</kbd> <code>outline-hide-sublevels</code> 或 <kbd>M-x</kbd> <code>outline-hide-body</code>。不同主模式定义不同的「段」：Org 按标题、Outline/Info 按标题、Prog 按 defun。</li>
+    <li><strong>tree-sitter 模式</strong>自带语法树导航（<code>treesit</code> 库提供，<kbd>M-c</kbd> 前缀）。这套键在 Emacs 29 到 30 之间改过名字（文件从 <code>lisp/treesit.el</code> 搬到了 <code>lisp/tree-sitter/</code>），我没法给你一份跨版本都准的表——<strong>以 <kbd>C-h m</kbd> 为准</strong>：在任何 <code>*-ts-mode</code> 缓冲区里按 <kbd>C-h</kbd> <kbd>m</kbd>，看 <code>M-c</code> 那一节。</li>
+    <li><strong>Speedbar</strong>（<code>speedbar.el</code>，内置）：屏幕左边一条细长的文件树。它早年的依赖 <code>fsf.el</code> 早已从 Emacs 里删掉了，现在 <code>M-x speedbar</code> 直接能用，但在很大的目录上确实会明显变慢。</li>
+  </ul>
+
+  <p>一个实用的组合——让 Imenu 常驻，并且给所有编程模式都打开 outline 折叠：</p>
+
+  <pre class="el"><code>;; 让 Elisp 模式的 Imenu 条目出现在菜单栏里
+(use-package imenu
+  :hook (emacs-lisp-mode . imenu-add-menubar-index))
+
+;; prog-mode-hook 会覆盖 C/C++、Python、Go 等所有编程模式
+(add-hook 'prog-mode-hook #'outline-mode)
+
+;; 全局开启 Imenu（按 C-h m 可以看到任何模式有没有提供索引函数）
+(global-imenu-mode 1)</code></pre>
+
+  <div class="keys">
+    <h4>本节按键（语言支持）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M-x</kbd></td><td><code>describe-function</code></td><td>万能前缀键，任何命令都能用它调用</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-c</kbd></td><td><code>outline-hide-entry</code></td><td>折叠当前段（outline 模式可用）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-d</kbd></td><td><code>outline-hide-subtree</code></td><td>折叠整棵子树</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-a</kbd></td><td><code>outline-show-all</code></td><td>全部展开（注意不是「全部折叠」）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-n</kbd> / <kbd>C-c</kbd> <kbd>C-p</kbd></td><td><code>outline-next-visible-heading</code> / <code>outline-previous-visible-heading</code></td><td>上下跳到下一个 / 上一个可见标题</td></tr>
+        <tr><td><kbd>M-g</kbd> <kbd>i</kbd></td><td><code>imenu</code></td><td>打开结构索引（<kbd>C-x</kbd> <kbd>C-l</kbd> 是 <code>count-lines-page</code>，不是 imenu）</td></tr>
+        <tr><td><kbd>M-.</kbd></td><td><code>xref-find-definitions</code></td><td>在后端给出的候选定义间跳转</td></tr>
+        <tr><td><kbd>M-?</kbd></td><td><code>xref-find-references</code></td><td>列出全项目引用</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>eglot-find-references</code></td><td><code>eglot-find-references</code></td><td>LSP 版查引用（Eglot 不绑默认键）</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>eglot-rename</code></td><td><code>eglot-rename</code></td><td>LSP 版跨文件重命名</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>eglot-format</code></td><td><code>eglot-format</code></td><td>让语言服务器格式化</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>flycheck-next-error</code></td><td><code>flycheck-next-error</code></td><td>跳到下一个检查错误</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>dap-debug</code></td><td><code>dap-debug</code></td><td>启动调试会话</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="用 use-package 绑定 M-x eglot-find-references、eglot-rename 等；Eglot 本身只重映射了 C-h，没有默认键位">
+    <p class="drill-q"><b>练习 4</b>　你按官方步骤装了 Eglot，语言服务器也起来了，mode line 上出现了小图标，但按 <kbd>C-c C-d</kbd> 什么都没发生。为什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>因为 <strong>Eglot 没有绑定 <kbd>C-c C-d</kbd></strong>。Emacs 32.0.50 里 <code>eglot-mode-map</code> 只重映射了 <kbd>C-h</kbd>。所有动作都要用 <kbd>M-x</kbd> 调用，或者自己在配置里 <code>:bind</code>。网上那些「Eglot 自带 C-c C-d」的说法对应的是更早的第三方 <code>eglot-langsrv</code>，不是内置版本。</p></div>
+  </div>
+
+  <div class="drill" data-answer="靠 shebang：set-auto-mode 先查 interpreter-mode-alist，里面有 (&quot;python[0-9.]*&quot; . python-mode)；auto-mode-alist 匹配的是文件名，在它之后才试">
+    <p class="drill-q"><b>练习 5</b>　Emacs 打开 <code>script</code> 这个没有扩展名的文件时，选了 Python 模式。Emacs 是靠什么判断的？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>靠文件<strong>第一行的内容</strong>，但走的不是 <code>auto-mode-alist</code>。<code>set-auto-mode</code> 拿第一行去匹配 <code>auto-mode-interpreter-regexp</code>，认出解释器名（这里是 <code>python3</code>），再去查 <code>interpreter-mode-alist</code>——那个变量默认就有一条 <code>("python[0-9.]*" . python-mode)</code>。文件名后缀匹配（查 <code>auto-mode-alist</code>）排在<strong>它后面</strong>，是第二道 fallback。</p></div>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>下一节讲文件与项目：<code>project.el</code> 是怎么帮你管住一个大仓库的，bookmark / recentf / savehist 三个「记忆」功能各管什么，consult 系列怎么把选择界面统一起来，以及 dired 与 dired-x 在 Emacs 32 里到底是什么关系。</p>
+  </div>
+
+  <h3>三、文件与项目</h3>
+
+  <p>Emacs 里「打开文件」永远只是 <kbd>C-x</kbd> <kbd>C-f</kbd>。但真实工作不是「打开一个文件」，而是「在三千个文件的项目里快速找到并切换到那一个」。这一节讲三套机制：<code>project.el</code> 管住项目的范围，bookmark / recentf / savehist 记住你去过哪里，consult 把所有「选择一个东西」的界面统一成同一个样子。</p>
+
+  <h4>3.1 <code>project.el</code>：Emacs 内置的项目管理</h4>
+
+  <p><strong>项目</strong>（project）在 Emacs 里是一个抽象：<strong>项目类型</strong>（project type）负责「怎么认出项目根目录」，<strong>项目实例</strong>（project instance）负责「这个项目有哪些命令」。<code>project.el</code>（<code>lisp/progmodes/project.el</code>）<strong>是 Emacs 25.1 进的本体</strong>——<code>NEWS.25</code> 第 1025 行的标题就是 “New package Project”，归属的小节是 “Changes in Specialized Modes and Packages in Emacs 25.1”；本书作者在 32.0.50 自带的 <code>NEWS.24</code>、<code>NEWS.26</code>、<code>NEWS.27</code>、<code>NEWS.28</code>、<code>NEWS.29</code> 里 grep “New package … Project” <strong>全部零命中</strong>，所以 25.1 是唯一正确的答案（网上有说 27、28、29 的，都是以讹传讹）。<strong>要分清两个东西：</strong>包本身 25.1 就有，<strong>但 <kbd>C-x</kbd> <kbd>p</kbd> 这个前缀键表是 Emacs 28.1 才加的</strong>（<code>NEWS.28</code> 第 2261 行 “New prefix keymap ‘project-prefix-map’”），在 25–27 上你得用 <kbd>M-x</kbd> <code>project-find-file</code>。<strong>28.1 那一版还顺带宣布了新命令</strong> <code>project-switch-project</code>、<code>project-dired</code>、<code>project-shell</code>、<code>project-eshell</code>、<code>project-compile</code>，以及新变量 <code>project-list-file</code>。</p>
+
+  <p>零配置时它只认两种项目：<strong>vc</strong>（版本控制仓库，也就是有 <code>.git</code> / <code>.hg</code> 的目录）和 <strong>project.el</strong>（有 <code>.projectile</code> 或 <code>.dir-locals.el</code> 的目录）。变量 <code>project-vc-extra-root-markers</code>（Emacs 29 新增）可以加更多标记，比如 <code>package.json</code>、<code>go.mod</code>。</p>
+
+  <p>全局前缀键是 <kbd>C-x</kbd> <kbd>p</kbd>（<code>project-prefix-map</code>，在 <code>project.el</code> 第 1044 行挂到 <code>ctl-x-map</code> 上）。下面的键位表是我从 Emacs 32.0.50 的 <code>project.el</code> 源码里原样抄出来的，全部实测通过：</p>
+
+  <div class="keys">
+    <h4><code>C-x</code> <kbd>p</kbd> 全键位（Emacs 32.0.50 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>f</kbd></td><td><code>project-find-file</code></td><td>在项目内找文件（支持 <kbd>M-x</kbd> project-root-find-file 那类后缀选择）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>F</kbd></td><td><code>project-or-external-find-file</code></td><td>找不到就去外部搜索工具（ripgrep 等）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>p</kbd></td><td><code>project-switch-project</code></td><td>切换/新建项目</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>b</kbd></td><td><code>project-switch-to-buffer</code></td><td>只列项目内的缓冲区</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>C-b</kbd></td><td><code>project-list-buffers</code></td><td>列出项目里的所有缓冲区（Emacs 29 新增）</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>k</kbd></td><td><code>project-kill-buffers</code></td><td>关掉项目的全部缓冲区</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>s</kbd></td><td><code>project-shell</code></td><td>在项目根目录起一个 shell</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>!</kbd></td><td><code>project-shell-command</code></td><td>在项目根目录执行一条命令</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>d</kbd></td><td><code>project-find-dir</code></td><td>在项目内找目录</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>D</kbd></td><td><code>project-dired</code></td><td>在项目根目录开 Dired</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>c</kbd></td><td><code>project-compile</code></td><td>在项目根目录编译</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>e</kbd></td><td><code>project-eshell</code></td><td>在项目根目录起 eshell</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>v</kbd></td><td><code>project-vc-dir</code></td><td>打开内建 vc 的状态目录</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>g</kbd></td><td><code>project-find-regexp</code></td><td>项目内正则搜索</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>G</kbd></td><td><code>project-or-external-find-regexp</code></td><td>正则搜索，找不到交给外部工具</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>r</kbd></td><td><code>project-query-replace-regexp</code></td><td>项目内批量替换</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>x</kbd></td><td><code>project-execute-extended-command</code></td><td>用 minibuffer 执行任意命令</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>o</kbd></td><td><code>project-any-command</code></td><td>在项目里选一个动作执行</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>C-x</kbd> <kbd>s</kbd></td><td><code>project-save-some-buffers</code></td><td>只保存项目内的缓冲区</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>配套的变量很少，但每一个都值得知道：</p>
+
+  <pre class="el"><code>(add-to-list 'project-vc-extra-root-markers "package.json")
+(add-to-list 'project-vc-extra-root-markers "go.mod")
+;; 遇到只有这些标记、没有 .git 的目录时，也算一个项目
+;; （project-vc-extra-root-markers 是 Emacs 29 新增的，默认 nil）
+
+;; 想让 Emacs 记住你最近待过的项目，让 project-switch-project
+;; 和 M-x project-forget-project 有得可谈：
+(setq project-list-file (expand-file-name "~/.emacs.d/project-list"))
+;; 这个文件由 project.el 自己读写，一行一个项目路径
+
+;; 批量把某个目录树下的所有项目记进去
+;; （交互式命令：M-x project-remember-projects-under RET ~/code RET t）
+;; project.el 在你用 project-switch-project 切走时也会自动记当前项目</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>「项目」不等于「git 仓库」。</strong>默认的 <code>vc</code> 后端只看 <code>.git</code>，所以一个 <code>monorepo</code>（大仓库套小仓库）里打开深层目录时，<code>C-x p f</code> 的搜索范围是<strong>最外层那个 git 根</strong>，而不是你以为的内层目录。解法是给内层目录写一个 <code>.dir-locals.el</code>（或者装了 <strong>projectile</strong> 的话写 <code>.projectile</code>），project.el 的 <code>project</code> 后端会把它当成项目根。想确认当前到底认了哪个，在任意缓冲区里 <kbd>M-x</kbd> <code>project-current</code> <kbd>RET</kbd> 看看打印出来的 project 是什么。</p>
+  </div>
+
+  <h4>3.2 三个「记忆」功能：bookmark、recentf、savehist</h4>
+
+  <p>这三样经常被混为一谈，其实各管一件事：</p>
+
+  <table>
+    <thead><tr><th>名字</th><th>记的是什么</th><th>存在哪</th><th>怎么用</th></tr></thead>
+    <tbody>
+      <tr><td><code>bookmark</code></td><td><strong>你手动标记的位置</strong>（文件 + 行/列 + 命名）</td><td><code>bookmark-file</code>，Emacs 32 默认 <code>~/.config/emacs/bookmarks.eld</code></td><td><kbd>C-x</kbd> <kbd>r</kbd> <kbd>m</kbd> 打标记，<kbd>C-x</kbd> <kbd>r</kbd> <kbd>b</kbd> 跳转，<kbd>C-x</kbd> <kbd>r</kbd> <kbd>l</kbd> 列出全部</td></tr>
+      <tr><td><code>recentf</code></td><td><strong>你最近打开过的文件</strong>（自动）</td><td><code>recentf-save-file</code>，<code>recentf-max-saved-items</code> 默认 <strong>25</strong> 项</td><td><em>File</em> 菜单里的 <em>Open Recent</em>（菜单标题由 <code>recentf-menu-title</code> 决定）；<code>recentf-max-menu-items</code> 默认 <strong>10</strong>，决定菜单里显示几条。想要一个能模糊搜索的列表，用 <kbd>M-x</kbd> <code>recentf-open-more-files</code></td></tr>
+      <tr><td><code>savehist</code></td><td><strong>你在 minibuffer 里输入过的历史</strong>（自动）</td><td><code>savehist-file</code>，Emacs 32 默认 <code>~/.config/emacs/history</code>；<code>savehist-autosave-interval</code> 默认 <strong>300</strong>（秒，也就是 5 分钟）</td><td>在 <kbd>M-x</kbd> 里按 <kbd>M-p</kbd> / <kbd>M-n</kbd> 翻历史</td></tr>
+    </tbody>
+  </table>
+
+  <p>实测提醒：我用 <code>emacs -Q</code> 起一个干净的 batch Emacs，<code>recentf-mode</code> 和 <code>savehist-mode</code> 的值<strong>都是 <code>nil</code></strong>（这两个变量本来就要你显式打开）。有些发行版打包的 Emacs 会在 <code>site-start.el</code> 里替你打开，但最保险的是自己在 init 里写一遍：</p>
+
+  <pre class="el"><code>(recentf-mode 1)
+(savehist-mode 1)
+(setq savehist-additional-variables
+      '((command-history . 20)
+        (expression-history . 20)   ; M-: 的历史
+        (compile-command-history . 20)))
+(setq savehist-autosave-interval (* 5 60))
+
+;; 让 recentf 菜单默认多显示几条
+(setq recentf-max-menu-items 25)
+
+;; 保存「上次退出时每个 buffer 的光标位置」
+;; 文件叫 saveplace.el（注意文件名没有中间的连字符，但次模式名有），
+;; 位置存在 save-place-file，默认 ~/.config/emacs/places.eld
+;; 本机 Emacs 32.0.50 上次模式叫 save-place-mode；有些版本叫 saveplace-mode，
+;; 拿不准就在 M-x 里先确认一下用哪个
+(require 'saveplace)
+(if (fboundp 'save-place-mode)
+    (save-place-mode 1)
+  (saveplace-mode 1))
+
+;; bookmark 允许同一个名字指向多个位置：打开 bookmark-jump 时
+;; 会问你跳哪一个。默认是不允许重名的
+(setq bookmark-allow-cycling t)   ; 若报 void-variable，
+                                  ;; 说明这版没有它，跳过这行即可</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong><kbd>C-x</kbd> <kbd>C-r</kbd> 不是「打开最近文件」。</strong>我在 Emacs 32.0.50 上实测（<code>(key-binding (kbd "C-x C-r"))</code>），它是 <code>find-file-read-only</code>（以只读方式打开文件）；<code>recentf-mode</code> 不会覆盖它，只是往 <em>File</em> 菜单里加一项。打开最近文件要走 <em>File</em> → <em>Open Recent</em>，或者 <kbd>M-x</kbd> <code>recentf-open-more-files</code>。<strong>顺带纠正一个命令名：<code>recentf-open-recent-file</code> 这个命令在今天的 Emacs 里已经没有了</strong>——我实测 <code>(fboundp 'recentf-open-recent-file)</code> 返回 <code>nil</code>，Emacs 29 的 NEWS 里给这一类需求引入了新命令 <code>recentf-open</code>（2868 行），而能列出候选让你挑的是 <code>recentf-open-more-files</code>。很多教程还在抄那个已经不存在的名字。</p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>bookmark 和 recentf 的本质区别就是「手动」和「自动」。</strong>你今天开过的 200 个文件，recentf 只会记下 25 个；但你三个月前精读过的一个函数，bookmark 一直记着。经验做法是：<strong>recentf 用来找「我刚才在干嘛」，bookmark 用来找「我上次想到这儿了」。</strong></p>
+  </div>
+
+  <h4>3.3 consult：把「选东西」这件事统一</h4>
+
+  <p>Emacs 里到处都是「弹一个 minibuffer 让你从一列候选里选」的场景：开文件、换 buffer、切 bookmark、选段落、抓命令……<strong>consult</strong>（MELPA 版本 <code>20260926</code>，GNU ELPA 上是 3.x 分支，仓库 <code>github.com/minad/consult</code>，约 1665 stars，最近提交 2026-10-02）把这一类场景全部重写成同一套界面：候选实时刷新、支持模糊匹配、支持预览、而且可以异步加载（十万个文件也不卡）。</p>
+
+  <p>我读的是本机装的 consult 3.6 的源码，它的文件头写着 <code>Version: 3.6</code>、<code>Package-Requires: ((emacs "29.1") (compat "31"))</code>——<strong>consult 3.x 需要 Emacs 29.1 以上</strong>。consult 3.x 相比 2.x 有一个大合并：<code>consult-imenu</code>、<code>consult-info</code>、<code>consult-flymake</code>、<code>consult-compile</code>、<code>consult-org</code>、<code>consult-register</code>、<code>consult-xref</code>、<code>consult-kmacro</code> 现在都在<strong>主包</strong>里（我列了 <code>minad/consult</code> 仓库根目录的文件，确实只有 <code>consult.el</code> 加这八个子文件），不用分别安装。</p>
+
+  <pre class="el"><code>(use-package vertico
+  :after vertico-sort
+  :bind ("&lt;C-s&gt;" . vertico-complete))
+
+(use-package orderless
+  :diminish t
+  :init
+  ;; 关掉默认的按空格停止，orderless 靠空格直接匹配
+  (setq orderless-matching-style 'orderless))
+
+(use-package corfu
+  :diminish t
+  :init
+  ;; 把按 TAB 补全改成按 C-M-/
+  (keymap-set corfu-map "C-M-/" 'corfu-complete)
+  (keymap-set corfu-map "TAB" nil)
+  ;; 优先显示已经算好的候选（更快）
+  (setq corfu-sort '(length sort-buffer) corfu-preview-sort '(length))
+  (keymap-set completion-base-map "C-SPC" 'corfu-complete)
+  (keymap-set completion-list-mode-map "C-M-o" 'corfu-complete))
+
+(use-package cape
+  :diminish t
+  :hook ((emacs-lisp-mode . cape-auto-complete)
+         (python-mode . cape-auto-complete)
+         (conf-mode . cape-auto-complete)))
+
+(use-package consult
+  :diminish t
+  :init
+  (setq consult-buffer-sources
+        '((nil :buffer :hidden)
+          (:buffers-in-project :buffers-in-project)
+          (consult-buffer-sources-files)
+          (consult-buffer-sources-recent)
+          (consult-buffer-sources-bookmarks)))
+  :bind
+  (("C-c b" . consult-buffer)
+   ("C-c o" . consult-buffer-other-window)
+   ("C-c r b" . consult-bookmark)
+   ("C-c r m" . bookmark-set)   ; consult 会自动识别 bookmark-set 这个命令
+   ("C-c f" . consult-find-file)
+   ("C-c l" . consult-location)
+   ("M-y" . consult-yank-pop))    ; 想退回内置行为就把这行删掉</code></pre>
+
+  <p>它的价值不在「好看」，而在三点：<strong>（1）所有候选实时过滤</strong>，你打完 <code>conf</code> 就只剩配置文件；<strong>（2）带预览</strong>，光标停在候选上时右侧显示文件内容或定义；<strong>（3）可异步</strong>，用 <code>consult-ripgrep</code> 之类的命令时不会冻住界面。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>关于 <code>consult-git-status</code>：网上教程还在教，但它已经不在 consult 里了。</strong>我查了两处：MELPA 的 <code>archive-contents</code>（2026-10-03）里没有 <code>consult-git</code> 这个包名；<code>minad/consult</code> 仓库根目录也没有 <code>consult-git.el</code>；consult 3.6 的源码里只有 <code>consult-git-grep</code>（全项目正则搜索），没有 <code>consult-git-status</code>。所以 2026 年的正确做法是：<strong>Git 相关一律用 Magit</strong>（<code>M-x magit-dispatch</code> 是个 transient 面板，比 consult-git-status 更好用），跨文件文本搜索用 <code>M-x consult-ripgrep</code>。</p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>consult 系列命令的通用键：<kbd>C-M-g</kbd> 重新生成候选，<kbd>M-m</kbd> 显示候选的详细说明，<kbd>?</kbd> 显示帮助，<kbd>o</kbd> 换个动作（比如在另一个窗口打开）。consult 3.x 还给每个命令生成了带后缀的变体：<code>consult-buffer-other-window</code>、<code>consult-buffer-other-frame</code>、<code>consult-buffer-other-tab</code>（这三个我都在 3.6 源码里查到），以及 <code>consult-multi</code>（在多个来源之间筛选）、<code>consult-history</code>（历史）、<code>consult-mode-command</code>（列出当前主模式的全部命令并模糊匹配——想知道某个模式能干什么时很好用）。</p>
+  </div>
+
+  <h4>3.4 dired 与 dired-x：先纠正一个流传很广的说法</h4>
+
+  <p>第 11 章已经讲了 Dired 的用法。这里补一件必须说清楚的事，因为网上到处在传：<strong>dired-x 不是第三方包了，它是 Emacs 自带的。</strong></p>
+
+  <p>我实测的证据：Emacs 32.0.50 的源码树里有 <code>lisp/dired-x.el</code>（文件头写着 <code>Copyright (C) 1993-2026 Free Software Foundation</code>、<code>Package: emacs</code>、<code>This file is part of GNU Emacs</code>），而且 <code>(require 'dired-x)</code> 直接返回成功。判断「一个东西是不是内置」有个通用办法：<kbd>M-x</kbd> <code>locate-library</code> <kbd>RET</kbd> <code>dired-x</code> <kbd>RET</kbd>，路径落在 Emacs 自己的 <code>lisp/</code> 目录下就是内置，落在 <code>elpa/</code> 下才是装的。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>内置版 dired-x 和老教程里的 dired-x 键位不一样。</strong>很多教程教你 <kbd>M-o</kbd> <kbd>d</kbd> 标记目录、<kbd>M-o</kbd> <kbd>m</kbd> 改权限、<kbd>M-o</kbd> <kbd>i</kbd> 批量解压——那些是老第三方包的键。在 Emacs 32.0.50 的 <code>dired-x.el</code> 里，整份文件只往 <code>dired-mode-map</code> 里加了 <strong>8 条</strong>绑定（源码第 206–214 行，我逐条 grep 过 <code>define-key</code>），我原样列在下面。真正的大量功能早就被拆回了 dired 本体——NEWS.29 里专门有一批「'dired-...' moved from dired-x to dired」的条目（<code>dired-guess-shell-command</code>、<code>dired-clean-up-buffers-too</code>、<code>dired-do-relsymlink</code> 等）。</p>
+  </div>
+
+  <p>Emacs 32.0.50 里 <code>dired-x.el</code> 实际添加的绑定（全部 8 条）：</p>
+
+  <pre class="term"><code>M-(            dired-mark-sexp          用正则标记文件
+*  ( , O , .  dired-mark-sexp / -omitted / -extension（条件绑定）
+C-x M-o        dired-omit-mode         切换「忽略」显示模式
+M-!            dired-smart-shell-command 对标记文件跑 shell 命令
+F              dired-do-find-marked-files  把标记的文件全部打开
+V              dired-do-run-mail       对标记文件跑 mail 命令</code></pre>
+
+  <p>至于「批量重命名」<strong>根本不需要 dired-x</strong>——那是 dired 本体的 <code>dired-do-rename</code>，按<strong>大写</strong> <kbd>R</kbd>（我实测 <code>(lookup-key dired-mode-map (kbd "R"))</code> 得到 <code>dired-do-rename</code>，而小写 <kbd>r</kbd> 在今天的 <code>dired-mode-map</code> 里<strong>没有绑定</strong>）；<kbd>%</kbd> 键开的是一个正则子菜单，<kbd>%</kbd> <kbd>r</kbd> 和 <kbd>%</kbd> <kbd>R</kbd> 都是 <code>dired-do-rename-regexp</code>，<kbd>%</kbd> <kbd>m</kbd> 是 <code>dired-mark-files-regexp</code>。另外这些键我也逐条查过 <code>dired-mode-map</code>：<kbd>c</kbd> 是 <code>dired-do-compress-to</code>（打包），<kbd>Z</kbd> 是 <code>dired-do-compress</code>（解压），<kbd>S</kbd> 是 <code>dired-do-symlink</code>，<kbd>C</kbd> 是 <code>dired-do-copy</code>，<kbd>H</kbd> 是 <code>dired-do-hardlink</code>，<kbd>!</kbd> 与 <kbd>X</kbd> 是 <code>dired-do-shell-command</code>，<kbd>&amp;</kbd> 是 <code>dired-do-async-shell-command</code>（对标记文件跑 Elisp），<kbd>u</kbd> / <kbd>U</kbd> 是取消标记 / 全部取消标记。这些在第 11 章的表里都有。</p>
+
+  <h4>3.5 给 <code>C-x C-f</code> 增强</h4>
+
+  <p><code>find-file</code> 本身没法「增强」——它是 C 代码，不接受 Elisp 钩子。但你可以从两头动手：</p>
+
+  <ol>
+    <li><strong>换掉它</strong>：把 <kbd>C-x</kbd> <kbd>C-f</kbd> 绑到 <code>consult-find-file</code> 或 <code>vertico-find-file</code>，你得到模糊匹配 + 预览。这是最常用的一招。</li>
+    <li><strong>改它的行为</strong>：变量 <code>find-file-hook</code> 里的函数会在<strong>文件打开后</strong>跑，可以按文件名后缀自动切模式；变量 <code>file-name-handler-alist</code> 决定远程路径（如 <code>/ssh:host/path</code>）怎么处理（那是第 10 章 Tramp 的地盘）。</li>
+  </ol>
+
+  <pre class="el"><code>(use-package ffip
+  :diminish t
+  :bind ("C-c C-f" . ffip-find-project-file)
+  :config
+  (setq ffip-find-project-file-buffer-size 200
+        ffip-find-project-file-not-found-choices '((1 "Create new file" . +new)
+                                                    (2 "Cancel" . +ignore))))
+
+;; 让 C-x C-f 走项目范围
+(add-to-list 'ffip-find-project-file-functions
+             #'project-find-file
+             '((boundary . project-root) . nil))</code></pre>
+
+  <p><code>ffip</code>（项目内文件搜索的封装，MELPA 包）把「找文件」和「项目」这两件事真正接上了：<code>C-c C-f</code> 只在当前项目根目录内搜，支持模糊匹配，搜不到时还能让你当场新建文件。</p>
+
+  <div class="drill" data-answer="C-x p p 调 project-switch-project；C-x p k 调 project-kill-buffers；C-x p C-b 调 project-list-buffers">
+    <p class="drill-q"><b>练习 6</b>　你现在在 monorepo 里的一个子包，Emacs 有三十几个缓冲区属于这个大仓库。项目管理那套前缀键里，哪三个能帮你收拾残局？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C-x</kbd> <kbd>p</kbd> <kbd>p</kbd>（<code>project-switch-project</code>，切走）、<kbd>C-x</kbd> <kbd>p</kbd> <kbd>k</kbd>（<code>project-kill-buffers</code>，一次关掉这个项目的所有缓冲区）、<kbd>C-x</kbd> <kbd>p</kbd> <kbd>C-b</kbd>（<code>project-list-buffers</code>，先看看有哪些）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="recentf 自动记录最近打开的文件；bookmark 需要你手动标记；savehist 记录 minibuffer 输入历史">
+    <p class="drill-q"><b>练习 7</b>　你想找回三个月前读过的一个函数，但那个文件早就被重构掉了。用哪个功能？为什么不是另一个？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>用 <strong>bookmark</strong>——它只记你手动标记过的位置，不会自动淘汰。<code>recentf</code> 只留最近 <code>recentf-max-saved-items</code>（默认 25）个文件，早就滚出去了。前提是你当时记得按 <kbd>C-x</kbd> <kbd>r</kbd> <kbd>m</kbd>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="不用装：dired-x 已经是 Emacs 自带的，批量重命名用 dired 本体的 dired-do-rename（大写 R 键）">
+    <p class="drill-q"><b>练习 8</b>　你想在 Dired 里批量把一百个 <code>.png</code> 改成 <code>.jpg</code>，需要装第三方包吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>不需要。<strong>整目录重命名一直是 dired 本体自己的命令</strong> <code>dired-do-rename</code>，键是<strong>大写</strong> <kbd>R</kbd>（小写 <kbd>r</kbd> 在现代 dired 里已经没有绑定了）：按 <kbd>R</kbd> 打开查询和替换的 minibuffer，命令是 <code>%.jpg</code>，确认即可。想先按正则批量标记再改，就用 <kbd>%</kbd> <kbd>r</kbd>（<code>dired-do-rename-regexp</code>）。dired-x 现在也是 Emacs 自带的，而且它已经不再负责重命名了。</p></div>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>下一节讲结构化文本：Org-mode 里 capture、outline、agenda、refile、publish 各自解决什么问题、边界在哪，以及用 <code>table</code> 整理数据能替代多少 Excel 场景。</p>
+  </div>
+
+  <h3>四、结构化文本：Org-mode 够用即可</h3>
+
+  <p><strong>结构化文本</strong>（structured text）是「有格式约定的纯文本」——Markdown、reStructuredText、Org-mode 都是。它相对 Word 的唯一优势是：<strong>它是文本</strong>，能 grep、能 diff、能进 Git、能被脚本处理。凡是「我需要一份能被别人用文本工具检索和比较的文档」，结构化文本就赢。</p>
+
+  <p><strong>Org-mode</strong>（内置在 Emacs 里，本书写作时本机版本是 <strong>9.8.10</strong>）是其中功能最全的一种。它大到可以写一本书——那是《The Org Mode Manual》，几十页。这里只讲日常真正会用的四件事：<strong>capture</strong>（把任何东西随手记进文件）、<strong>outline</strong>（大纲与折叠）、<strong>agenda</strong>（按时间汇总待办）、<strong>refile</strong>（把条目从一个文件挪到另一个文件），再加 <strong>table</strong>（轻量数据表）。</p>
+
+  <h4>4.1 先说一个必须知道的实测结果</h4>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>网上教 Org 的键位，绝大多数只在你装的那一版 Org 上成立。</strong>我在本机 Emacs 32.0.50 + Org 9.8.10 上逐条查了 <code>org-mode-map</code>：<strong><code>C-c</code> 后面跟单个字母的绑定（<code>C-c a</code> 日程、<code>C-c c</code> 捕获、<code>C-c l</code> 存链接、<code>C-c e</code> 导出、<code>C-c b</code> 加粗、<code>C-c w</code> refile）以及 <code>M-1</code>/<code>M-2</code>/<code>M-3</code> 优先级键，在这一版里全都不存在</strong>（<code>(lookup-key org-mode-map (kbd "C-c a"))</code> 返回 <code>nil</code>；我还在 <code>org-keys.el</code> 全文 grep <code>org-key-shortcuts</code>，零命中）；同样，经典的表格子键 <code>C-c C-c a</code>（对齐）、<code>C-c C-c n</code>（插入行）、<code>C-c C-c D</code>（删列）也都不存在——<code>C-c C-c</code> 现在是<strong>一个</strong>命令 <code>org-ctrl-c-ctrl-c</code>，它会根据光标位置自己判断该干什么（光标在表格里就对齐表格，在标题上就改标签）。<strong>而 <kbd>C-c</kbd> <kbd>C-w</kbd>（<code>org-refile</code>）、<kbd>C-c</kbd> <kbd>C-e</kbd>（<code>org-export-dispatch</code>）、<kbd>C-x</kbd> <kbd>n</kbd> <kbd>s</kbd>（<code>org-narrow-to-subtree</code>）这些双键的是还在的</strong>——所以不是「双键的都没了」，是「单字母那一批没了」。</p>
+  </div>
+
+  <p>要说清楚为什么老教程不算错：<strong>这些键在更早的 Org 版本里是默认绑定的</strong>，它们通过一个叫 <code>org-key-shortcuts</code> 的变量批量安装，而那个变量在 Org 9.8 里已经没有了。你读到的那篇文章大概率写于 Org 9.x 早期，作者当时看到的就是对的。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong>往下读之前先花二十秒确认你的 Org 版本，否则下一段那份配置会静默覆盖掉你本来就有的官方绑定。</strong>按 <kbd>M</kbd><kbd>-</kbd>，输入：</p>
+    <pre class="term"><code>M-: (org-version) RET
+"9.8.10"</code></pre>
+    <p><strong>判读方法：</strong></p>
+    <ul>
+      <li><strong>你的 Org ≥ 9.8</strong>——那批单字母键<strong>本来就不存在</strong>，下一段那份 <code>keymap-set</code> 是<strong>凭空新增</strong>，放心用。</li>
+      <li><strong>你的 Org 是 9.7 或更早</strong>——那批键<strong>本来就有官方绑定</strong>（由 <code>org-key-shortcuts</code> 装的）。<strong>你照抄下一段会<em>静默覆盖</em>它们</strong>，Emacs 不会给你任何提示。用不用新键位随你，但<strong>要知道你覆盖了什么</strong>：<strong>先按 <kbd>C-h</kbd> <kbd>m</kbd> 看一眼你现在 <code>org-mode-map</code> 上这些键原本是什么命令</strong>，记下来，将来想退回去就按 <code>global-set-key</code>／<code>keymap-set</code> 改回去。</li>
+    </ul>
+    <p><strong>还有一个更省事的办法：干脆别抄。</strong>下一段末尾就说了——Org 的命令名很好记，<kbd>M-x</kbd> 输入 <code>org-agenda</code>、<code>org-capture</code> 这些就够用。<strong>键位是个人偏好，装 Org 的默认绑定随时可用；那份配置是给「想用老文章里那套键」的人准备的。</strong></p>
+  </div>
+
+  <p>这条经验说明一件事：<strong>Org 的键位不值得背，也不值得抄。</strong>正确做法是用命令名：任何时候想知道某件事对应哪个键，按 <kbd>C-h m</kbd> 看当前模式的真实键位；或者干脆用 <kbd>M-x</kbd> 输入命令名——Org 的命令名都很好记（<code>org-agenda</code>、<code>org-capture</code>、<code>org-store-link</code>、<code>org-export-dispatch</code>、<code>org-refile</code>）。</p>
+
+  <p>如果你就是想要一套顺手的键位，自己绑一份就行（本节所有键位，凡是有的我都标了来源）：</p>
+
+  <pre class="el"><code>(with-eval-after-load 'org
+  (keymap-set org-mode-map "C-c a" #'org-agenda)
+  (keymap-set org-mode-map "C-c c" #'org-capture)
+  (keymap-set org-mode-map "C-c l" #'org-store-link)
+  (keymap-set org-mode-map "C-c e" #'org-export-dispatch)
+  (keymap-set org-mode-map "C-c w" #'org-refile)
+  (keymap-set org-mode-map "C-c b" #'org-bold)
+  (keymap-set org-mode-map "M-1" (lambda () (interactive) (org-priority-up)))
+  (keymap-set org-mode-map "M-2" (lambda () (interactive) (org-priority-down)))
+  (keymap-set org-mode-map "M-3" (lambda () (interactive) (org-priority-remove))))</code></pre>
+
+  <p><strong><code>keymap-set</code> 是 Emacs 29 起推荐的写法</strong>——NEWS.29 里专门有一条「Use <code>keymap-set</code> instead of <code>define-key</code>」。它接受「字符串形式的键序列」而不是向量，省掉了 <code>[?\C-c ?a]</code> 这种噪音。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>一个小坑：在 Emacs 32.0.50 上 <code>(require 'keymap-set)</code> 会报 <em>Cannot open load file "keymap-set"</em>，因为 <code>keymap-set.el</code> 这个文件已经不存在了，定义被并进了 <code>lisp/keymap.el</code>（我实测 <code>(symbol-file 'keymap-set)</code> 返回的正是 <code>.../lisp/keymap.elc</code>）。但 <code>keymap-set</code> 本身照常可用，<strong>不要写那行 <code>require</code></strong>。</p>
+  </div>
+
+  <h4>4.2 capture：把脑子里的东西一键倒进文件</h4>
+
+  <p><strong>capture</strong> 解决的是一个非常具体的痛点：你想到一件事，但不想为此去开文件、想好放哪儿、写好格式。capture 让你按一个键、在一个对话框里回答两三个问题，内容就落到了正确的文件里。</p>
+
+  <p>命令 <code>org-capture</code>，先定义模板：</p>
+
+  <pre class="el"><code>(setq org-directory "~/org/")
+(setq org-default-notes-file "~/org/notes.org")
+
+(setq org-capture-templates
+      '(("t" "Todo"
+         entry (file+headline "~/org/todo.org" "Inbox")
+         "* NEXT %?\n  SCHEDULED: &lt;%t&gt;\n  :PROPERTIES:\n    :CREATED: [&lt;%t&gt;]\n  :END:\n  %i"
+         :immediate t)
+        ("n" "Note"
+         entry (file "~/org/notes.org")
+         "* %?\n%i")
+        ("l" "Link"
+         entry (file+headline "~/org/refs.org" "Links")
+         "* [[%x]]\n  %?\n  :PROPERTIES:\n    :CREATED: [%&lt;%Y-%m-%d %H:%M&gt;]\n  :END:\n  %i")))</code></pre>
+
+  <p>这段模板的读法：<code>"t"</code> 是快捷字母（进入 capture 后直接按 <kbd>t</kbd> 选它）；<code>entry</code> 是「插入一个条目」；<code>(file+headline "文件" "标题")</code> 意思是要先找到（或创建）这个文件里的这个标题，没有就新建；<code>%?</code> 是光标落点；<code>%t</code> 是时间戳；<code>%i</code> 是正文；<code>&lt;%t&gt;</code> 在 HTML 里必须写成 <code>&amp;lt;%t&amp;gt;</code>，Org 会把它变成活动时间戳。</p>
+
+  <p><strong>没有「交互式模板向导」可用了。</strong>老教程里的 <code>M-x org-capture-init-templates</code> 在 Org 9.8.10 里已经不存在——我实测 <code>(fboundp 'org-capture-init-templates)</code> 返回 <code>nil</code>，整个 org 目录里 grep <code>init-templates</code> 也零命中。今天最省事的做法是：先在 <code>*scratch*</code> 里 <kbd>M-x</kbd> <code>customize</code>、找 <code>Org Capture Templates</code> 加一条（Customize 会把模板写成规范的列表，你只需要填「快捷键 / 标题 / 正文」三个字段）；或者干脆照着上面那段手写——模板写错时 <kbd>M-x</kbd> <code>org-capture</code> 会在选模板那一步就把错误报出来，不会有静默失败。</p>
+
+  <p>capture 缓冲区只有三个键（我实测过 <code>org-capture-mode-map</code>，它一共就三条绑定）：</p>
+
+  <div class="keys">
+    <h4>capture 缓冲区按键（org-capture.el 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C-c</kbd> <kbd>C-c</kbd></td><td><code>org-capture-finalize</code></td><td>存回目标文件并回到原处</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-k</kbd></td><td><code>org-capture-kill</code></td><td>放弃（内容会进 kill ring）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-w</kbd></td><td><code>org-capture-refile</code></td><td>存到另一个文件里</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>4.3 outline：大纲就是文件结构</h4>
+
+  <p>Org 文件就是纯文本，标题以若干个 <code>*</code> 开头，<code>*</code> 的个数就是层级：</p>
+
+  <pre class="term"><code>* 第一层标题
+** 第二层标题
+*** 第三层标题
+** 另一个第二层
+* 第二个第一层</code></pre>
+
+  <p>这一层结构就是 <strong>outline</strong>（大纲），它同时是导航、折叠和改写的抓手。</p>
+
+  <ul>
+    <li><kbd>TAB</kbd> — <code>org-cycle</code>：折叠/展开当前位置的子树（<strong>实测存在的键</strong>）。</li>
+    <li><kbd>S-TAB</kbd> — <code>org-shifttab</code>：连父级一起折叠（在 <code>org-keys.el</code> 里写作 <code>&lt;backtab&gt;</code>；<kbd>C-c</kbd> <kbd>TAB</kbd> 是另一个命令 <code>org-cycle-force-archived</code>，别记混）。</li>
+    <li><kbd>M-RET</kbd> — <code>org-meta-return</code>：在当前位置插入一个新标题，层级和当前标题一样。</li>
+    <li><kbd>M-&lt;left&gt;</kbd> / <kbd>M-&lt;right&gt;</kbd> — <code>org-metaleft</code> / <code>org-metaright</code>：降低/提升一级（就是在移动那些 <code>*</code>）。<kbd>M-&lt;up&gt;</kbd> / <kbd>M-&lt;down&gt;</kbd> — <code>org-metaup</code> / <code>org-metadown</code>：整棵子树往上/往下挪。</li>
+    <li><kbd>M-x imenu</kbd> — 跳到任意标题（Org 没有给这个动作单独绑键；全局的 <kbd>M-g</kbd> <kbd>i</kbd> 是 Imenu 的键，在 Org 缓冲区里同样有效）。</li>
+    <li><kbd>C-x</kbd> <kbd>n</kbd> <kbd>s</kbd> — <code>org-narrow-to-subtree</code>：临时只看当前子树。退出用 <kbd>M-x</kbd> <code>widen</code>（<strong>没有</strong> <kbd>C-x</kbd> <kbd>n</kbd> <kbd>w</kbd> 这条绑定，我查过本机 Org 9.8.10 的 <code>org-mode-map</code>）。<code>org-narrow-to-block</code>（<kbd>C-x</kbd> <kbd>n</kbd> <kbd>b</kbd>）和 <code>org-narrow-to-element</code>（<kbd>C-x</kbd> <kbd>n</kbd> <kbd>e</kbd>）同理。</li>
+    <li><kbd>C-c</kbd> <kbd>C-r</kbd> — <code>org-fold-reveal</code>：展开到光标所在层级。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>Org 的折叠是「文本级」的：</strong>被折叠的标题，行首那几个 <code>*</code> 会变成 <code>...</code>，内容整段替换成一行提示。<strong>文件没有被改动</strong>，所以可以随便折叠、随便撤销。</p>
+  </div>
+
+  <h4>4.4 agenda：把所有文件的待办按时间汇总</h4>
+
+  <p>命令 <code>org-agenda</code>（<kbd>C-c</kbd> <kbd>a</kbd> 需要自己绑）。它扫过 <code>org-agenda-files</code> 列出的所有文件，把所有标题按「日程」重组，按天/周/月排成一张表。它本质上是<strong>一个视图</strong>——原始数据仍在各个 .org 文件里，agenda 缓冲区里的任何操作都是在改原文件。</p>
+
+  <pre class="el"><code>(setq org-agenda-files
+      '("~/org/inbox.org"
+        "~/org/todo.org"
+        "~/org/projects/alpha.org"
+        "~/org/projects/beta.org"))
+
+(setq org-agenda-span 7)          ; 一周视图（默认值就是 'week，写 7 等价）
+(setq org-agenda-start-on-weekday 1)   ; 1 = 一周从周一开始（这才是默认值）；
+                                       ; nil = 从周开始，别写反
+(setq org-default-notes-file "~/org/notes.org")
+
+;; org-agenda-files 里可以直接放目录：目录里所有匹配
+;; org-agenda-file-regexp（默认 "\`[^.].*\.org\'"）的文件都会被收进来
+(add-to-list 'org-agenda-files "~/org/projects")</code></pre>
+
+  <p>agenda 缓冲区的键位（下表全部来自 <code>org-agenda.el</code> 的 <code>org-defkey org-agenda-mode-map</code> 源码）：</p>
+
+  <div class="keys">
+    <h4>agenda 缓冲区按键（org-agenda.el 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>TAB</kbd> / <kbd>C-i</kbd></td><td><code>org-agenda-goto</code></td><td>到原文件里对应的位置</td></tr>
+        <tr><td><kbd>RET</kbd> / <kbd>C-m</kbd></td><td><code>org-agenda-switch-to</code></td><td>切到原文件</td></tr>
+        <tr><td><kbd>m</kbd></td><td><code>org-agenda-bulk-mark</code></td><td>标记当前条目</td></tr>
+        <tr><td><kbd>M-m</kbd></td><td><code>org-agenda-bulk-toggle</code></td><td>标记/取消标记光标所在的那一行（含缩进行）</td></tr>
+        <tr><td><kbd>*</kbd></td><td><code>org-agenda-bulk-mark-all</code></td><td>全选标记</td></tr>
+        <tr><td><kbd>M-*</kbd></td><td><code>org-agenda-bulk-toggle-all</code></td><td>全选 / 全不选切换</td></tr>
+        <tr><td><kbd>%</kbd></td><td><code>org-agenda-bulk-mark-regexp</code></td><td>按正则批量标记：在 minibuffer 里输入一条正则，命中的条目打上标记</td></tr>
+        <tr><td><kbd>u</kbd></td><td><code>org-agenda-bulk-unmark</code></td><td>取消当前行的标记</td></tr>
+        <tr><td><kbd>U</kbd></td><td><code>org-agenda-bulk-unmark-all</code></td><td>全部取消标记</td></tr>
+        <tr><td><kbd>B</kbd></td><td><code>org-agenda-bulk-action</code></td><td>对标记的条目批量执行操作（改标签、改优先级、改日程）</td></tr>
+        <tr><td><kbd>t</kbd> / <kbd>C-c</kbd> <kbd>C-t</kbd></td><td><code>org-agenda-todo</code></td><td>切换待办状态（未开始 / 已完成之间往返）</td></tr>
+        <tr><td><kbd>k</kbd></td><td><code>org-agenda-capture</code></td><td>从 agenda 里直接捕获一条新待办</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-w</kbd></td><td><code>org-agenda-refile</code></td><td>把条目挪到别的文件</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-o</kbd></td><td><code>org-agenda-open-link</code></td><td>打开光标下的链接</td></tr>
+        <tr><td><kbd>$</kbd></td><td><code>org-agenda-archive</code></td><td>归档到 <code>org-archive-location</code>（<kbd>C-c</kbd> <kbd>C-$</kbd> 在这份 Org 里没有绑定）</td></tr>
+        <tr><td><kbd>a</kbd></td><td><code>org-agenda-archive-default-with-confirmation</code></td><td>归档到默认位置（会确认）</td></tr>
+        <tr><td><kbd>.</kbd></td><td><code>org-agenda-goto-today</code></td><td>视图跳到今天</td></tr>
+        <tr><td><kbd>j</kbd></td><td><code>org-agenda-goto-date</code></td><td>跳到指定日期</td></tr>
+        <tr><td><kbd>o</kbd></td><td><code>delete-other-windows</code></td><td>只留 agenda 一个窗口</td></tr>
+        <tr><td><kbd>SPC</kbd></td><td><code>org-agenda-show-and-scroll-up</code></td><td>向上滚动一行</td></tr>
+        <tr><td><kbd>L</kbd></td><td><code>org-agenda-recenter</code></td><td>重新居中</td></tr>
+        <tr><td><kbd>T</kbd></td><td><code>org-agenda-show-tags</code></td><td>显示/隐藏标签列</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>agenda 里最值钱的两个键是 <kbd>m</kbd> 和 <kbd>B</kbd>。</strong><kbd>m</kbd> 标记、<kbd>B</kbd> 批量执行——「把今天所有带 <code>#urgent</code> 标签的条目都往后推一档」这种操作，十几个条目十几次按键就完事，而且改的是原文件不是副本。</p>
+  </div>
+
+  <h4>4.5 refile：条目在文件之间搬家</h4>
+
+  <p>命令 <code>org-refile</code>，<kbd>C-c</kbd> <kbd>C-w</kbd>（这个键 <strong>实测存在</strong>，不需要自己绑）。它在缓冲区里显示一棵文件树，选一个目标标题，条目就移过去了。常见用法是「待办先扔进 <code>inbox.org</code>，周末统一 refile 到各个项目文件」。</p>
+
+  <pre class="el"><code>;; 定义 refile 的候选目标，让选择界面少翻很多层
+;; 每项是「文件范围 . 候选标题的挑法」，挑法可以是 t（全要）、
+;; (:level . N)（第 N 级标题）、(:tag . "TAG")、(:todo . "KEYWORD")
+;; 或 (:regexp . "正则")。不设时默认就是 org-refile-targets 的 nil，
+;; 即「当前 buffer 里的所有一级标题」
+(setq org-refile-targets
+      '(("~/org/inbox.org"    . (:level . 1))
+        ("~/org/todo.org"     . (:tag . "refile"))
+        ((org-agenda-files)   . (:regexp . "^Needs work"))))</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>refile 的是「文件内容」，不是「副本」。</strong>条目会真的从原文件消失。好处是 inbox 永远保持干净，坏处是如果你 refile 错了，得自己 remember undo——Emacs 的撤销历史是按缓冲区分的，跨文件以后 <kbd>C-x</kbd> <kbd>/</kbd> 救不了你。所以先用 <kbd>C-c</kbd> <kbd>C-w</kbd> 在原地试一次、确认目标位置对了再真的搬。</p>
+  </div>
+
+  <h4>4.6 table：够用的轻量数据表</h4>
+
+  <p>Org 的 <strong>table</strong>（表格）不是电子表格，但比大多数人以为的能干。它是「管道符 <code>|</code> 围起来的文本块」，同样的东西你在 Markdown 里见过：</p>
+
+  <pre class="term"><code>| 服务          | 延迟   | 状态     |
+|---------------+--------+----------|
+| user-service  |  12ms  | 正常     |
+| order-service | 310ms  | 超时中   |
+| pay-service   |   8ms  | 正常     |</code></pre>
+
+  <p>用 <kbd>C-c</kbd> <kbd>|</kbd>（<code>org-table-create-or-convert-from-region</code>，<strong>实测存在的键</strong>）可以从已有的制表符文本一键转成表格；<kbd>C-c</kbd> <kbd>C-c</kbd>（<code>org-ctrl-c-ctrl-c</code>）在表格里会自动对齐；<kbd>C-c</kbd> <kbd>=</kbd>（<code>org-table-eval-formula</code>）重算 <code>#+TBLFM</code> 里的公式；<kbd>C-c</kbd> <kbd>?</kbd>（<code>org-table-field-info</code>）显示光标所在单元格的坐标。</p>
+
+  <p>而在表格里，<kbd>RET</kbd>（<code>org-return</code>）是「跳到下一个单元格／行尾插行」，<kbd>S-RET</kbd>（<code>org-table-copy-down</code>）是「把上一行的内容复制到这一行」，<kbd>M-&lt;down&gt;</kbd> / <kbd>M-&lt;up&gt;</kbd> 在表格里是「插入行／删除行」，<kbd>M-&lt;left&gt;</kbd> / <kbd>M-&lt;right&gt;</kbd> 是「移动列」——因为这几个键在 Org 里是上下文相关的（<code>org-metadown</code> 在表格外的含义是「子树往下移」）。</p>
+
+  <p>想在表里算合计，在表格最后加一行，再在下面写公式：</p>
+
+  <pre class="term"><code>| 服务     | 延迟 |
+|-----------+------|
+| user      |  12 |
+| order     | 310 |
+| pay       |   8 |
+|-----------+------|
+| 合计      |      |
+#+TBLFM: $2=sum(v2)</code></pre>
+
+  <p>然后按 <kbd>C-c</kbd> <kbd>=</kbd>。<code>$2</code> 里的 <code>2</code> 指<strong>第 2 列</strong>——这张表只有「服务」和「延迟」两列，所以合计写在第 2 列；<code>sum(v2)</code> 里的 <code>v2</code> 指的是表格第 2 列（<code>v</code> = vertical、<code>h</code> = horizontal）。公式写在别的列上，<kbd>C-c</kbd> <kbd>=</kbd> 会抱怨找不到可用的列。Org 还支持更多列操作（<kbd>C-c</kbd> <kbd>=</kbd> 之后选 <code>Sum</code> / <code>Mean</code> / <code>Max</code> 等）和按行筛选。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>什么时候用 Org table，什么时候别用。</strong>Org table 适合：几十行以内的对照表（接口清单、环境对照、命令速查、面试问题清单）。它<strong>不适合</strong>：几百行的数据、需要条件筛选排序、需要图表、或者要跟别人协作的数据——那是 CSV 加一个 Python/pandas 的活儿，别硬用 Org 硬扛。Org 表格的价值是「它就写在你的笔记里，和文字混排，Ctrl-C 一下能粘贴到任何地方」。</p>
+  </div>
+
+  <h4>4.7 publish（发布）的边界在哪</h4>
+
+  <p>命令 <code>org-export-dispatch</code>，<kbd>C-c</kbd> <kbd>C-e</kbd>（<strong>实测存在的键</strong>）。Org 有一套 <strong>export backend</strong>（导出后端），每种格式对应一个 <code>ox-*.el</code> 文件。我数了本机 Org 9.8.10 里实际存在的那些：<code>ox-html</code>、<code>ox-latex</code>、<code>ox-beamer</code>、<code>ox-koma-letter</code>、<code>ox-man</code>、<code>ox-texinfo</code>、<code>ox-odt</code>、<code>ox-org</code>、<code>ox-md</code>、<code>ox-icalendar</code>、<code>ox-ascii</code>、<code>ox-publish</code>。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>两个老教程常写的「导出命令名」今天不存在了。</strong><code>org-asciidoc-export</code> 已经被一个通用的 <code>ascii</code> 后端取代（注册在 <code>ox-ascii.el</code> 里），<strong>没有</strong> <code>org-asciidoc-export</code> 这个命令；<code>org-pdf-export</code> 也<strong>不是</strong> Org 的命令——导出 PDF 是「<code>latex</code> 后端 + 外部 LaTeX 引擎」的组合，你在菜单里选的是 <em>LaTeX</em> 那一项，最后一步由外部程序完成。Markdown 是 <code>ox-md</code>，日历是 <code>ox-icalendar</code>，这两个后端都在。</p>
+  </div>
+
+  <p><strong>边界在哪？</strong>分三档：</p>
+
+  <ol>
+    <li><strong>纯格式转换（该用）</strong>：Org 写文档，导出成 HTML / Markdown 发博客。这是最常见、最省事的用法，导出的 HTML 是静态的，不用 Org 就能看。</li>
+    <li><strong>单人 PDF（看情况）</strong>：Org → LaTeX → PDF。听起来美好，实际要装 LaTeX 大礼包（几百 MB），编译中文还要处理字体和 CJK。而且导出的 PDF 你自己再改就麻烦了——<strong>正确做法是「以 Org 为源，PDF 当产物」</strong>，别反过来。</li>
+    <li><strong>交互式发布（基本别用）</strong>：Org 老版本有个 <code>org-publish</code>，能把 .org 文件当成一个小网站发布。现在这条路已经不值得走了——你有一个 .org 源文件、一个静态站点生成器（任何一种）、和 CI。<strong>不要学那些十几年前的 Org 发布教程。</strong></li>
+  </ol>
+
+  <pre class="el"><code>;; 最小可用的导出配置：导出成 HTML
+(require 'ox-html)
+(setq org-html-doctype "html5")
+
+;; Markdown 导出（多行内容会被包进 &lt;pre&gt;，这是预期行为）
+(require 'ox-md)
+
+;; icalendar 导出（导出 .ics，导入日历）
+(setq org-icalendar-include-todo "ALL")
+
+;; 导出一个文件试试：
+;; M-x org-export-dispatch RET  →  选 "HTML" / "Markdown" / "iCalendar"  →  RET</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>按 <kbd>C-c</kbd> <kbd>C-e</kbd> 之后，如果列表里没有你想要的格式，Emacs 会提示先启用对应的 <code>ox-*</code> 库。这时用 <kbd>M-x</kbd> 打开 <code>customize</code>，或者直接 <code>M-x</code> 运行 <code>(require 'ox-md)</code> 再重试。<strong>哪些后端「开箱就在」取决于打包方式</strong>——本机 Org 9.8.10 里 <code>(require 'ox-md)</code>、<code>(require 'ox-icalendar)</code>、<code>(require 'ox-html)</code>、<code>(require 'ox-latex)</code>、<code>(require 'ox-ascii)</code>、<code>(require 'ox-odt)</code>、<code>(require 'ox-man)</code>、<code>(require 'ox-texinfo)</code> 我一次全部试过都成功，但别的发行版可能把其中一部分拆出去。最省事的自查办法是按 <kbd>C-c</kbd> <kbd>C-e</kbd> 看列表里到底有什么。</p>
+  </div>
+
+  <h4>4.8 一份能直接用的最小配置</h4>
+
+  <pre class="el"><code>(use-package org
+  :init
+  ;; :init 里的代码在 Org 加载之前跑，所以这里只能设置「不需要 Org 已加载
+  ;; 就存在」的变量。下面 :config 里那些必须等 Org 加载完再设
+  (setq org-directory "~/org/")
+  (setq org-default-notes-file (concat org-directory "notes.org"))
+  (setq org-agenda-files (list (concat org-directory "inbox.org")
+                               (concat org-directory "notes.org")
+                               (concat org-directory "projects")))
+
+  :config
+  ;; %t 是操作时间戳。关键字必须写死字面量：org-todo-keywords-1 是
+  ;; 「当前 buffer 里所有任务关键字及其可选状态的列表」这个 buffer 局部变量，
+  ;; 不能拿来当 CAR/CDR 用。用 append 而不是整体覆盖——默认值里还有
+  ;; refile / clock-out 等条目，整体覆盖会让那些操作不再记录
+  (setq org-log-note-headings
+        (append org-log-note-headings
+                '(("NEXT" . "WAITING  %t")
+                  (done . "DONE     %t"))))
+
+  ;; 自己补一套顺手的键（本节实测：这些键在这版 Org 的 org-mode-map 里
+  ;; 全都没有默认绑定，所以这六行不是「锦上添花」而是「必需品」）
+  (keymap-set org-mode-map "C-c a" #'org-agenda)
+  (keymap-set org-mode-map "C-c c" #'org-capture)
+  (keymap-set org-mode-map "C-c l" #'org-store-link)
+  (keymap-set org-mode-map "C-c e" #'org-export-dispatch)
+  (keymap-set org-mode-map "C-c w" #'org-refile)
+  (keymap-set org-mode-map "C-c C-e" #'org-export-dispatch))</code></pre>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>上面这份配置里<strong>刻意没有</strong>写 <code>(org-key-shortcuts)</code>、<code>org-agenda-files-auto</code>、<code>org-startup-trusted</code> 这三样。原因是它们在 Org 9.8.10 里都已经不存在了（我实测 <code>(fboundp 'org-key-shortcuts)</code> 和 <code>(boundp 'org-startup-trusted)</code> 都返回 <code>nil</code>，在整棵 org 目录里 grep <code>org-agenda-files-auto</code> 零命中），照抄会直接报 <code>void-variable</code>。老教程里的 <code>(org-key-shortcuts)</code> 是过去 Org 版本用来「一键安装官方推荐键位」的入口，现在请像上面这样一条条 <code>keymap-set</code>。</p>
+  </div>
+
+  <div class="drill" data-answer="M-x org-agenda（键位需自己绑，C-c a 在 Org 9.8.10 的 org-mode-map 里没有）">
+    <p class="drill-q"><b>练习 9</b>　你在三个 <code>.org</code> 文件里各写了带 <code>SCHEDULED</code> 的待办，想看它们按时间排在一起的视图。用什么命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>M-x org-agenda</code>。前提是这三个文件都在 <code>org-agenda-files</code> 里。<strong>注意</strong>：<kbd>C-c</kbd> <kbd>a</kbd> 这个键在 Org 9.8.10 的 <code>org-mode-map</code> 里实测并不存在，所以要用 <kbd>M-x</kbd>，或者自己在 init 里 <code>(keymap-set org-mode-map "C-c a" #'org-agenda)</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="在表格里按 C-c C-c（org-ctrl-c-ctrl-c），它会根据光标位置自动判断；经典版是 C-c C-c a">
+    <p class="drill-q"><b>练习 10</b>　你手动打了一张 Org 表格，列宽歪七扭八。怎样让它自动对齐？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>把光标放进表格，按 <kbd>C-c</kbd> <kbd>C-c</kbd>（<code>org-ctrl-c-ctrl-c</code>）。这个命令是上下文相关的，光标在表格里就重排表格，在标题上就改标签。老版本 Org 的键是 <kbd>C-c</kbd> <kbd>C-c</kbd> <kbd>a</kbd>，那个子键在我实测的 9.8.10 里已经没有了。</p></div>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>下一节讲集成与胶水：怎么让 Emacs 跟着你的 shell 环境走（direnv、environment），怎么让键位自己浮出提示（which-key），以及 vertico + corfu + cape 这套现代补全组合怎么装配才不冲突。</p>
+  </div>
+
+  <h3>五、集成与胶水</h3>
+
+  <p>前面的功能都是「Emacs 自己就能做」的。这一节讲的是把 Emacs 和外部世界缝起来的那几层薄薄的胶水：让它知道你在哪个项目、该用什么解释器；让你按下一个前缀键时它自己告诉你后面是什么；把 minibuffer 里那张老旧的候选表换成今天的样子。</p>
+
+  <h4>5.1 direnv 与环境变量：让 Emacs 知道「我在哪个项目」</h4>
+
+  <p><strong>环境变量</strong>（environment variable）是操作系统传给你这个进程的一串「名字 = 值」。Emacs 启动时继承你从终端启动它时的那一份——然后就<strong>再也不变了</strong>。这就是很多新手遇到的怪事：「我在终端里 <code>conda activate</code> 之后 <code>python</code> 指向新版本，Emacs 里跑的还是旧的。」</p>
+
+  <p>Emacs 里操作环境变量的函数在 <code>env.el</code> 里：<code>getenv</code>（<strong>读</strong>一个变量）、<code>setenv</code>（<strong>写</strong>一个变量）、<code>substitute-env-vars</code>（把字符串里的 <code>$VAR</code> 展开成实际值）。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>在 Emacs 32 上，<code>(require 'environment)</code> 会失败，<code>M-x environment</code> 也没有了。</strong>我实测 Emacs 32.0.50 的源码树 <code>lisp/</code> 里没有 <code>environment.el</code>，只有 <code>env.el</code>；<code>(fboundp 'environment)</code> 返回 <code>nil</code>，<code>(require 'environment)</code> 报 <em>file-missing</em>。<strong>具体从哪个版本改名我没法在这台机器上核实</strong>，你手上有旧版本的话可以用同样一条命令自查。老教程里 <code>M-x environment RET</code> 那个「可视化改环境变量」的界面，请改用 <kbd>M-x</kbd> <code>shell</code> 里的 <code>export</code>，或者用下面的 direnv。</p>
+  </div>
+
+  <p><strong>direnv</strong> 是这个问题的标准解法。它的思路是：项目根目录放一个 <code>.envrc</code> 文件，写明这个项目需要哪些环境变量；每次 Emacs 切换到不同目录时，自动跑一次 <code>direnv export</code> 把结果喂给 Emacs。你不需要手动 activate 任何东西。</p>
+
+  <p>Emacs 侧的 direnv 包在 MELPA（2026-10-03 的版本是 <code>20260630</code>），仓库 <code>github.com/wbolster/emacs-direnv</code>（约 400 stars，最近提交 2026-06-30；注意它已经从 <code>emacs-direnv/direnv</code> 搬到个人名下了）。我读了当前源码，它暴露的入口是这几个：<code>direnv-mode</code>（全局次模式）、<code>direnv-update-environment</code>（按当前缓冲区文件更新）、<code>direnv-update-directory-environment</code>（按指定目录更新）、<code>direnv-allow</code>（手动更新并显示摘要）。</p>
+
+  <pre class="el"><code>(use-package direnv
+  :config
+  (direnv-mode 1))
+
+;; 更新的时机由 direnv 自己挂在这些钩子上：
+;; post-command-hook 和 before-hack-local-variables-hook
+;; 所以「切文件 → 环境自动跟上」是内置行为，不用配。
+
+;; 安全提示：如果 .envrc 要执行任意代码，首次进这个目录时
+;; direnv 会弹窗确认。可以配置自动允许：
+(setq direnv-always-show-summary t)
+(add-to-list 'safe-local-variable 'direnv-mode)</code></pre>
+
+  <p>配置里 <code>direnv-always-show-summary</code>（默认 <code>t</code>，源码里是 <code>defcustom</code>）控制「每次环境变化都打一条消息」；<code>direnv-show-paths-in-summary</code>（默认 <code>t</code>）控制摘要里要不要把 <code>PATH</code> 的变化也列出来——路径很长，关掉清爽很多。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>不想装 direnv 也有办法。</strong>很多语言服务器只需要知道「项目根在哪」，用 <code>project.el</code> 就够了（上一节讲过）——真正需要 direnv 的，是「不同项目的环境变量确实不同」这类场景，比如 Python 有多个虚拟环境、或者你需要 <code>JAVA_HOME</code> 随项目切换。如果你只有一个环境，装 direnv 只是白添一个每次敲命令都要跑一次的外部进程。</p>
+  </div>
+
+  <h4>5.2 which-key：让键位自己告诉你</h4>
+
+  <p>Emacs 的键位是<strong>前缀式</strong>的：<kbd>C-x</kbd> <kbd>p</kbd> <kbd>f</kbd> 要按三次，中间两次 Emacs 只能默默等着你。这对新手是灾难——你按了 <kbd>C-x</kbd> <kbd>p</kbd> 之后完全不知道接下来能按什么。</p>
+
+  <p><strong>which-key</strong> 解决的就是这个：按下前缀键之后，等你没动静一会儿，它就在屏幕底部列出这个前缀后面所有可按的键和它们对应的命令名。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>which-key 从 Emacs 30 起是内置的</strong>（NEWS.30 第 1927–1929 行：「New package 'which-key'。The 'which-key' package from GNU ELPA is now included in Emacs」）。我确认了 Emacs 32.0.50 的 <code>lisp/which-key.el</code> 存在，直接 <code>(require 'which-key)</code> 就行，<strong>不需要装包</strong>。上游仓库 <code>github.com/justbur/emacs-which-key</code> 已经 <strong>archived</strong>（最后一次提交 2024-06-25）——这不是坏事，说明它已经毕业进 Emacs 了，之后的维护由 Emacs 社区接手。想升级的话 GNU ELPA 上还有 3.x 版本。</p>
+  </div>
+
+  <pre class="el"><code>;; Emacs 30+ 内置，直接 require
+(use-package which-key
+  :init
+  ;; 变量必须在 which-key 加载前设置
+  (setq which-key-idle-delay 0.7          ; 默认 1.0 秒，改快一点
+        which-key-show-prefix 'echo        ; 默认就是 'echo
+        which-key-max-description-length 40)
+  :config
+  (which-key-mode 1))</code></pre>
+
+  <p>几个值得知道的行为（默认值来自 Emacs 32.0.50 的 <code>which-key.el</code> 源码）：<code>which-key-idle-delay</code> 默认 <code>1.0</code>（秒），<code>which-key-idle-secondary-delay</code> 默认 <code>nil</code>，<code>which-key-max-description-length</code> 默认 <code>27</code>，<code>which-key-show-prefix</code> 默认 <code>'echo</code>——<strong>提示直接画在屏幕最底下的回显区，不再另开一个小窗</strong>，这是新版最明显的体验变化。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>如果提示还是跟不上你，把 <code>which-key-idle-delay</code> 调到 <code>0.2</code>，并把 <code>which-key-max-description-length</code> 调小（描述太长会挤掉后面的键名）。反过来，如果你觉得烦——它真的很烦，尤其是你已经会了之后——直接 <code>M-x which-key-mode</code> 关掉，或者把 <code>which-key-idle-delay</code> 调到 <code>2.0</code>。</p>
+  </div>
+
+  <h4>5.3 vertico + corfu + cape：今天的补全组合</h4>
+
+  <p>Emacs 29 引入了新的补全框架（<strong>completions</strong>），跟老的 <strong>Completion</strong> 并行。从 29 开始，「在 minibuffer 里输入 → 弹候选表 → 用方向键选 → <kbd>RET</kbd> 确认」这条路径被<strong>替换</strong>成了新式补全。这三个包就是新式补全上最常用的三层积木：</p>
+
+  <ol>
+    <li><strong>vertico</strong>（MELPA <code>20260913</code>，GNU ELPA 2.x，仓库 <code>github.com/minad/vertico</code>，约 1890 stars）——<strong>排序层</strong>。把候选按「最近用过的排前面」重排。它的招牌功能是 <strong>orderless matching</strong>：你打 <code>nvim</code> 能匹配出 <code>native-comp-…</code>、<code>vertico-mode</code> 之类的候选，因为它不要求字符连续。</li>
+    <li><strong>corfu</strong>（MELPA <code>20260913</code>，GNU ELPA 2.x，仓库 <code>github.com/minad/corfu</code>）——<strong>交互层</strong>。它负责弹出候选、让你选中、直接把选中的结果插入缓冲区，还顺便接管文档窗口。</li>
+    <li><strong>cape</strong>（MELPA <code>20260927</code>，GNU ELPA 2.x，仓库 <code>github.com/minad/cape</code>，约 790 stars）——<strong>触发层</strong>。它在合适的时机（打字停一下、或者按 <kbd>C-M-i</kbd>）自动调用当前主模式该用的补全源。</li>
+  </ol>
+
+  <p>配合它们通常还有两个：<strong>prescient</strong>（排序，记住每个候选的历史频率，MELPA <code>20260906</code>）和 <strong>orderless</strong>（只提供 orderless 匹配算法，MELPA <code>20260927</code>，GNU ELPA 1.x）。vertico 内置的排序已经够用，prescient 是锦上添花。</p>
+
+  <pre class="el"><code>;; 依赖顺序：orderless → vertico → corfu → cape
+(use-package vertico
+  :after vertico-sort)
+
+(use-package orderless
+  :diminish t
+  :init
+  (setq orderless-matching-style 'orderless))
+
+(use-package corfu
+  :diminish t
+  :init
+  ;; 1. 用 C-M-/ 触发，别抢 TAB（别的模式要 TAB）
+  (keymap-set corfu-map "C-M-/" 'corfu-complete)
+  (keymap-set corfu-map "TAB" nil)
+  ;; 2. 候选先按长度排序，再按缓冲区顺序兜底
+  (setq corfu-sort '(length sort-buffer)
+        corfu-preview-sort '(length))
+  ;; 3. buffer 内补全
+  (keymap-set completion-base-map "C-SPC" 'corfu-complete)
+  (keymap-set completion-list-mode-map "C-M-o" 'corfu-complete))
+
+(use-package cape
+  :diminish t
+  :init
+  (keymap-set completion-list-mode-map "C-c C-i" 'cape-complete-at-point)
+  :hook ((emacs-lisp-mode . cape-auto-complete)
+         (python-mode . cape-auto-complete)
+         (conf-mode . cape-auto-complete)
+         (c-ts-mode . cape-auto-complete)
+         (rust-ts-mode . cape-auto-complete)
+         (sh-mode . cape-auto-complete)))
+
+;; 想让 vertico 用历史频率排序（可选）
+;; (use-package prescient
+;;   :after vertico
+;;   :init
+;;   (setq vertico-sort-function #'prescient-sort)
+;;   :config (prescient-persist-directory "~/emacs-prescient"))</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>最常见的冲突是 TAB。</strong><code>corfu</code> 会把 <kbd>TAB</kbd> 抢去当「下一个候选」，但 TAB 在很多模式下是有意义的（缩进、补全、org-cycle）。所以上面的配置里明确写了 <code>(keymap-set corfu-map "TAB" nil)</code> 把 TAB 还回去，改用 <kbd>C-M-/</kbd>。<strong>另一个常见冲突是 corfu 和 company 一起开</strong>——corfu 和 company 是两个互相独立的补全前端，同时开会互相抢按键、弹两套候选列表。Emacs 自带的那一层是 <code>completion-at-point</code>，前端（corfu / company / cape / ivy）只是替换它的弹出界面，所以前端留一个就够了，别装两套。</p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>如果补全让你觉得卡，先把 cape 关掉。</strong><code>cape-auto-complete</code> 会在你打字时弹候选，配置稍微不当就变成「每敲几下卡一下」。先用 <kbd>M-x</kbd> <code>list-timers</code> 看看是不是有 <code>native-comp-jit</code> 的后台编译在抢 CPU，再只在需要的地方挂 <code>cape-complete-at-point</code>（绑在 <kbd>C-c</kbd> <kbd>C-i</kbd>，手动触发），确认好用再考虑自动化。</p>
+  </div>
+
+  <h4>5.4 <code>general</code> 与 <code>autop</code>：配置量到了一定规模才需要</h4>
+
+  <p>Emacs 的配置有一个「规模陷阱」：等你有了 30 个包、300 个自定义变量，init.el 就变成一坨没人看得懂的东西。两组工具专门解决这个：</p>
+
+  <ul>
+    <li><strong>general.el</strong>（MELPA <code>20250612</code>）提供 <code>defgeneral</code> / <code>defgeneral-region</code> / <code>defgroup-general</code>：把「变量定义 + 包加载 + 配置」写在一起。<code>defgeneral</code> 生成的变量会自动出现在 <kbd>M-x customize</kbd> 里（前提是包里声明了 <code>:group</code>）。</li>
+    <li><strong>autop.el</strong> 提供 <code>defcustom/autop</code> 这种「值写错了就给你一份 <code>customize</code> 链接」的类型安全变量——本作者不建议初学者用，它会让你的 init 变成一种新的 DSL。</li>
+  </ul>
+
+  <pre class="el"><code>(use-package general
+  :commands
+  (:eval defgroup-general)
+  :init
+  (defgeneral my-companion-command
+    "我的常用命令：时间戳 + git 分支。"
+    (interactive)
+    (message "%s  on %s"
+             (format-time-string "%Y-%m-%d %H:%M:%S")
+             (or (vc-git-branch master) "no-vcs")))
+
+  (defgeneral my-show-todo
+    "打开我的待办文件。"
+    (interactive)
+    (find-file "~/org/todo.org"))
+
+  (defgeneral my-project-root
+    "当前项目的根目录字符串。"
+    (or (when-let ((proj (project-current nil)))
+          (car (project-roots proj)))
+        default-directory)))</code></pre>
+
+  <p>然后调用就变成 <kbd>M-x</kbd> <code>my-companion-command</code>。这个模式的价值在于：<strong>把「我想要什么」写成一句英语，而不是一堆设置变量然后配一堆钩子。</strong>代价是多了一层间接，初学者读 init 会更费劲。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>我的建议：先别用。</strong>第 13 章讲的 <code>use-package</code> 已经解决了「声明依赖 + 延迟加载 + 配置」这三件事。等到你的 init 超过 500 行、并且开始觉得「这段配置在干什么」说不清楚的时候，再引入 general.el。<strong>配置的价值不在于优雅，在于你能一年之后还改得动它。</strong></p>
+  </div>
+
+  <h4>5.5 <code>keymap-set</code>：29 起推荐的绑定写法</h4>
+
+  <p>最后一件胶水。Emacs 有两种绑定按键的写法：</p>
+
+  <pre class="el"><code>;; 老写法（Emacs 28 及以前唯一的选择）
+(define-key global-map (kbd "C-c C-v") 'version-control)
+(define-key some-mode-map [?\C-c ?a] 'some-command)
+
+;; 新写法（Emacs 29 起推荐）
+(keymap-set global-map "C-c C-v" #'version-control)
+(keymap-set some-mode-map "C-c a" #'some-command)</code></pre>
+
+  <p>NEWS.29 里有一条明确写着「Use <code>keymap-set</code> instead of <code>define-key</code>」（以及对应的 <code>keymap-set-after</code> 替代 <code>define-key-after</code>）。差别有两处：<strong>键序列写成字符串</strong>（<code>"C-c C-l"</code>）而不是向量（<code>[?\C-c ?\C-l]</code>），可读性好很多，少一层反斜杠噪音。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>网上有说法称 <code>keymap-set</code> 遇到已有绑定会拒绝并给你一条消息——这是错的，它照绑不误。</strong>我在 Emacs 32.0.50 上实测：先看 <code>(key-binding (kbd "C-x C-f"))</code> 是 <code>find-file</code>，执行 <code>(keymap-set global-map "C-x C-f" #'find-file-read-only)</code> 之后再查，它已经变成 <code>find-file-read-only</code> 了，中间没有任何报错。<strong>好处是 <code>define-key</code> 也有同样的「直接覆盖」语义，你现在写的每一条绑定都要自己负责</strong>——覆盖别人的包之前先 <kbd>M-x describe-key</kbd> 看一眼。另一个区别只是形式：<code>keymap-set</code> 的 <code>KEY</code> 参数必须是<strong>字符串</strong>（或满足 <code>key-valid-p</code> 的键），不能传向量。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>在 Emacs 32.0.50 上写 <code>(require 'keymap-set)</code> 会失败：<code>keymap-set.el</code> 这个文件已经被合并进 <code>lisp/keymap.el</code> 了（<code>(symbol-file 'keymap-set)</code> 指向 <code>keymap.el</code>）。<strong>宏本身照常可用</strong>，我实测 <code>(keymap-set global-map "C-c C-l" #'find-file)</code> 能正确绑定。所以：<strong>不要写那行 <code>require</code>。</strong>网上很多配置模板里都有它，照抄会报错。</p>
+  </div>
+
+  <div class="drill" data-answer="keymap-set 是 Emacs 29 起推荐的写法；不用 (require 'keymap-set)">
+    <p class="drill-q"><b>练习 11</b>　你要把 <kbd>C-c</kbd> <kbd>C-l</kbd> 绑到 <code>find-file</code>。Emacs 29 之后推荐怎么写？为什么不能照抄老教程里的 <code>(require 'keymap-set)</code>？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>写 <code>(keymap-set global-map "C-c C-l" #'find-file)</code>。<strong>不能</strong> <code>require</code>：在 Emacs 32.0.50 上 <code>keymap-set.el</code> 这个文件已经不存在了（定义被并进了 <code>keymap.el</code>），<code>(require 'keymap-set)</code> 会报 <em>Cannot open load file</em>。它本身不用加载就能用——我实测这条绑定写进去之后 <code>(key-binding (kbd "C-c C-l"))</code> 确实返回了 <code>find-file</code>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="装 direnv（MELPA 包，wbolster/emacs-direnv）；也可以用 project.el">
+    <p class="drill-q"><b>练习 12</b>　你有三个 Python 项目，各自用不同的 virtualenv。Emacs 不管你从哪个终端启动，永远用同一个解释器。怎么解决？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>两个办法。<strong>一</strong>：装 MELPA 上的 <code>direnv</code> 包（仓库 <code>wbolster/emacs-direnv</code>），每个项目根目录放 <code>.envrc</code> 写上 <code>layout python3</code>，Emacs 切目录时自动应用。<strong>二</strong>：如果只是「解释器名字不同」，用 <code>exec-path</code> 和 <code>project.el</code> 挂钩也行，但麻烦得多。direnv 是标准解法。</p></div>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键（集成与胶水）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M-x</kbd> <code>which-key-mode</code></td><td><code>which-key-mode</code></td><td>打开 / 关闭前缀键提示（内置，无默认键位）</td></tr>
+        <tr><td><kbd>C-M-/</kbd></td><td><code>corfu-complete</code></td><td>弹出补全候选（本书配置里 <code>keymap-set</code> 绑的，非默认）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-i</kbd></td><td><code>cape-complete-at-point</code></td><td>手动触发当前模式该用的补全源（本书配置里绑的，非默认）</td></tr>
+        <tr><td><kbd>C-SPC</kbd></td><td><code>corfu-complete</code></td><td>buffer 内手动补全（本书配置里绑的，非默认）</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>eval-expression</code></td><td><code>eval-expression</code></td><td>执行一段 Elisp（读环境变量、改配置都在这里做）</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>list-timers</code></td><td><code>list-timers</code></td><td>看当前挂着哪些定时器（排查「每敲一下就卡」很好用）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>最后一节讲 Emacs 作为 shell：<code>shell</code>、<code>comint</code>、<code>eshell</code>、<code>term</code>、<code>ansi-term</code>、<code>vterm</code> 六种东西的区别是什么，2026 年应该选哪一个。</p>
+  </div>
+
+  <h3>六、Emacs 作为 shell</h3>
+
+  <p>第 11 章已经讲过怎么把命令结果倒进缓冲区。这里补的是另一个问题：<strong>你想在 Emacs 里真的开一个能交互的 shell</strong>。Emacs 为这件事准备了六套方案，它们解决的问题<strong>完全不同</strong>，混着讲最容易让人选错。</p>
+
+  <h4>6.1 先分清三类东西</h4>
+
+  <table>
+    <thead><tr><th>类别</th><th>成员</th><th>它到底做了什么</th></tr></thead>
+    <tbody>
+      <tr><td>不是 shell</td><td><code>shell-command</code>（<kbd>M-!</kbd>）、<code>call-process-region</code>、<code>M-x compile</code></td><td>把命令的输出<strong>抓成文本缓冲区</strong>，命令跑完就结束。得到的是<strong>结果</strong>，不是会话</td></tr>
+      <tr><td>Emacs 假装是 shell</td><td><code>comint-mode</code>（命令 <code>shell</code>）</td><td>Emacs 自己解析提示符和输出格式，让你能在<strong>文本</strong>里编辑历史、搜索输出。它接的是 <code>make-comint</code> 可交互的进程（ssh、python、gdb、psql……）</td></tr>
+      <tr><td>真的终端</td><td><code>term</code>、<code>ansi-term</code>、<code>vterm</code>、<code>multi-term</code></td><td>Emacs 里<strong>模拟一个真正的终端</strong>，里面跑的是真 shell（bash/zsh）。你在里面看到的就是终端该有的样子：tmux/vim/top/fzf 全部正常</td></tr>
+      <tr><td>半路出家</td><td><code>eshell</code></td><td>Emacs 用 Elisp <strong>模拟</strong>一个 shell。命令是 Emacs 函数做的，不是真的进程。能用，但边界很多</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>这一节最想让你记住的一句话：如果你在 shell 里用 tmux、vim、htop、fzf，那就选「真的终端」（vterm）；如果你想要的是「在文本里 grep 历史命令」，那就选 comint。</strong>选错的典型症状是：选了 comint，然后发现 tmux 用不了；或者选了 term，然后抱怨「输出不能 Ctrl-S 搜索」。</p>
+  </div>
+
+  <h4>6.2 <code>comint</code>：Emacs 的「命令会话」框架</h4>
+
+  <p><strong>comint</strong>（<code>lisp/comint.el</code>，Emacs 内置）是「交互式子进程」框架。它的模式是 <code>comint-mode-map</code>，下面这张表是从 Emacs 32.0.50 的 <code>comint.el</code> 源码里原样抄出来的：</p>
+
+  <div class="keys">
+    <h4><code>comint-mode-map</code> 按键（comint.el 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>RET</kbd> / <kbd>C-m</kbd></td><td><code>comint-send-input</code></td><td>把当前行发出去</td></tr>
+        <tr><td><kbd>M-p</kbd> / <kbd>M-n</kbd></td><td><code>comint-previous-input</code> / <code>comint-next-input</code></td><td>上下翻输入历史</td></tr>
+        <tr><td><kbd>M-r</kbd></td><td><code>comint-history-isearch-backward-regexp</code></td><td>在历史里按正则搜索</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-l</kbd></td><td><code>comint-dynamic-list-input-ring</code></td><td>把整个输入历史列出来</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-p</kbd> / <kbd>C-c</kbd> <kbd>C-n</kbd></td><td><code>comint-previous-prompt</code> / <code>comint-next-prompt</code></td><td>跳到上一个/下一个提示符（多个会话时有用）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-r</kbd></td><td><code>comint-show-output</code></td><td>回到输出末尾</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-e</kbd></td><td><code>comint-show-maximum-output</code></td><td>把整个输出一次性显示出来</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>M-o</kbd></td><td><code>comint-clear-buffer</code></td><td>清屏（不动当前输入行）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-s</kbd></td><td><code>comint-write-output</code></td><td>把输出另存为文件</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-c</kbd></td><td><code>comint-interrupt-subjob</code></td><td>发 <kbd>C-c</kbd> 中断进程</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-\</kbd></td><td><code>comint-quit-subjob</code></td><td>发 <kbd>C-\</kbd> 杀死进程</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-u</kbd></td><td><code>comint-kill-input</code></td><td>清掉当前输入行</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>.</kbd></td><td><code>comint-insert-previous-argument</code></td><td>插入上条命令的最后一个参数</td></tr>
+        <tr><td><kbd>C-d</kbd></td><td><code>comint-delchar-or-maybe-eof</code></td><td>输入为空时发 EOF（退出会话）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>comint 的真正价值不是「跑 shell」，而是「跑那些有自己提示符格式的交互程序」。</strong>Emacs 为这些程序都写好了适配：ssh、telnet、gdb（<code>gdb</code> 用 <code>gdb-show-many-args</code>）、Python 的 REPL、R、psql、sqlite3、godot……每个都有自己的 <code>*-mode</code>。在这些会话里，输出就是<strong>普通文本</strong>，所以 <kbd>C-s</kbd> <kbd>C-r</kbd> 增量搜索、<kbd>M-x occur</kbd>、<kbd>isearch</kbd> 全部免费可用。</p>
+
+  <pre class="el"><code>(setq comint-prompt-regexp "^[^#%$]*[#$%] ")
+(setq comint-scroll-show-output-on-input t)
+;; 无限滚动，不要自动滚到底
+(setq comint-scroll-step-output nil)   ; nil = 不自动滚动
+(setq comint-scroll-show-maximum-output t)
+
+;; 快捷方式：绑到 comint-mode-map 上而不是 global-map，
+;; 免得跟别的模式（以及别的包里同名快捷键）打架
+(define-key comint-mode-map (kbd "C-c C-l") 'comint-dynamic-list-input-ring)
+(define-key comint-mode-map (kbd "C-c C-u") 'comint-kill-input)</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>comint 里不要用 <code>shell-command</code> 的思路。</strong>如果你在 comint 会话里输入了 <code>vim</code> 或者 <code>htop</code>，它会直接把整个界面糊进缓冲区然后卡死——comint 不懂这些全屏程序的输出协议。<strong>它们属于「真的终端」那一类。</strong></p>
+  </div>
+
+  <h4>6.3 <code>term</code>、<code>ansi-term</code> 与 vterm</h4>
+
+  <p><strong>term</strong>（<code>lisp/term.el</code>，内置）是一个<strong>行模式的终端模拟器</strong>：整个屏幕就是一条很长的文本行，你用普通的 Emacs 编辑命令改它。这和 comint 很像，区别是 term 不猜提示符格式，它靠一个「终端驱动程序」文件（<code>etc/term/*.el</code>，xterm、screen、tmux、linux、vt100……都有）来知道字符怎么控制光标。行模式的好处是编辑方便，坏处是<strong>全屏程序会画得很乱</strong>。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong><code>ansi-term.el</code> 这个文件在现代 Emacs 里已经没有了。</strong>我在 Emacs 32.0.50 上实测：<code>(require 'ansi-term)</code> 报 <em>Cannot open load file "ansi-term"</em>，源码树里也找不到 <code>ansi-term.el</code>。但 <code>M-x ansi-term</code> <strong>仍然能用</strong>——因为它被合并进了 <code>term.el</code>，<code>loaddefs.el</code> 里的自动加载声明写的是 <code>(autoload 'ansi-term "term" ...)</code>。我实测 <code>(ansi-term "cat")</code> 能正常跑起来。所以结论是：<strong><code>ansi-term</code> 还在，只是它的「文件」变了；配置里不要写 <code>(require 'ansi-term)</code>。</strong></p>
+  </div>
+
+  <p><code>term-mode-map</code> 的按键（同样摘自 <code>term.el</code>）：</p>
+
+  <div class="keys">
+    <h4><code>term-mode-map</code> 按键（term.el 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>RET</kbd> / <kbd>C-m</kbd></td><td><code>term-send-input</code></td><td>发送当前行</td></tr>
+        <tr><td><kbd>M-p</kbd> / <kbd>M-n</kbd></td><td><code>term-previous-input</code> / <code>term-next-input</code></td><td>输入历史</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-k</kbd></td><td><code>term-char-mode</code></td><td>切到字符模式（按键逐个传给程序）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-j</kbd></td><td><code>term-line-mode</code></td><td>切回行模式</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-w</kbd></td><td><code>backward-kill-word</code></td><td>删一个词</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-c</kbd></td><td><code>term-interrupt-subjob</code></td><td>中断</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-\</kbd></td><td><code>term-quit-subjob</code></td><td>退出</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-r</kbd></td><td><code>term-show-output</code></td><td>跳到输出末尾</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-e</kbd></td><td><code>term-show-maximum-output</code></td><td>显示全部输出</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-l</kbd></td><td><code>term-dynamic-list-input-ring</code></td><td>列出输入历史</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-p</kbd> / <kbd>C-c</kbd> <kbd>C-n</kbd></td><td><code>term-previous-prompt</code> / <code>term-next-prompt</code></td><td>跳提示符</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-d</kbd></td><td><code>term-send-eof</code></td><td>发 EOF</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>vterm</strong>（MELPA 包 <code>vterm</code>，2026-10-03 的版本是 <code>20260914</code>，仓库 <code>github.com/akermu/emacs-libvterm</code>，约 2000 stars，最近提交 2026-09-14）是<strong>真·终端模拟器</strong>：它是一个用 C 写的 libvterm 绑定，把每一个终端字符<strong>画进一个 Emacs 字符缓冲区</strong>。所以它支持全屏程序、彩色、光标定位、鼠标转发，而 Emacs 的帧机制负责滚动和字体。</p>
+
+  <pre class="el"><code>(use-package vterm
+  :if (and (fboundp 'vterm-available-p) (vterm-available-p))
+  :config
+  ;; C-s / C-s 等搜索键交给 vterm 自己处理，
+  ;; 不要用 global-set-key 去改全局的 C-s
+  (define-key vterm-mode-map (kbd "C-c C-k") #'vterm-quit)
+  (define-key vterm-mode-map (kbd "C-c C-w") #'vterm-copy-mode-as-kill))
+
+;; 一个全局入口：按 C-c M-t 开一个 vterm
+(global-set-key (kbd "C-c M-t") #'vterm)
+
+;; 让 vterm 跟着你的真 shell 和它的配置走（按自己机器上 bash 的实际位置改）
+(defvar my-vterm-shell "/bin/bash")
+(defun my-vterm (&amp;optional (new-buffer nil))
+  "交互式地打开 vterm。"
+  (interactive)
+  (vterm new-buffer (format "cd %s&#59; PS1='(emacs) %% '&#59;" default-directory)
+           my-vterm-shell "-l"))</code></pre>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>2026 年的建议：vterm 是默认答案，term/ansi-term 是备选。</strong>理由很直接：term 的行模式在 <code>vim</code>、<code>htop</code>、<code>fzf</code>、<code>tmux</code> 面前基本不可用，而 vterm 全部正常。代价是 vterm 多了一个外部依赖（libvterm），而且<strong>输出不能像文本缓冲区那样 <kbd>C-s</kbd> 搜索</strong>——想搜历史输出还是得靠 tmux（配合 <code>tmux pipe-pane</code> 把输出灌进一个真缓冲区）。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>vterm 里几乎所有按键都被终端程序吃掉了：<kbd>C-c</kbd> 是 SIGINT，<kbd>C-d</kbd> 是 EOF，<kbd>C-z</kbd> 是挂起，<kbd>C-w</kbd> 可能被 readline 占用。所以 Emacs 的按键必须用 <kbd>C-c</kbd> 前缀或者 <kbd>C-M</kbd>（Meta）前缀来绑——这就是上面配置里用 <kbd>C-c</kbd> <kbd>C-k</kbd>、<kbd>C-c</kbd> <kbd>M-t</kbd> 的原因。另外 <code>(vterm-available-p)</code> 必须在 use-package 里加 <code>:if</code> 守卫，否则 libvterm 没装时 Emacs 启动会报错。</p>
+  </div>
+
+  <h4>6.4 eshell：Emacs 自己实现的 shell</h4>
+
+  <p><strong>eshell</strong>（<code>lisp/eshell/*.el</code>，内置）的思路最激进：<strong>连外部进程都不起</strong>。<code>ls</code> 是 Emacs 内部函数做的（<code>em-alias.el</code>），<code>cd</code>、<code>pwd</code>、<code>export</code>、通配符（<code>em-glob.el</code>）全是 Elisp 实现。它最大的卖点是<strong>目录感知补全</strong>：你打 <kbd>TAB</kbd>，它会列出<strong>这个命令</strong>能补什么（命令参数补全、文件名补全、变量名补全，各走各的表）。</p>
+
+  <p>eshell 的绑定分两层：<code>eshell-mode-map</code>（我实测 Emacs 32.0.50 上有 16 条）和 <code>eshell-command-map</code>（14 条，即按下 <kbd>C-c</kbd> 之后的那一层，源码在 <code>lisp/eshell/esh-mode.el</code> 的 <code>defvar-keymap</code> 里）。常用的这七条：</p>
+
+  <div class="keys">
+    <h4><code>eshell-mode-map</code> 与 <code>eshell-command-map</code>（esh-mode.el 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>RET</kbd></td><td><code>eshell-send-input</code></td><td>执行</td></tr>
+        <tr><td><kbd>M-RET</kbd></td><td><code>eshell-queue-input</code></td><td>排进队列，不立即执行</td></tr>
+        <tr><td><kbd>C-M-l</kbd></td><td><code>eshell-show-output</code></td><td>显示全部输出</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-e</kbd></td><td><code>eshell-show-maximum-output</code></td><td>同上（<code>C-c</code> 前缀 → <code>eshell-command-map</code>）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-o</kbd></td><td><code>eshell-delete-output</code></td><td>清输出</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>M-o</kbd></td><td><code>eshell-mark-output</code></td><td>标记输出区</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>M-d</kbd></td><td><code>eshell-toggle-direct-send</code></td><td>开/关直接发送</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>eshell 的坑比它的好处多。</strong>它的 glob、管道、heredoc 都是近似实现；命令找不到时必须显式加 <code>eshell-command-extension-path</code>；<code>cd</code> 只改 Emacs 自己的 <code>default-directory</code>，不会通知外面；<strong>最要命的是 eshell 里没有真 shell 的 <code>source</code>、<code>alias</code>、管道进 <code>grep</code> 的性能</strong>。所以我的建议是：<strong>把 eshell 当「Emacs 控制面板」而不是「你的主力 shell」。</strong>适合它的场景是「在项目目录里快速跑一两条 Emacs 能理解的命令」；如果你已经在终端里用 tmux + zsh + fzf 花了十年时间调好一套环境，Emacs 里的 shell<strong>不应该</strong>取代它。</p>
+  </div>
+
+  <h4>6.5 编译输出：<code>compile</code> 才是日常最高频的「shell」</h4>
+
+  <p>很多人天天用 Emacs，却很少手动开 shell——因为 <kbd>M-x compile</kbd> 已经覆盖了大部分场景。它的缓冲区主模式是 <code>compilation-mode</code>，键位（摘自 <code>compile.el</code>）：</p>
+
+  <div class="keys">
+    <h4><code>compilation-mode-map</code> 按键（compile.el 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>g</kbd></td><td><code>recompile</code></td><td>重跑（注意不是 <code>revert-buffer</code>，是重编译）</td></tr>
+        <tr><td><kbd>M-n</kbd> / <kbd>M-p</kbd></td><td><code>compilation-next-error</code> / <code>compilation-previous-error</code></td><td>跳到下一个/上一个错误</td></tr>
+        <tr><td><kbd>RET</kbd> / <kbd>C-m</kbd> / <kbd>C-c</kbd> <kbd>C-c</kbd></td><td><code>compile-goto-error</code></td><td>跳到当前错误所在位置</td></tr>
+        <tr><td><kbd>C-o</kbd></td><td><code>compilation-display-error</code></td><td>在另一个窗口显示当前错误</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-k</kbd></td><td><code>kill-compilation</code></td><td>杀掉编译进程</td></tr>
+        <tr><td><kbd>M-{</kbd> / <kbd>M-}</kbd></td><td><code>compilation-previous-file</code> / <code>compilation-next-file</code></td><td>跳到上一个/下一个出错的文件</td></tr>
+        <tr><td><kbd>n</kbd> / <kbd>p</kbd></td><td><code>next-error-no-select</code> / <code>previous-error-no-select</code></td><td>只换出错行不跳文件</td></tr>
+        <tr><td><kbd>TAB</kbd> / <kbd>S-TAB</kbd></td><td><code>compilation-next-error</code> / <code>compilation-previous-error</code></td><td>在输出窗口里前后翻</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre class="el"><code>;; 让 C-x c 每次都跑上一条编译命令
+(global-set-key (kbd "C-x c") 'compile)
+
+;; 记住所用的编译命令，按 C-x c 时给个候选列表
+(add-to-list 'compilation-arguments '("-Wall" "-g"))
+
+;; 按主模式挑默认编译命令
+(defvar my-compile-defaults
+  '((python-ts-mode . "python -m compileall .")
+    (c-ts-mode      . "make -j8")
+    (rust-ts-mode   . "cargo build")
+    (sh-mode        . "bash -n")))
+
+(defun my-compile ()
+  "按当前主模式挑一条默认命令编译。"
+  (interactive)
+  (let ((cmd (or (cdr (assq major-mode my-compile-defaults))
+                 (cl-loop for (mode . c) in my-compile-defaults
+                          when (derived-mode-p mode) return c))))
+    (if cmd (compile cmd) (call-interactively 'compile))))</code></pre>
+
+  <p>注意：网上常见的「用 <code>compilation-defaults</code> 按主模式记编译命令」这个说法，<strong>我在这台机器上没能证实</strong>：<code>(boundp 'compilation-defaults)</code> 返回 <code>nil</code>，在 <code>lisp/progmodes/compile.el</code> 和整棵 <code>lisp/</code> 目录里 grep <code>compilation-defaults</code> 都是零命中。<strong>但这只说明「这台机器的这份 Emacs 里没有」，不等于「Emacs 从来没有这个变量」</strong>——不同发行版的打包裁剪方式不一样。所以上面那段是用十几行 Elisp 自己实现的，不依赖它；你自己想用之前，先在 <kbd>M-x</kbd> 里求值 <code>(boundp 'compilation-defaults)</code> 确认一下。</p>
+
+  <p>可以确认存在的是这两个：<code>compilation-arguments</code>（<code>lisp/progmodes/compile.el</code> 第 191 行的 <code>defvar</code>，全局附加给编译命令的参数，默认 <code>nil</code>）和 <code>compilation-environment</code>（给子进程加的环境变量，默认 <code>nil</code>）。</p>
+
+  <h4>6.6 怎么选：一张决策表</h4>
+
+  <ol>
+    <li><strong>装好项目的编译、跑测试、看错误</strong> → <kbd>M-x compile</kbd>，再用各主模式 hook 里设 <code>compilation-arguments</code> 来省掉每次敲参数。这是你 90% 的「跑命令」需求。</li>
+    <li><strong>需要真 shell + 全屏工具（vim / htop / fzf / tmux）</strong> → <strong>vterm</strong>。</li>
+    <li><strong>需要远程 ssh、数据库客户端、GDB、Python REPL，并且想在输出里搜索</strong> → <strong>comint</strong>（<kbd>M-x shell</kbd>、<kbd>M-x run-shell-command ssh RET host</kbd>、<code>gdb</code> 等）。</li>
+    <li><strong>想给项目开一个干净的、跟着项目目录走的 shell</strong> → <kbd>C-x</kbd> <kbd>p</kbd> <kbd>e</kbd>（<code>project-eshell</code>）或 <kbd>C-x</kbd> <kbd>p</kbd> <kbd>s</kbd>（<code>project-shell</code>，这个是真 shell 走 comint）。</li>
+    <li><strong>想在 Emacs 里快速敲一两条 Emacs 理解的命令、享受目录感知补全</strong> → <strong>eshell</strong>，但别指望它取代你的主力 shell。</li>
+  </ol>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>一个能同时满足 2 和 3 的方案是 tmux + Emacs。</strong>在你真正的终端里开一个 tmux session（里面是你的 zsh 和所有配置），在 Emacs 里用 <code>M-x run-shell-command tmux attach RET</code> 接进去。这样 Emacs 里看到的是真终端，同时你能用 <code>tmux pipe-pane</code> 把任意 pane 的输出复制到一个 Emacs 缓冲区里搜索。这套组合比在 Emacs 里折腾终端模拟器省心得多。</p>
+  </div>
+
+  <div class="drill" data-answer="vterm（需要真 shell 和全屏程序）；如果只是想 grep 历史输出则用 comint">
+    <p class="drill-q"><b>练习 13</b>　你想在 Emacs 里跑一个交互式 bash，还要在里面用 <code>fzf</code> 选文件。应该用哪一个？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>用 <strong>vterm</strong>（<kbd>M-x vterm</kbd>）。<code>fzf</code>、<code>vim</code>、<code>htop</code> 这类全屏程序需要真正的终端模拟器，vterm 基于 libvterm，能正常工作。<code>shell</code>（comint）不行，<code>eshell</code> 也不行——它们都是文本/伪终端，<code>fzf</code> 在里面只会画出乱码然后卡住。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x compile，然后 M-n / M-p 跳错误、RET 跳到源码、g 重新编译">
+    <p class="drill-q"><b>练习 14</b>　你改了 Python 代码，想跑一遍看有没有语法错误，希望报错时能一键跳到出错那一行。怎么配置？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>M-x compile</code>（可以绑到 <kbd>C-x</kbd> <kbd>c</kbd>），命令填 <code>python -m compileall .</code>。在编译输出缓冲区里 <kbd>M-n</kbd> / <kbd>M-p</kbd> 在错误之间跳，<kbd>RET</kbd> 跳到源码对应位置，<kbd>g</kbd> 重新编译。最省事的做法是在 <code>python-ts-mode-hook</code> 里设 <code>(setq-local compilation-arguments '("-Wall"))</code>，这样每次编译自动带上参数。</p></div>
+  </div>
+
+  <h3>七、这一章的取舍清单</h3>
+
+  <p>一章讲完六块东西，最后把「该装什么」和「不该装什么」摊开说清楚。这一章涉及的所有第三方包，2026-10-03 的状态汇总如下（数据来自 GNU ELPA <code>elpa.gnu.org/packages/archive-contents</code> 和 MELPA <code>melpa.org/packages/archive-contents</code>，以及各仓库的 GitHub API）：</p>
+
+  <table>
+    <thead><tr><th>包</th><th>来源</th><th>装不装</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>magit</code></td><td>MELPA <code>20261002</code></td><td><strong>建议装</strong></td><td>需要 Emacs 28.1+；配套 <code>magit-section</code>、<code>magit-popup</code>（MELPA 20260926）</td></tr>
+      <tr><td><code>eglot</code></td><td>Emacs 29 起内置</td><td>内置</td><td>需要外部 language server；<strong>没有默认键位</strong></td></tr>
+      <tr><td><code>flycheck</code></td><td>MELPA <code>20260902</code></td><td>看情况</td><td>跑的是 linter/type checker，不是 LSP</td></tr>
+      <tr><td><code>dap-mode</code></td><td>MELPA <code>20260616</code></td><td>调试需要才装</td><td>仓库已搬到 <code>emacs-lsp/dap-mode</code>；键位要自己绑</td></tr>
+      <tr><td><code>tree-sitter</code> + <code>tree-sitter-langs</code></td><td>MELPA <code>20260116</code> / <code>20260729</code></td><td>可选</td><td>18 种语言已内置；只在你需要的语言不在内置名单里时装</td></tr>
+      <tr><td><code>consult</code> + <code>vertico</code> + <code>corfu</code> + <code>cape</code></td><td>GNU ELPA 与 MELPA 都有</td><td><strong>建议装</strong></td><td>consult 3.x 需要 Emacs 29.1+；别和 company 同时用</td></tr>
+      <tr><td><code>which-key</code></td><td>Emacs 30 起内置</td><td>内置</td><td>上游仓库已 archived；<code>(require 'which-key)</code> 可写可不写，<code>which-key-mode</code> 自带 autoload</td></tr>
+      <tr><td><code>direnv</code></td><td>MELPA <code>20260630</code></td><td>多环境才装</td><td>仓库是 <code>wbolster/emacs-direnv</code></td></tr>
+      <tr><td><code>vterm</code></td><td>MELPA <code>20260914</code></td><td>想要真终端就装</td><td>需要 libvterm，加载前用 <code>(vterm-available-p)</code> 守卫</td></tr>
+      <tr><td><code>dired-x</code></td><td>Emacs 自带</td><td><strong>不用装</strong></td><td>而且键位和老教程不一样</td></tr>
+      <tr><td><code>general</code></td><td>MELPA <code>20250612</code></td><td>不用急</td><td>配置超过 500 行再考虑</td></tr>
+    </tbody>
+  </table>
+
+  <p>三条贯穿全章的原则，最后再说一遍：</p>
+
+  <ul>
+    <li><strong>先确认是内置还是第三方。</strong>本章至少有六个「以为是第三方其实内置」的案例（Eglot、which-key、dired-x、project.el、keymap-set、部分 tree-sitter 模式）。装之前先 <kbd>M-x locate-library RET 名字 RET</kbd> 试一下。</li>
+    <li><strong>键位以 <kbd>C-h m</kbd> 为准，以命令名为准。</strong>本章实测出来的最大陷阱是：网上教程的键位常常只对某个版本成立——Eglot 根本没有 <kbd>C-c</kbd> <kbd>C-d</kbd>，Org 这一版的 <code>org-mode-map</code> 里没有 <kbd>C-c</kbd> <kbd>a</kbd>，Dired 的整目录重命名是<strong>大写</strong> <kbd>R</kbd> 而不是 <kbd>r</kbd>，而 outline 折叠早就不是 <code>hide-entry</code> / <kbd>C-c</kbd> <kbd>M-f</kbd> 那套了。你手上的 Emacs 版本和你读到的那篇文章不一定匹配。</li>
+    <li><strong>每加一个包都是一笔长期债。</strong>包的维护会停、键位会变、依赖会冲突。默认不加，需要时再加，关掉了 init 还能启动——这是 Emacs 配置健康的底线。</li>
+  </ul>
+</section>

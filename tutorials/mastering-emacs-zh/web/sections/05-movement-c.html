@@ -1,0 +1,669 @@
+<section class="ch" id="ch-05-movement-c" data-stage="基础" data-min="50">
+  <h2 class="ch-title">五、移动理论（三）：搜索与索引</h2>
+  <p class="ch-lead">这一章讲 Emacs 里两类跳跃：在缓冲区里找文本的 Isearch 增量搜索，在整个机器上找代码的 grep 递归搜索；再加上把匹配汇总成清单的 occur、把当前文件编成索引的 imenu。本章还有一大节要处理一件原书写错了时代的事：书里推荐的 Helm 和 IDO 已不是今天的主流，今天该装的是 vertico / consult 一族；顺手还有一个很多人不知道的事实——内置的 <code>fido-mode</code> 不需要装包。读完能独立完成三件事：熟练用 <kbd>C</kbd><kbd>s</kbd> 在缓冲区里高速移动；用 occur 和 grep 把散落的匹配点汇成一份可编辑的清单；知道该往配置里写哪一套补全。</p>
+
+  <h3>这一章在全书里的位置</h3>
+
+  <p>前三章处理的「基本移动命令」（elemental movement commands，Emacs 里只看文本语法结构、不需要你事先知道要找什么的那一类命令）能按行、按段、按函数、按括号跳。但现实中你常常只知道要找「什么字」，不知道它在哪儿。这时候要换一套工具：<strong>搜索</strong>（search，在文本里找字符串）和<strong>索引</strong>（index，把一个缓冲区或目录里「有意思的位置」预先编号，让你能按名字跳）。这一章讲的就是这两件事，分两大块：<strong>缓冲区内</strong>（Isearch、occur、imenu）和<strong>文件系统上</strong>（grep）。</p>
+
+  <div class="callout note"><b>要点</b><p>Emacs 的搜索之所以特别好用，不只是因为有正则，而是它把搜索当成<strong>移动</strong>做：搜索界面不弹窗、不遮挡、不抢焦点，就在回显区（echo area，底部显示状态和正在输入内容的那一行）里敲键盘，「边想词边移动」的手感完全不被打断。从 Vim 过来的人第一次都会不适应，适应之后基本没人愿意回头。</p></div>
+
+  <h3>Isearch：Emacs 的默认搜索引擎</h3>
+
+  <p><strong>Isearch</strong>（incremental search，增量搜索：随你敲键盘实时收窄结果）是 Emacs 里用得最多的搜索功能。它的工作方式：按 <kbd>C</kbd><kbd>s</kbd> 后，Emacs 在底部开一个<strong>迷你缓冲区</strong>（minibuffer，Emacs 专用于读取单行输入的小窗口，长按 <kbd>C</kbd><kbd>x</kbd> 时那条窄缝就是它），提示符显示 <code>I-search:</code>；你每敲一个字符，它立刻重新搜一遍，把当前匹配用 <code>isearch</code> 这个 face（face 是 Emacs 决定文字长什么样的「样式」）高亮，光标跳到匹配之后。「增量」的意思就在这里：<em>不是</em>敲完整串再回车。</p>
+
+  <h4>四个入口键</h4>
+
+  <p>默认绑定四个键（完整列表见本节末尾的按键表）。前两个是<strong>普通搜索</strong>，搜索串按字面匹配，提示符分别是 <code>I-search:</code> 和 <code>I-search backward:</code>；后两个是<strong>正则搜索</strong>，搜索串按<strong>正则表达式</strong>匹配——一种用 <code>*</code>、<code>+</code>、<code>?</code>、<code>[]</code> 描述「一类字符串」的小语言，绝大多数程序设计语言的正则都兼容它。</p>
+
+  <p>「向前」在 Emacs 里指光标之后（往文件末尾方向），「向后」指光标之前。这点和很多编辑器相反，记住就行。</p>
+
+  <h4>五个动作：输入、浏览、环绕、失败、退出</h4>
+
+  <ol>
+    <li><strong>选方向开始。</strong> <kbd>C</kbd><kbd>s</kbd> 向前，<kbd>C</kbd><kbd>r</kbd> 向后。</li>
+    <li><strong>输入即搜索。</strong> 每敲一个字符重定位一次；同时缓冲区内<em>其他</em>匹配也会被点亮，用 <code>lazy-highlight</code> 这个 face（Emacs 28 起叫「懒惰高亮」：你停顿一下它才去扫全缓冲区，扫完持续高亮到你离开搜索）。想关掉把 <code>isearch-lazy-highlight</code>（Emacs 28 引入，默认 <code>t</code>）设成 <code>nil</code>。</li>
+    <li><strong>浏览匹配。</strong> 搜索中再按一次 <kbd>C</kbd><kbd>s</kbd> 跳到下一个匹配（<code>isearch-repeat-forward</code>），<kbd>C</kbd><kbd>r</kbd> 跳到上一个（<code>isearch-repeat-backward</code>）。想反方向就按另一个方向键，搜索串不变。数字前缀也认：<kbd>M</kbd><kbd>3</kbd> <kbd>C</kbd><kbd>s</kbd> 一次跳 3 个。</li>
+    <li><strong>环绕（wrapping）。</strong> 搜到末尾再按方向键，Emacs 从另一头继续，提示符多出 <code>Wrapped</code>；越过出发点则变成 <code>Overwrapped</code>。所以「搜不到」永远不会真的搜不到。</li>
+    <li><strong>失败反馈。</strong> 搜不到时提示符变 <code>Failing I-Search</code>，并把<em>没匹配上的那部分</em>用 <code>isearch-fail</code> face 标红。搜 <code>FOOT</code> 而缓冲区只有 <code>FOOL</code>，你会看到光标停在 <code>FOO</code> 后，只有 <code>T</code> 是红的。</li>
+  </ol>
+
+  <div class="callout tip"><b>技巧</b><p><kbd>C</kbd><kbd>s</kbd> <kbd>C</kbd><kbd>s</kbd> 是最省事的一招：第一次开始搜索，第二次把<em>上一次的搜索串</em>取出来直接开搜（<code>isearch-repeat-forward</code>）。<kbd>C</kbd><kbd>r</kbd> <kbd>C</kbd><kbd>r</kbd> 同理向后。这是 Emacs 里性价比最高的肌肉记忆之一。</p></div>
+
+  <h4>两个出口：<kbd>RET</kbd> 与 <kbd>C</kbd><kbd>g</kbd></h4>
+
+  <ul>
+    <li><kbd>RET</kbd>（<code>isearch-exit</code>）接受匹配：停在找到的位置，同时<strong>在出发点上放一个标记</strong>（mark，一种随时可用 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>SPC</kbd> 跳回去的记号）。「搜过去 → <kbd>RET</kbd> → 忘了要干嘛 → <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>SPC</kbd> 跳回来」是完整的一套。</li>
+    <li><kbd>C</kbd><kbd>g</kbd>（<code>isearch-abort</code>）放弃搜索：直接回出发位置。快捷键里的 <kbd>C</kbd><kbd>g</kbd> 叫<strong>取消键</strong>，Emacs 里几乎所有「我不要了」都归它管。</li>
+  </ul>
+
+  <p><kbd>C</kbd><kbd>g</kbd> 还有一个中间状态：搜索已经失败时，第一次 <kbd>C</kbd><kbd>g</kbd> 只把没匹配上的字符<em>从搜索串里删掉</em>（留下匹配上的部分，搜索转为成功），第二次才真正取消。这个两级行为第一次遇到会吓一跳，但很合理：你打的 <code>FOOT</code> 里 <code>T</code> 多余，Emacs 先帮你去掉。</p>
+
+  <div class="callout warn"><b>易错</b><p>别把 Isearch 里的 <kbd>C</kbd><kbd>g</kbd> 当成「关掉一个小窗」。它不是关窗，是<strong>回退操作</strong>——回退到上一个还能匹配的状态。这和 VS Code 里 <kbd>Esc</kbd> 的直觉不同，需要适应。</p></div>
+
+  <h4>大小写折叠（case folding）</h4>
+
+  <p>Isearch <strong>默认不区分大小写</strong>。这是特意设计的<strong>大小写折叠</strong>（case folding）：敲小写 <code>foo</code> 会同时匹配 <code>foo</code>、<code>Foo</code>、<code>FOO</code>；但只要搜索串里<em>出现大写字母</em>，Emacs 自动切成<strong>区分大小写</strong>。直觉是：你敲 <code>foo</code> 时多半不确定它在文件里长什么样，所以宽松点；你特意敲了 <code>Foo</code>，说明你就是要找这个名字，一个字都不能差。</p>
+
+  <p>想把整个默认行为关掉：</p>
+
+  <pre class="el"><code>(setq case-fold-search nil)</code></pre>
+
+  <p><code>case-fold-search</code>（变量：控制搜索时是否折叠大小写，默认 <code>t</code>）同时影响 Isearch、<code>query-replace</code> 等等。规则本身来自 <code>search-upper-case</code>（默认 <code>not-yanks</code>）。有个细节：用 <kbd>C</kbd><kbd>w</kbd> 之类从光标捞进来的文字，若当前搜索忽略大小写会被自动转成小写，以保证折叠仍生效。</p>
+
+  <h4>搜索历史（search ring）</h4>
+
+  <p>Emacs 把最近的搜索串存进 <strong>search ring</strong>（搜索环），条数由 <code>search-ring-max</code> 控制，默认 <strong>16</strong>。在 Isearch 过程中：</p>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>p</kbd> — <code>isearch-ring-retreat</code>，往<em>旧</em>的方向翻，取上一条到输入框里（可继续改）。</li>
+    <li><kbd>M</kbd><kbd>n</kbd> — <code>isearch-ring-advance</code>，往<em>新</em>的方向翻。</li>
+    <li><kbd>M</kbd><kbd>TAB</kbd> 或 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> —— <strong>两者是同一个命令</strong> <code>isearch-complete</code>，用 search ring 里的字符串补全当前搜索串。原书写的是 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd>，那是对的。<strong>很多窗口管理器会抢走 <kbd>M</kbd><kbd>TAB</kbd>（切换窗口），抢了就换 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd>，行为完全一样，不会少任何功能。</strong>本书作者在 32.0.50 上实测过这个等价关系：<code>(lookup-key isearch-mode-map (kbd "M-TAB"))</code> 和 <code>(lookup-key isearch-mode-map (kbd "C-M-i"))</code> <strong>都返回 <code>isearch-complete</code></strong>。</li>
+  </ul>
+
+  <h4>把光标处的文字捞进搜索串</h4>
+
+  <p>最常见的情况是光标正停在一个你不确定拼写的词上——报错信息里的函数名、日志里的 URL、刚改过的标识符。手打一遍纯属浪费。Isearch 为此准备了一组「捞字」命令（命令名见按键表）。其中三个值得当面说清：</p>
+
+  <ul>
+    <li><kbd>C</kbd><kbd>w</kbd>（<code>isearch-yank-word-or-char</code>）追加光标处<strong>下一个词</strong>，连按多次逐词追加。<strong>绝大多数时候你只需要这一个。</strong></li>
+    <li><kbd>C</kbd><kbd>M</kbd><kbd>w</kbd>（<code>isearch-yank-symbol-or-char</code>）追加整个<strong>符号</strong>，一个整块标识单元，如 C 语言的 <code>foo-&gt;bar</code>。原书把 <kbd>C</kbd><kbd>M</kbd><kbd>y</kbd>（<code>isearch-yank-char</code>，只追加一个字符）写成「取符号」，按 Emacs 32 的实际绑定，<kbd>C</kbd><kbd>M</kbd><kbd>w</kbd> 才是这个语义；原书说 <kbd>C</kbd><kbd>M</kbd><kbd>y</kbd> 对多数人价值边际，编辑大量非拉丁文字时可以试试。</li>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>C</kbd><kbd>e</kbd>（<code>isearch-yank-line</code>）追加光标处<strong>整行剩下的内容</strong>，找日志里那条完整的一行很顺手。<kbd>C</kbd><kbd>M</kbd><kbd>z</kbd>（<code>isearch-yank-until-char</code>）追加到下一个指定字符为止的内容，写正则替换规则时好用；<kbd>C</kbd><kbd>y</kbd> 把剪贴板（Emacs 里叫 kill ring）内容追加进来，紧接 <kbd>M</kbd><kbd>y</kbd> 可在多条剪切记录间换；<kbd>C</kbd><kbd>M</kbd><kbd>d</kbd> 删搜索串末尾<strong>一个字符</strong>，而 <kbd>DEL</kbd>（<code>isearch-delete-char</code>）删的是<strong>整个上一次输入动作</strong>。</li>
+  </ul>
+
+  <h4>七个开关（toggle）</h4>
+
+  <p>Isearch 里最强大的一块。用 <kbd>M</kbd><kbd>s</kbd> 加一个键临时改变搜索规则，<strong>这些开关只影响当前这一次搜索，搜完就恢复</strong>——所以可以放心随手切。命令名见按键表，这里说三个要点：</p>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>c</kbd> 和 <kbd>M</kbd><kbd>s</kbd> <kbd>r</kbd> 分别切换大小写敏感和正则模式，两者都有单键等价物 <kbd>M</kbd><kbd>c</kbd> / <kbd>M</kbd><kbd>r</kbd>。正则开关的价值在于：你可以先用普通搜索敲个大概，再切过去继续写。</li>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>w</kbd>（<strong>词模式</strong>）开启后，像 <code>.</code>、<code>-</code> 这类分隔符可互相替代：搜 <code>hyphenated string</code> 能匹配 <code>this-is-a-hyphenated-string</code>。写代码时非常有用，搜 <code>foo bar</code> 能匹配 <code>foo-&gt;bar = 42;</code> 里的那两段。<kbd>M</kbd><kbd>s</kbd> <kbd>_</kbd>（<strong>符号模式</strong>）更严格：按当前主模式（major mode，为一类文件定制的编辑模式）认定的符号边界匹配，符号指语言里的一个完整标识单元。</li>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>'</kbd>（<strong>字符折叠</strong>）让搜 <code>a</code> 也匹配 <code>á</code>、<code>å</code> 等一整族等价字符；想让它常开，把 <code>search-default-mode</code>（变量：搜索的默认模式，默认 <code>nil</code>，可设成 <code>char-fold-to-regexp</code> 或 <code>word-search-regexp</code>）设成 <code>char-fold-to-regexp</code>。<kbd>M</kbd><kbd>s</kbd> <kbd>i</kbd> 切换是否搜「隐藏文本」——隐藏文本指被 <strong>overlay</strong>（覆盖层：贴在某段文本上的额外标记，不改原文）折叠起来的内容，如折叠大纲（outline）时收起的部分。</li>
+  </ul>
+
+  <h4>跳过一屏：<kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&lt;</kbd> 与 <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&gt;</kbd></h4>
+
+  <p>这段原书和今天的 Emacs 有出入，值得单独讲。</p>
+
+  <p><strong>Emacs 28 起</strong>新增了两个 Isearch 命令：<kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&lt;</kbd>（<code>isearch-beginning-of-buffer</code>，跳到搜索串在<strong>整个缓冲区里第一次</strong>出现的位置）和 <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&gt;</kbd>（<code>isearch-end-of-buffer</code>，跳到<strong>最后一次</strong>）。它们<strong>默认可用，不需要任何配置</strong>，带数字前缀时跳到第 N 次出现的位置。</p>
+
+  <p>原书推荐的 <kbd>M</kbd><kbd>&lt;</kbd> / <kbd>M</kbd><kbd>&gt;</kbd> 走的是另一条路：它把 <code>beginning-of-buffer</code>（回到文件开头）这两个命令在 Isearch 里<em>重新定义</em>成「跳到首个 / 末个匹配」，而这个行为<strong>默认是关的</strong>，必须先开变量：</p>
+
+  <pre class="el"><code>(setq isearch-allow-motion t)</code></pre>
+
+  <p><code>isearch-allow-motion</code>（变量：Emacs 28 引入，默认 <code>nil</code>）打开后，<kbd>M</kbd><kbd>&lt;</kbd> 和 <kbd>M</kbd><kbd>&gt;</kbd> 在 Isearch 里跳首 / 末匹配，<kbd>C</kbd><kbd>v</kbd> 和 <kbd>M</kbd><kbd>v</kbd> 则跳到<strong>当前窗口还没显示的</strong>上一个 / 下一个匹配——每按一次滚一屏，适合在长文件里粗略扫一遍所有匹配大致分布在哪儿。原书专门表扬了这个「跳不可见匹配」的能力，我同意，它是唯一能做到这件事的钥匙。</p>
+
+  <div class="callout tip"><b>技巧</b><p><strong>今天的建议</strong>：把 <code>isearch-allow-motion</code> 打开，两个不同键干不同的事反而更清楚：<kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&lt;</kbd> 管「第一次在哪」（全局、默认可用），<kbd>C</kbd><kbd>v</kbd> / <kbd>M</kbd><kbd>v</kbd> 管「按屏跳」（没有替代品）。</p></div>
+
+  <p>一组相关开关，顺带交代清楚，免得在别处看到时不知道。<code>isearch-allow-scroll</code>（默认 <code>nil</code>）设成非 <code>nil</code> 后，滚动命令在 Isearch 里<strong>不退出搜索</strong>，设成符号 <code>unlimited</code> 时连「不让当前匹配滚出视野」的限制也去掉。<code>isearch-yank-on-move</code>（默认 <code>nil</code>）设成 <code>shift</code> 后，Isearch 里<strong>按住 <kbd>S</kbd> 再按光标移动键</strong>会把经过的那段文字追加进搜索串——<strong>shift 方向键是搜索</strong>，这是把 Emacs 变成「搜索就是导航」的关键技巧。<code>isearch-motion-changes-direction</code> 决定 motion 后方向是否跟着翻；<code>isearch-repeat-on-direction-change</code>（默认 <code>nil</code>）设 <code>t</code> 后按另一方向键立刻跳到另一个匹配，而不只是把光标挪到当前匹配另一端。<code>isearch-allow-prefix</code>（默认 <code>t</code>）允许在 Isearch 里直接敲数字前缀。<code>isearch-wrap-pause</code>（默认 <code>t</code>）控制搜到头时的行为：<code>t</code> 暂停报错等你决定，<code>no</code> / <code>no-ding</code> 立刻环绕，<code>nil</code> 干脆不环绕。</p>
+
+  <h4>把搜索变成高亮，把高亮变成替换</h4>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> — <code>isearch-occur</code>：用当前搜索串执行 <strong>occur</strong>（把所有匹配行汇成清单）。见下一节。缓冲区内任意位置按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> 则绑到 <code>occur</code>，主动发起一次正则搜索。</li>
+    <li><kbd>M</kbd><kbd>%</kbd> — <code>isearch-query-replace</code>：<strong>用当前搜索串作为「查找」内容</strong>直接进入 <code>query-replace</code>（交互式替换：Emacs 逐个问你要不要替换）。负数前缀参数（<kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>%</kbd>）表示向后替换。这是「我搜到了，接下来批量改」的最短路径。</li>
+    <li><kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> — <code>isearch-query-replace-regexp</code>：同上，但把搜索串当<strong>正则</strong>。</li>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>r</kbd> — <code>isearch-highlight-regexp</code>：退出搜索但把缓冲区里所有匹配<strong>永久高亮</strong>（<code>hi-lock</code> 机制，原书成书时 Emacs 才有，值得单独一提）。<kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>l</kbd> 高亮<strong>整行</strong>，<kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>u</kbd> 取消高亮。这套键是全局的，不在 Isearch 里也能用。</li>
+  </ul>
+
+  <div class="keys">
+    <h4>本节按键：Isearch</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>s</kbd></td><td><code>isearch-forward</code></td><td>向前增量搜索</td></tr>
+        <tr><td><kbd>C</kbd><kbd>r</kbd></td><td><code>isearch-backward</code></td><td>向后增量搜索</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>s</kbd></td><td><code>isearch-forward-regexp</code></td><td>向前正则增量搜索</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>r</kbd></td><td><code>isearch-backward-regexp</code></td><td>向后正则增量搜索</td></tr>
+        <tr><td><kbd>RET</kbd></td><td><code>isearch-exit</code></td><td>接受匹配并退出（在原位置留标记）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td><code>isearch-abort</code></td><td>放弃搜索回原位；失败时第一次只删掉没匹配上的字符</td></tr>
+        <tr><td><kbd>C</kbd><kbd>s</kbd> <kbd>C</kbd><kbd>s</kbd></td><td><code>isearch-repeat-forward</code></td><td>重新开始并带上次的搜索串</td></tr>
+        <tr><td><kbd>C</kbd><kbd>r</kbd> <kbd>C</kbd><kbd>r</kbd></td><td><code>isearch-repeat-backward</code></td><td>同上，向后</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&lt;</kbd></td><td><code>isearch-beginning-of-buffer</code></td><td>跳到首个匹配（Emacs 28+，默认可用）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&gt;</kbd></td><td><code>isearch-end-of-buffer</code></td><td>跳到末个匹配（Emacs 28+，默认可用）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>&lt;</kbd> <kbd>M</kbd><kbd>&gt;</kbd> <kbd>C</kbd><kbd>v</kbd> <kbd>M</kbd><kbd>v</kbd></td><td><code>beginning-of-buffer</code> 等</td><td>Isearch 中跳首 / 末 / 下一屏 / 上一屏匹配，需先开 <code>isearch-allow-motion</code></td></tr>
+        <tr><td><kbd>C</kbd><kbd>w</kbd></td><td><code>isearch-yank-word-or-char</code></td><td>把光标处下一个词追加进搜索串</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>w</kbd></td><td><code>isearch-yank-symbol-or-char</code></td><td>把光标处符号追加进搜索串</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>y</kbd></td><td><code>isearch-yank-char</code></td><td>追加一个字符</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>C</kbd><kbd>e</kbd></td><td><code>isearch-yank-line</code></td><td>把光标处整行追加进搜索串</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>z</kbd></td><td><code>isearch-yank-until-char</code></td><td>追加到指定字符为止的内容</td></tr>
+        <tr><td><kbd>C</kbd><kbd>y</kbd> <kbd>M</kbd><kbd>y</kbd></td><td><code>isearch-yank-kill</code></td><td>追加剪贴板内容 / 换上一条</td></tr>
+        <tr><td><kbd>M</kbd><kbd>p</kbd> <kbd>M</kbd><kbd>n</kbd></td><td><code>isearch-ring-retreat</code></td><td>翻上一条 / 下一条搜索历史</td></tr>
+        <tr><td><kbd>M</kbd><kbd>TAB</kbd></td><td><code>isearch-complete</code></td><td>用搜索历史补全（可能被窗口管理器截走）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>c</kbd> <kbd>M</kbd><kbd>c</kbd></td><td><code>isearch-toggle-case-fold</code></td><td>切换大小写敏感</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>r</kbd> <kbd>M</kbd><kbd>r</kbd></td><td><code>isearch-toggle-regexp</code></td><td>切换正则模式</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>w</kbd></td><td><code>isearch-toggle-word</code></td><td>词模式：分隔符可互换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>_</kbd></td><td><code>isearch-toggle-symbol</code></td><td>符号模式：按语言的符号边界匹配</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>SPC</kbd></td><td><code>isearch-toggle-lax-whitespace</code></td><td>切换宽松空白匹配</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>'</kbd></td><td><code>isearch-toggle-char-fold</code></td><td>切换字符折叠</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>i</kbd></td><td><code>isearch-toggle-invisible</code></td><td>切换是否搜隐藏文本</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd></td><td><code>isearch-occur</code></td><td>用当前搜索串执行 occur</td></tr>
+        <tr><td><kbd>M</kbd><kbd>%</kbd> <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd></td><td><code>isearch-query-replace</code></td><td>用当前搜索串直接进入替换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>h</kbd> <kbd>r</kbd> <kbd>l</kbd> <kbd>u</kbd></td><td><code>isearch-highlight-regexp</code></td><td>高亮所有匹配 / 高亮整行 / 取消高亮</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>.</kbd></td><td><code>isearch-forward-symbol-at-point</code></td><td>以光标处符号为搜索串向前搜（全局键）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>.</kbd></td><td><code>isearch-forward-thing-at-point</code></td><td>以光标处「东西」为搜索串向前搜（全局键）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <details class="deep"><summary>进阶：Isearch 里还有这些（很少用到，但知道就不慌）</summary>
+  <p>原书写于 Emacs 26/27 时代，这几年 Isearch 又加了一些东西，都是「知道了不算本事，用到了能救命」级别：</p>
+  <ul>
+    <li><strong>按名字搜非 ASCII 字符。</strong> <kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>RET</kbd>（<code>isearch-char-by-name</code>）输入 Unicode 名字或十六进制码点；<kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>e</kbd> <kbd>RET</kbd>（<code>isearch-emoji-by-name</code>）输入 Emoji 名字，如 <code>smiling face</code>。想不起名字可以先 <kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>e</kbd> <kbd>l</kbd>（<code>emoji-list</code>）列出全部 Emoji，或 <kbd>C</kbd><kbd>x</kbd> <kbd>8</kbd> <kbd>e</kbd> <kbd>d</kbd>（<code>emoji-describe</code>）描述当前字符。</li>
+    <li><strong>搜控制字符。</strong> <kbd>C</kbd><kbd>q</kbd>（<code>isearch-quote-char</code>）后跟一个非图形字符或八进制数字。<strong>搜换行</strong>则是在搜索串里按 <kbd>C</kbd><kbd>j</kbd>。</li>
+    <li><strong>输入方法。</strong> 当前缓冲区开了输入法（input method，用来打非 ASCII 字符的方案，如拼音、日文假名）的，Isearch 里也自动可用；<kbd>C</kbd><kbd>\</kbd>（<code>isearch-toggle-input-method</code>）切换，<kbd>C</kbd><kbd>^</kbd>（<code>isearch-toggle-specified-input-method</code>）换指定的一种，<kbd>C</kbd><kbd>x</kbd> <kbd>\</kbd>（<code>isearch-transient-input-method</code>）临时用一下就关。提示符会显示 <code>I-search [IM]:</code>。</li>
+    <li><strong>把不认识的字符并入搜索串。</strong> <code>search-exit-option</code> 设成 <code>append</code> 后，搜索中按 <kbd>C</kbd><kbd>a</kbd> 这类「本来会退出搜索」的键不再退出，而是当成搜索串的一部分。</li>
+    <li><strong>在 Isearch 里查帮助。</strong> <kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>h</kbd> 进入 <code>isearch-help-map</code>，再按 <kbd>b</kbd> 就是 <code>isearch-describe-bindings</code>，列出 Isearch 全部键位及命令说明。这条命令任何模式下都能按，所以哪怕你把 Isearch 键位改乱了也能自救。</li>
+    <li><strong>非增量搜索。</strong> 搜索串为空时直接按 <kbd>RET</kbd>，Emacs 切到<strong>非增量</strong>搜索（<code>isearch-nonincremental</code>）：先输入完整搜索串，回车才搜一次，提示符显示 <code>search:</code>。适合搜索串含控制字符、需要精确控制的情况。</li>
+    <li><strong>取消的硬核写法。</strong> <kbd>ESC</kbd> <kbd>ESC</kbd> <kbd>ESC</kbd>（<code>isearch-cancel</code>）无条件取消；<kbd>C</kbd><kbd>g</kbd> <kbd>C</kbd><kbd>g</kbd> 是连按两次取消。搜索串编辑则用 <kbd>M</kbd><kbd>e</kbd>（<code>isearch-edit-string</code>）在迷你缓冲区里改，此时 <kbd>C</kbd><kbd>f</kbd> / <kbd>→</kbd> 可把光标处后续字符追加进搜索串。</li>
+  </ul>
+  </details>
+
+  <div class="drill" data-answer="C-w，即 isearch-yank-word-or-char：把光标处的词追加进搜索串，连按多次会逐词追加。">
+    <p class="drill-q"><b>练习 1</b>　光标停在一个你不确定拼写的函数名上，想用它作为搜索串去找其他定义。开始向前搜索后，第一下应该按什么键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>w</kbd>，即 <code>isearch-yank-word-or-char</code>：它把光标处下一个词追加进搜索串，连按多次会一个个词往下追加。想一次取整个符号（像 <code>foo-&gt;bar</code>）用 <kbd>C</kbd><kbd>M</kbd><kbd>w</kbd>；要整行则用 <kbd>M</kbd><kbd>s</kbd> <kbd>C</kbd><kbd>e</kbd>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="isearch-toggle-word，即 M-s w。词模式让 . - 等分隔符可以互相替代，所以 foo bar 能匹配 foo-&gt;bar。">
+    <p class="drill-q"><b>练习 2</b>　缓冲区里有 <code>foo-&gt;bar = 42;</code>，你用 <kbd>C</kbd><kbd>s</kbd> 搜 <code>foo bar</code> 搜不到。按哪个开关能让它匹配上？命令名叫什么？开关默认状态如何？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>M</kbd><kbd>s</kbd> <kbd>w</kbd>，命令是 <code>isearch-toggle-word</code>（词模式）。它把 <code>.</code>、<code>-</code> 视为可互换，于是 <code>foo bar</code> 能匹配 <code>foo-&gt;bar</code>。开关默认<strong>关闭</strong>，只在当前这次搜索里生效。更严格的版本是 <kbd>M</kbd><kbd>s</kbd> <kbd>_</kbd>（<code>isearch-toggle-symbol</code>，按语言认定的符号边界匹配）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-s M-&lt; 即 isearch-beginning-of-buffer，Emacs 28 起默认可用；M-&lt; 需把 isearch-allow-motion 设为 t。">
+    <p class="drill-q"><b>练习 3</b>　想在当前搜索过程中直接跳到该字符串在整个缓冲区里第一次出现的位置。用哪个键？需要先改配置吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>用 <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&lt;</kbd>，命令是 <code>isearch-beginning-of-buffer</code>，<strong>Emacs 28 起默认可用，不需要改配置</strong>。跳到最后一个用 <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&gt;</kbd>（<code>isearch-end-of-buffer</code>）。原书说的 <kbd>M</kbd><kbd>&lt;</kbd> / <kbd>M</kbd><kbd>&gt;</kbd> 是另一条路：靠 <code>isearch-allow-motion</code>（默认 <code>nil</code>）开启才生效；开启后 <kbd>C</kbd><kbd>v</kbd> / <kbd>M</kbd><kbd>v</kbd> 还能按屏跳过当前不可见的匹配。</p></div>
+  </div>
+
+  <div class="drill" data-answer="RET 是 isearch-exit，它会在出发位置设置标记，可用 C-u C-SPC 跳回；C-g 是 isearch-abort，直接回原位但不设标记。">
+    <p class="drill-q"><b>练习 4</b>　你从文件开头搜到了第 400 行，想在那里接着做事；但十分钟后你意识到其实想先看看第 400 行有没有我要的字。用哪个键结束搜索？结束后怎么跳回第 400 行？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>用 <kbd>RET</kbd>（<code>isearch-exit</code>）接受匹配，它同时会在你<strong>出发位置</strong>放一个标记。之后按 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>SPC</kbd>（<code>set-mark-command</code> 配前缀参数）就能跳回第 400 行。<kbd>C</kbd><kbd>g</kbd>（<code>isearch-abort</code>）也能回原位，但它不给你留标记，是「取消」而不是「完成」。</p></div>
+  </div>
+
+  <h3>Thing at Point：光标处的那块「东西」</h3>
+
+  <p><kbd>C</kbd><kbd>w</kbd> 的思路可以再推一步：与其手工告诉 Emacs「我要找的是词还是符号」，不如让它<strong>自己判断</strong>光标处最可能是个什么东西。Emacs 内核里有个 <strong>thing at point</strong>（光标处的东西）机制，<code>thing-at-point</code>（函数：按类型取出光标处那块文本，类型可以是 <code>word</code>、<code>symbol</code>、<code>url</code>、<code>sexp</code> 等）是总入口。搜索里有两个现成的用户界面：</p>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>.</kbd> — <code>isearch-forward-symbol-at-point</code>，取光标处的<strong>符号</strong>直接开始向前搜索。<strong>符号</strong>的边界由主模式决定，但 Emacs 通常很聪明，能自己判断符号从哪里开始到哪里结束。这个键是<strong>全局</strong>的，不在 Isearch 里也能按。</li>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>.</kbd> — <code>isearch-forward-thing-at-point</code>，取光标处的「东西」直接开始搜索。取什么由变量 <code>isearch-forward-thing-at-point</code>（默认 <code>'(region url symbol sexp)</code>）决定：<strong>按这个顺序依次尝试</strong>——有激活的选区就用选区文本，否则试 URL，再试符号，再试 S 表达式（sexp，用括号平衡切出的一段代码）。</li>
+  </ul>
+
+  <p>这个「按顺序试」恰好覆盖日常最常见的三种情况：选中一段文字想找同样的文字、停在一个 URL 上想搜它、停在一个函数调用上想找它的定义。这套机制还被 <kbd>M</kbd><kbd>(</kbd>（<code>mark-sexp</code>）、<kbd>M</kbd><kbd>-</kbd>（<code>mark-symbol</code>）、<kbd>M</kbd><kbd>w</kbd>（<code>mark-word</code>）复用——它们本质都是「把 thing at point 选出来当区域」。</p>
+
+  <details class="deep"><summary>进阶：包作者如何扩展 thing at point——以及一个常见误解</summary>
+  <p>thing at point 是一套<strong>可扩展</strong>机制：任何包都能注册自己认得的「东西」。这在 Emacs 30 之后有了正式、可查的写法。</p>
+  <p><strong>Emacs 30 之前</strong>，包作者用 <code>define-thing-at-point</code>（宏：定义一个新的 thing 类型）注册。<strong>但在 Emacs 32（以及 30/31）里这个宏已经从内核中移除了</strong>——我在这台 Emacs 32.0.50 上实测 <code>(fboundp 'define-thing-at-point)</code> 返回 <code>nil</code>，本机 Emacs 32 的 Elisp 手册里也查不到这个词条。如果你在网上（多半是 2018–2022 年的文章）看到它，那是旧写法。</p>
+  <p><strong>Emacs 30 起</strong>的正规接口是三个 provider 列表变量，写在 <code>thingatpt.el</code> 里：<code>thing-at-point-provider-alist</code>（提供 <code>thing-at-point</code> 的取值方式）、<code>forward-thing-provider-alist</code>（提供 <code>forward-thing</code>，从 thing 跳到下一个）、<code>bounds-of-thing-at-point-provider-alist</code>（算出 thing 的起止位置）。Emacs 30 还加了两个便利函数 <code>thing-at-point-for-char-property</code> 和 <code>bounds-of-thing-at-point-for-char-property</code> 帮写基于文本属性的 provider，并让 <code>bug-reference-mode</code> 支持了 thing at point（在 bug 引用上取 <code>url</code> 得到这个 bug 的 URL）。</p>
+  <p>作为使用者你不需要碰这些。但知道「thing at point 是可扩展的」有实际价值：遇到 <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>.</kbd> 在某个模式下取错了东西（比如你的 Org 文件里它取了 sexp 而不是你想要的标题），那大概是这个包注册的方式不对，不是你用错了。</p>
+  </details>
+
+  <h3>Occur：把匹配行汇成一张清单</h3>
+
+  <p><strong>Occur</strong> 是 Emacs 内置的类 grep 工具。和 grep 相比它功能少得多，默认也只搜<strong>当前这一个缓冲区</strong>，但有两个 grep 没有的优势：<strong>速度快</strong>，而且<strong>不需要调用外部进程</strong>（grep 得把文件交给操作系统上的 <code>grep</code> 可执行程序，occur 全在 Emacs 内部完成）。它还会<strong>保留语法高亮</strong>——匹配结果里代码还是彩色的，grep 输出则是纯文本。</p>
+
+  <p>Isearch 是「一个一个走过匹配」，occur 是「把<strong>所有</strong>匹配行抄到一个新缓冲区里」。这个新缓冲区叫 <code>*Occur*</code>（名字两侧星号表示 Emacs 自动生成的临时缓冲区，不用保存），每行以行号开头，就是一个<strong>超链接</strong>：鼠标点它或光标停在上面按 <kbd>RET</kbd>，立刻跳回原缓冲区那一行。</p>
+
+  <p>下面这段是本书作者在本机 Emacs 32.0.50 上真跑出来的：源缓冲区名叫 <code>*temp*</code>，里面三行文字，在 <code>(point-min)</code> 处执行 <code>(occur "gamma")</code>，<code>*Occur*</code> 缓冲区里就是这三行（下面 <code>|</code> 标记是给你看的说明，不是真的输出）：</p>
+
+  <pre class="term"><code>源缓冲区 *temp*：                 *Occur* 缓冲区：
+  1  alpha beta                  2 matches for "gamma" in buffer: *temp*
+  2  delta gamma        →              2:delta gamma
+  3  zeta epsilon gamma beta           3:zeta epsilon gamma beta</code></pre>
+
+  <div class="callout note"><b>要点</b><p><strong>这个输出里有三个数字，含义各不相同，混起来读是最常见的困惑来源：</strong></p>
+    <ul>
+      <li>最前面的 <code>2 matches for "gamma"</code> —— <strong>一共匹配到几行</strong>。它是统计，跟 <code>*temp*</code> 是两回事。</li>
+      <li><code>in buffer: *temp*</code> —— <strong>被搜的那个缓冲区叫什么</strong>。<code>occur</code> 默认只搜<strong>当前这一个</strong>，所以这里出现的<strong>不是你的文件名，而是你碰巧正待着的那个缓冲区名</strong>。如果你在一个叫 <code>notes.txt</code> 的文件里按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>，这里就会写 <code>notes.txt</code>。</li>
+      <li>每行行首那个 <code>2:</code> 和 <code>3:</code> —— <strong>这一行在源缓冲区里是第几行</strong>。<code>2:delta gamma</code> 的意思是「源缓冲区第 2 行，内容是 <code>delta gamma</code>」。<strong>把这个行号和左边源缓冲区对照着看</strong>：源缓冲区第 1 行 <code>alpha beta</code> 不含 <code>gamma</code>，所以没出现在清单里；第 2、3 行含了，于是清单里就是它们的行号。</li>
+    </ul>
+    <p><strong>所以「为什么不是我的文件名」和「为什么不是全部行」这两个问题，答案都在上面第三条里。</strong></p>
+  </div>
+
+  <p><strong>接下来才是这一节的重点：清单本身可以当索引用。</strong>光标停在 <code>2:delta gamma</code> 这一行，按 <kbd>RET</kbd>（<code>occur-mode-goto-occurrence</code>），Emacs 就跳回 <code>*temp*</code> 的第 2 行；按 <kbd>o</kbd>（<code>occur-mode-goto-occurrence-other-window</code>）则在<strong>另开一个窗口</strong>显示那一行，本窗口继续留在清单上，好让你一条条往下过。</p>
+
+  <h4>怎么用</h4>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>（<code>occur</code>）—— 在缓冲区任意位置按，Emacs 问一个<strong>正则表达式</strong>，把当前缓冲区所有含匹配的行汇总到 <code>*Occur*</code>。注意 occur <em>只</em>接受正则、不接受「字面字符串」模式，但正则里普通字符就是字面意思，通常没区别。</li>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> 在 <strong>Isearch 过程中</strong>按（<code>isearch-occur</code>）—— 直接用当前搜索串，不用重新输入。同一按键在两种场合绑到不同命令，因为 Isearch 里键位先由 <code>isearch-mode-map</code>（Isearch 自己的键位表）解释。</li>
+    <li><code>M-x multi-occur-in-matching-buffers</code> —— 跨多个缓冲区。第一个参数是<strong>匹配缓冲区名字的正则</strong>，比如 <code>\.py$</code> 表示「所有名字以 .py 结尾的缓冲区」；第二个参数是要搜的内容。例如输入 <code>\.py$</code> <kbd>RET</kbd> <code>def parse</code> <kbd>RET</kbd>。</li>
+    <li><code>M-x multi-occur</code> —— 同上，但让你逐个手挑缓冲区。更精确，也更啰嗦。</li>
+  </ul>
+
+  <p>两种 multi-occur 产生的也是 <code>*Occur*</code> 缓冲区（内部走同一个 <code>occur-1</code>），里面可以正常用下面那张表里的所有键。想看匹配行的<strong>上下文</strong>（前后几行），改变量 <code>list-matching-lines-default-context-lines</code>（默认 <code>0</code>）：负数表示只在匹配行<em>之前</em>带 N 行，正数表示前后各带 N 行。</p>
+
+  <pre class="el"><code>(setq list-matching-lines-default-context-lines 2)</code></pre>
+
+  <div class="callout warn"><b>易错</b><p>旧资料里 occur 的老名字 <code>list-matching-lines</code> 在 Emacs 32 里仍然存在，但它是 <code>occur</code> 的别名（alias），官方文档已不再收录。新写配置请一律用 <code>occur</code>。</p></div>
+
+  <h4><code>*Occur*</code> 缓冲区里的按键</h4>
+
+  <p>下表是我在 Emacs 32.0.50 上实际执行一次 occur 之后逐键查出来的结果，<strong>和原书有出入的地方已经标出</strong>。三点值得当面说清：</p>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>n</kbd> / <kbd>M</kbd><kbd>p</kbd> 在<strong>清单内</strong>移动光标（不跳回源文件），<kbd>n</kbd> / <kbd>p</kbd> 同样在清单内移动但<strong>不跳转窗口</strong>——后者原书没提。</li>
+    <li><kbd>g</kbd>（<code>revert-buffer</code>）<strong>重跑一遍搜索刷新清单</strong>。Emacs 里 <kbd>g</kbd> 是极强的惯例：几乎所有「刷新当前视图」的模式都把它绑到 <code>revert-buffer</code>，值得当成通用习惯记住。<kbd>r</kbd> 会把缓冲区改名成 <code>*Occur: 源文件名</code>，跨多文件搜索时很方便区分。</li>
+    <li><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> —— <strong>在不同模式下含义不同</strong>：普通 <code>occur-mode</code> 里它是「跳到源行」（原书没说）；<strong>在按过 <kbd>e</kbd> 之后的 <code>occur-edit-mode</code> 里，它才是「提交修改并返回 <code>occur-mode</code>」</strong>（<code>occur-cease-edit</code>）。这是原书那一行最容易让人踩坑的地方。</li>
+  </ul>
+
+  <h4>occur-edit-mode：在清单里直接改源文件</h4>
+
+  <p>在 <code>*Occur*</code> 里按 <kbd>e</kbd>，只读属性被去掉，你可以<strong>像编辑普通文本一样直接改这些匹配行</strong>；改完按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd>（<code>occur-cease-edit</code>），改动会<strong>同步写回原来的缓冲区</strong>。</p>
+
+  <p>这个功能的价值不在于「改几行字」，而在于<strong>你能一边看着全局清单一边批量修改</strong>。比如一个配置错误出现在 30 个不同文件里，你在 <code>*Occur*</code> 里逐个跳过去改、改完提交，全程不用在 30 个窗口之间来回切。再配合键盘宏（第 8 章）或 <code>query-replace</code>（第 7 章）威力更大。</p>
+
+  <div class="callout tip"><b>技巧</b><p>在 <code>*Occur*</code> 里按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd> 打开 <code>next-error-follow-minor-mode</code>，之后每次用 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 在匹配间跳时，另一窗口会跟着实时显示对应行的上下文——这样你连 <code>*Occur*</code> 都不用看，直接在源文件窗口里审阅。</p></div>
+
+  <h4><code>next-error</code>：occur / grep / compile 共用的一套跳转</h4>
+
+  <p>Emacs 有个通用命令 <code>next-error</code>（<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd>）和 <code>previous-error</code>（<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>p</kbd>）。名字里带「error」纯属历史遗留——它们<strong>和报错没关系</strong>。</p>
+
+  <p>机制是：每当你运行一个「产出一份匹配清单」的命令（<code>occur</code>、<code>grep</code>、<code>compile</code>……），Emacs 把那份清单登记成「上一次错误列表」，<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 就自动变成「跳到上一次那类操作的第 N 个匹配」。你只需要记<strong>这一对键</strong>，它就能用在编译错误、grep 结果、occur 清单上，而且还能<strong>跨缓冲区</strong>：文件没打开就自动打开，已经打开了就切过去。这是 Emacs「一切都是缓冲区」这个设计最漂亮的地方之一。</p>
+
+  <div class="keys">
+    <h4>本节按键：Occur 与错误跳转</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd></td><td><code>occur</code></td><td>用正则汇总当前缓冲区匹配行到 <code>*Occur*</code></td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>（搜索中）</td><td><code>isearch-occur</code></td><td>直接用当前搜索串执行 occur</td></tr>
+        <tr><td><kbd>M</kbd><kbd>n</kbd> <kbd>M</kbd><kbd>p</kbd></td><td><code>occur-next</code></td><td>在清单内上下移动</td></tr>
+        <tr><td><kbd>n</kbd> <kbd>p</kbd></td><td><code>next-error-no-select</code></td><td>同上但不跳转窗口</td></tr>
+        <tr><td><kbd>RET</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>occur-mode-goto-occurrence</code></td><td>跳到源缓冲区对应行</td></tr>
+        <tr><td><kbd>o</kbd> / <kbd>C</kbd><kbd>o</kbd></td><td><code>occur-mode-goto-occurrence-other-window</code></td><td>在另一窗口显示 / 仅显示对应行</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>next-error-follow-minor-mode</code></td><td>切换移动时自动显示上下文</td></tr>
+        <tr><td><kbd>e</kbd></td><td><code>occur-edit-mode</code></td><td>进入可直接改源文件的编辑状态</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd>（编辑态）</td><td><code>occur-cease-edit</code></td><td>提交修改并返回 <code>occur-mode</code></td></tr>
+        <tr><td><kbd>g</kbd> / <kbd>q</kbd></td><td><code>revert-buffer</code></td><td>重跑搜索刷新清单 / 关掉 occur 窗口</td></tr>
+        <tr><td><kbd>&lt;</kbd> <kbd>&gt;</kbd></td><td><code>beginning-of-buffer</code></td><td>清单开头 / 结尾</td></tr>
+        <tr><td><kbd>r</kbd> <kbd>c</kbd> <kbd>l</kbd></td><td><code>occur-rename-buffer</code></td><td>改名 / 复制 / 重新居中</td></tr>
+        <tr><td><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>p</kbd></td><td><code>next-error</code></td><td>在「上一次」的 occur / grep / compile 结果间跳转</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="M-g M-n（next-error），因为 occur 会把结果登记为「上一次错误列表」，next-error 对 occur/grep/compile 通用且能跨缓冲区打开文件。">
+    <p class="drill-q"><b>练习 5</b>　你跑了一次 <code>occur</code>，在 <code>*Occur*</code> 里看着清单很满意。现在的问题是：清单在右边窗口，你在左边的源文件里来回跳太累。用哪一对键可以在两边之间自动来回，不需要鼠标？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd>（<code>next-error</code>）跳到下一个，<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>p</kbd>（<code>previous-error</code>）跳到上一个。occur 执行完会把清单登记成「上一次错误列表」，所以这对键直接生效，而且它们对 <code>grep</code> 和 <code>compile</code> 的结果同样有效——记住这一对就够了。想让它在移动时另一窗口实时显示上下文，在 <code>*Occur*</code> 里按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-s o（occur），问你要正则，把匹配行汇总到 *Occur* 缓冲区；从 Isearch 中按同一个键则是 isearch-occur，直接用当前搜索串。">
+    <p class="drill-q"><b>练习 6</b>　当前缓冲区有三万行，你想看所有包含 <code>timeout</code> 的<strong>整行</strong>，而不是一行行跳过去。Emacs 里怎么做？如果此刻你正在 Isearch 过程中呢？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>在缓冲区任意位置按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>（命令 <code>occur</code>），输入正则 <code>timeout</code> <kbd>RET</kbd>，Emacs 生成 <code>*Occur*</code> 缓冲区列出所有匹配行，每行可跳转。如果已经在 Isearch 过程中，同一个键 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> 走的是 <code>isearch-occur</code>，直接拿当前搜索串用，不用重新输入。想让每行带上前后 2 行上下文，把 <code>list-matching-lines-default-context-lines</code> 设成 2。</p></div>
+  </div>
+
+  <div class="drill" data-answer="先按 e 进入 occur-edit-mode 直接改，C-c C-c 提交；注意在普通 *Occur* 里 C-c C-c 是「跳到源行」，只有编辑态里才是提交。">
+    <p class="drill-q"><b>练习 7</b>　你在 <code>*Occur*</code> 清单里发现 12 行的拼写都错了，想直接改掉。按哪个键进入可编辑状态？改完按哪个键提交？<strong>请特别说明</strong>：如果还没按第一个键就按了提交键，会发生什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>e</kbd>（<code>occur-edit-mode</code>）进入编辑状态，改完按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd>（<code>occur-cease-edit</code>）提交，改动会写回源缓冲区。<strong>陷阱</strong>：在还没按 <kbd>e</kbd> 的普通 <code>occur-mode</code> 里，<kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> 绑的是 <code>occur-mode-goto-occurrence</code>，意思是「跳到源行」——按了会跳走而什么都没改。补一句：<code>*Occur*</code> 缓冲区默认只读，不按 <kbd>e</kbd> 根本改不动。</p></div>
+  </div>
+
+  <h3>Imenu：跳到定义</h3>
+
+  <p><strong>Imenu</strong> 是一个<strong>索引框架</strong>：主模式的作者写一小段 Elisp，生成一份「名字 → 位置」的列表，你调 <code>imenu</code> 就能从列表里按名字跳过去。编程模式里最典型的「兴趣点」是函数定义和类定义；邮件模式、结构化文本模式（Markdown、reStructuredText）的标题层级也能用。不是所有主模式都支持，但编程模式绝大多数支持。</p>
+
+  <p><strong>键位现状</strong>（原书说对了，值得强调）：Emacs 29 起 <code>imenu</code> 才有全局键 <kbd>M</kbd><kbd>g</kbd> <kbd>i</kbd>；在此之前它<strong>没有任何全局键位</strong>，只能 <code>M-x</code> 调用。原书说「20 年老用户也不知道 imenu 有全局键」，指的就是这件事。Emacs 28 及更早的用户可以自己绑：</p>
+
+  <pre class="el"><code>(global-set-key (kbd "M-i") 'imenu)</code></pre>
+
+  <p>但今天<strong>不建议这么做</strong>。<kbd>M</kbd><kbd>i</kbd> 默认是 <code>tab-to-tab-stop</code>（跳到下一个制表位，一个打字机时代的概念），绑走它没什么损失，但也没必要——<kbd>M</kbd><kbd>g</kbd> <kbd>i</kbd> 已经够好记，而且 consult 生态正是把 <code>consult-imenu</code> 挂在 <kbd>M</kbd><kbd>g</kbd> <kbd>i</kbd> 上的。</p>
+
+  <p>还有一个版本差异：<strong>Emacs 30 新增了 <code>imenu-flatten</code> 变量</strong>（控制是否把 imenu 层级拍平成一维列表及如何显示），还允许用 <code>completion-category-overrides</code> 自定义 imenu 补全的排序。所以 Emacs 30+ 上，深层嵌套的代码里 imenu 会变得很好用。</p>
+
+  <div class="callout note"><b>要点</b><p>什么时候用 imenu，什么时候用 Isearch？原书这个判断很准，值得照抄：<strong>当你不确定某个东西在文件的哪儿</strong>（你知道有个 <code>handleRequest</code> 方法但不知道在哪个文件哪一行），用 imenu；<strong>当你能看见想要的东西</strong>（屏幕上就有个词），用 <kbd>C</kbd><kbd>s</kbd>，更快。</p></div>
+
+  <details class="deep"><summary>进阶：给不支持 imenu 的模式手写一份索引</summary>
+  <p>接口是 <code>imenu--make-index-alist</code>（函数：根据一个「匹配规则列表」生成索引），最常用的两条规则由 <code>imenu-generic-expression</code>（变量：通用的 imenu 匹配表达式，默认 <code>'((nil . "^\\(defun\\|defmacro\\|defsubst\\|defadvice\\|define-compilation-error\\|define-on-demand-widget\\|define-derived-mode\\|define-generic-mode\\|define-minor-mode\\)")</code>）和 <code>imenu-create-index-function</code> 提供。规则种类有：<code>:submenu</code>（带标题的子菜单，用于嵌套结构）、形如 <code>("标题正则" . 正则)</code>（按正则匹配标题）、形如 <code>(名字 . 位置)</code> 的直接指定项。</p>
+  <p>例如给一个 CSV 模式做「按列名索引」：</p>
+  <pre class="el"><code>(defun my-csv-imenu ()
+  "Build an imenu index from the header line of the current buffer."
+  (let ((headers (split-string (car (split-string (buffer-substring-no-properties
+                                                   (point-min) (line-beginning-position 2))
+                                                  "\t")) "\t")))
+    (mapcar (lambda (hdr) (cons hdr (list (point-min) hdr))) headers)))
+
+(add-hook 'csv-mode-hook
+          (lambda ()
+            (setq-local imenu-create-index-function 'my-csv-imenu)))</code></pre>
+  <p>写完在缓冲区里按 <kbd>M</kbd><kbd>g</kbd> <kbd>i</kbd> 就能挑列名跳转。这不是通用模板，但说明了接口长什么样：<strong>返回一个「名字 . 位置」列表</strong>就行，位置可以是一个数字，也可以是 <code>(点 . 缓冲)</code> 这样的列表。</p>
+  <p>说实话，绝大多数情况下你更该考虑装 <code>consult</code>（它自带的 <code>consult-imenu</code> 体验好得多），或者装对应主模式的增强包。先写 Elisp 是最后一步。</p>
+  </details>
+
+  <h3>补全的谱系：Emacs 这三十年换了几代方案</h3>
+
+  <p>到这里为止讲的全是内置搜索。下一节是本章的<strong>时代重点</strong>，也是原书和今天差距最大的地方。</p>
+
+  <h4>补全到底是什么</h4>
+
+  <p><strong>补全</strong>（completion）指：在 Emacs 底部的迷你缓冲区里输入一段文字（文件名、buffer 名、命令名……），Emacs 实时列出所有「以你输入内容开头」的<strong>候选</strong>，你挑一个填进去。迷你缓冲区被用来读一行输入，几乎每个会问「哪个文件」「哪个 buffer」「哪条命令」的交互最后都落到它上面——<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd>（<code>find-file</code>）、<kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd>（<code>switch-to-buffer</code>）、<kbd>M</kbd><kbd>x</kbd>（<code>execute-extended-command</code>，按名字执行命令）、Isearch 的搜索串——全是它。所以「换一个补全方案」实际效果是<strong>你每天用几十次的那个输入框换了一副面孔</strong>。</p>
+
+  <h4>第一代：默认的前缀补全</h4>
+
+  <p>Emacs 最早也最老实的方案是<strong>按 <kbd>TAB</kbd> 补全</strong>：在 <code>M-x</code> 里打 <code>re</code> 然后 <kbd>TAB</kbd>，Emacs 把 <code>recenter-top-bottom</code>、<code>rectangle</code> 等所有以 <code>re</code> 开头的候选列出来，再按 <kbd>TAB</kbd> 补全成唯一那个。实现由 <code>completion-styles</code>（变量：补全算法列表，默认 <code>'(basic partial-completion emacs22)</code>）控制。它永远是 <kbd>TAB</kbd> 驱动、<em>先补全再让你看候选</em>——你必须先按 <kbd>TAB</kbd> 才「有反应」，这对追求实时反馈的人是致命的。</p>
+
+  <p>Emacs 29 起新增了 <code>partial-completion</code> 风格（默认已包含），还有 <code>flex</code> 风格（<strong>flex matching</strong>，弹性匹配：<code>fb</code> 匹配 <code>foo-bar</code>、<code>f-b</code> 匹配 <code>foobar</code>，代价是变慢）。</p>
+
+  <div class="callout warn"><b>易错</b><p>我在 Emacs 32.0.50 上实测过：原书和大量中文教程还在讲的 <code>use-completion</code>（Emacs 29 引入的新式补全总开关）<strong>在 Emacs 32 里已经不存在了</strong>——<code>(fboundp 'use-completion)</code> 返回 <code>nil</code>，本机 Emacs 32 的 Elisp 手册里也查不到这个词。看到讲 <code>use-completion</code> 的文章，请先确认它的 Emacs 版本。</p></div>
+
+  <h4>第二代：ido 与 helm（原书的主角）</h4>
+
+  <p><strong>IDO</strong>（Interactive DO Things）是 Emacs 内置的小型补全系统，专门优化了「打开文件」和「切换 buffer」。思路是：<strong>不做候选列表</strong>，直接在迷你缓冲区里<em>就地</em>把匹配上的那个名字填进去，你继续打字它就继续补。极其高效——手指不用离开主键区，眼睛不用看别处，打 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 然后 <code>wc</code> 就直接变成 <code>widgets.c</code>。原书说 IDO「注意不到干扰、目标感明确」，说的就是这个。</p>
+
+  <p><strong>Helm</strong> 走相反路子：它是一个通用的<strong>边打字边筛选</strong>（filter-as-you-type）框架，会弹出一个<strong>候选缓冲区</strong>列出所有匹配项，你上下移动挑一个。视觉信息量最大，适合「我不完全确定要找什么」。原书在这一章花了整整五页讲 Helm 并建议「装上它，你会体验大幅提升」——今天读到这里需要打个问号。</p>
+
+  <h4>第三代：ivy/counsel → consult（今天的主流）</h4>
+
+  <ul>
+    <li><strong>ivy</strong>（通用补全框架）+ <strong>counsel</strong>（一批用 ivy 重写的常用命令）+ <strong>swiper</strong>（Isearch 的增强版）——三者同属一个仓库（<code>abo-abo/swiper</code>）。ivy 从 GNU ELPA 或 MELPA 都能装。</li>
+    <li><strong>consult</strong>（作者 Daniel Mendler）—— 新一代方案，目标是<strong>不做补全引擎，只做命令</strong>。它的命令全部建立在 Emacs 标准 API <code>completing-read</code>（Elisp 手册 Minibuffer Completion 一节那个标准函数）之上，因此可以跟在 Emacs 自带的默认补全、<code>vertico</code>、<code>mct</code>、Icomplete 任意一种配合工作。</li>
+  </ul>
+
+  <p><strong>一条本书作者没能亲手核实的关键事实，你要知道它的证据强度。</strong><code>consult</code> 和 <code>vertico</code> 进入了 <strong>GNU ELPA</strong>（Emacs 自带的官方包仓库，MELPA 上也有）这件事，本书的依据是<strong>这两个项目自己的 README 文档</strong>——consult 的 README 里明写着 “Consult can be installed from ELPA or MELPA via the Emacs built-in package manager”，两个仓库首页也挂着 ELPA 徽章。<strong>本书作者写这一章时网络被拦，没能直连 <code>elpa.gnu.org</code> 去核对包索引，所以这是「文档说的」，不是「作者看着包索引说的」。</strong>当年 Helm 就一直没进 ELPA，这也是同一来源。</p>
+
+  <div class="callout tip"><b>技巧</b><p><strong>所以装包之前，你自己花 20 秒核实一下，别信任何二手结论（包括本书）。</strong>按 <kbd>M</kbd><kbd>x</kbd> 输入 <code>package-archives</code> 回车——Emacs 默认的 <code>GNU ELPA archive</code> 那一项就是官方仓库；然后按 <kbd>M</kbd><kbd>x</kbd> <code>package-list-packages</code> <kbd>RET</kbd>，在 <code>*Package List*</code> 缓冲区里直接输入包名筛选，<strong>能看到 <code>consult</code> / <code>vertico</code> 就说明确实在官方仓库里</strong>。这一步只依赖你能连上网络——如果连不上，你连装包都做不到，问题自动变成「先解决网络」，而不是「是不是包名错了」。</p>
+    <p><strong>万一 <code>M-x package-install</code> 报「找不到该包」，不要以为装不了就退回 Helm 那一套。</strong>那通常是默认的 <code>GNU ELPA archive</code> 没配好、或者网络不通。<strong>解法是先把 MELPA 加进去</strong>（<code>https://melpa.org/packages/</code>），第 0 章 0.3 节给了添加仓库地址和验证方法。加完 MELPA 之后 <code>consult</code>、<code>vertico</code>、<code>corfu</code>、<code>cape</code>、<code>orderless</code> 都能装到——这几个项目在 MELPA 上是确定存在的。</p>
+  </div>
+
+  <p><strong>配套家族</strong>（除 vertico 和 compat 外都在 MELPA）：</p>
+
+  <ul>
+    <li><strong>vertico</strong>（VERTical Interactive COmpletion）—— 把候选<strong>竖着</strong>列出来，只改界面不改逻辑，因此和 Emacs 内核补全机制完全兼容。主要代码只有约 600 行，非常小。</li>
+    <li><strong>marginalia</strong> —— 在候选旁边加<strong>边注</strong>（annotation）：文件大小、Git 状态、函数文档、时钟时长等。</li>
+    <li><strong>embark</strong> —— 给当前候选提供<strong>局部动作</strong>（相当于上下文菜单）：选文件时提供「删除这个文件」等；还可以 <code>embark-export</code> 把候选导出成 Occur 或 Dired 缓冲区。</li>
+    <li><strong>orderless</strong> —— 让匹配不依赖字符顺序（<code>fbb</code> 匹配 <code>foo-bar-baz</code>）。</li>
+    <li><strong>compat</strong> —— consult 的依赖，提供对旧版 Emacs 的兼容层。</li>
+  </ul>
+
+  <h4>今天的三条路线，你该选哪条</h4>
+
+  <ol>
+    <li><strong>什么都不装，先用默认补全。</strong> 自带的 <kbd>TAB</kbd> 补全在 Emacs 30/31/32 上足够用两三个月。好处是你不会因为「必须先装包才能正常用 Emacs」而卡住。</li>
+    <li><strong>一行配置：内置的 <code>fido-mode</code> 或 <code>vertico-mode</code>。</strong> 性价比最高的一档，见下。</li>
+    <li><strong>全套：<code>vertico</code> + <code>consult</code>（可选 <code>marginalia</code> + <code>embark</code>）。</strong> 今天社区的事实标准，值得花一个下午配置。README 给的最小配置只有五行：</li>
+  </ol>
+
+  <pre class="el"><code>(package-initialize)
+(require 'consult)
+(require 'vertico)
+(vertico-mode)
+(setq completion-styles '(substring basic))</code></pre>
+
+  <p><code>substring</code> 是一种<strong>子串</strong>匹配风格：输入 <code>wgt</code> 也能匹配 <code>widgets.c</code>（不要求从头开始）；<code>basic</code> 是传统前缀匹配。两个一起开，行为最接近原书描述的「随心输入」手感。</p>
+
+  <p>consult 自己<strong>不提供任何模式，也不绑定任何键</strong>——它只提供命令，绑定留给你（那是第 13 章的内容）。它官方推荐的键位里和本章直接相关的几个，我照抄并标注了各自替换掉哪个内置键：</p>
+
+  <ul>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> → <code>consult-buffer</code>，替换 <code>switch-to-buffer</code>。可切换 buffer、最近打开的文件、书签、其它来源的类 buffer 候选。</li>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> → <code>consult-find</code>，替换 <code>find-file</code>。</li>
+    <li><kbd>M</kbd><kbd>g</kbd> <kbd>i</kbd> → <code>consult-imenu</code>，替换 <code>imenu</code>。它把 imenu 层级拍平成一维列表，还带<strong>实时预览</strong>和分组。</li>
+    <li><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>g</kbd>、<kbd>M</kbd><kbd>g</kbd> <kbd>g</kbd> → <code>consult-goto-line</code>，替换 <code>goto-line</code>。</li>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>d</kbd> → <code>consult-find</code>（按名字找文件）；<kbd>M</kbd><kbd>s</kbd> <kbd>c</kbd> → <code>consult-locate</code>；<kbd>M</kbd><kbd>s</kbd> <kbd>g</kbd> → <code>consult-grep</code>；<kbd>M</kbd><kbd>s</kbd> <kbd>G</kbd> → <code>consult-git-grep</code>；<kbd>M</kbd><kbd>s</kbd> <kbd>r</kbd> → <code>consult-ripgrep</code>。</li>
+    <li><kbd>M</kbd><kbd>s</kbd> <kbd>l</kbd> → <code>consult-line</code>：在<strong>当前缓冲区里按行内容搜</strong>，可选中所有匹配行并编辑（导出会变成一个 Occur 缓冲区）。和 occur 互补：occur 是只读清单，consult-line 是能直接改的。</li>
+    <li><kbd>M</kbd><kbd>g</kbd> <kbd>e</kbd> → <code>consult-compile-error</code>；<kbd>M</kbd><kbd>g</kbd> <kbd>r</kbd> → <code>consult-grep-match</code>。</li>
+    <li><strong>Isearch 集成（最漂亮的一招）：</strong>把 <code>consult-line</code> 绑到 <code>isearch-mode-map</code> 的 <kbd>M</kbd><kbd>s</kbd> <kbd>l</kbd>，这样<strong>你在 Isearch 中就能调用它</strong>——把 Isearch 的「找到」直接变成「批量选中并编辑」。</li>
+  </ul>
+
+  <p>还有一个 <strong>future history</strong>（未来历史）特性：在 consult 任何提示符下按 <kbd>M</kbd><kbd>n</kbd>，它会「猜」你想输入什么，比如把光标处的符号、URL、文件路径直接填进去；大部分命令还会把最近的 Isearch 字符串塞进这个猜测里。知道这点能省掉很多手打。</p>
+
+  <details class="deep"><summary>进阶：ivy/counsel/swiper 现在算什么地位？</summary>
+  <p>它的仓库还在活跃维护（我查到最近一次推送是 2026 年 9 月），README 依然完整，但已经<strong>不是</strong>新项目的推荐起点了。README 里有一句很坦白的说明：<strong>consult 的排错清单明确写着 <code>selectrum-mode</code>、<code>ivy-mode</code>、<code>helm-mode</code>、<code>ido-mode</code> 和 <code>ido-ubiquitous-mode</code> 都属于「不支持」的模式，遇到 bug 必须先关掉它们</strong>——也就是说 consult 作者自己承认这些是替代关系而不是共存关系。</p>
+  <p>什么时候还该考虑 counsel：你的配置里已经装好了 counsel + swiper，不折腾；你需要 <strong>swiper</strong>——Isearch 的增强替代品，能给匹配点分组显示，这是 counsel 这一族里 consult 暂时没有对位的东西；或者你依赖某个只在 counsel 生态里的包（比如 <code>ivy-rich</code>）。新项目不要以它为起点。</p>
+  </details>
+
+  <h4>Helm 今天的处境</h4>
+
+  <p>先说事实：<strong>Helm 没有死</strong>。我查了它的 GitHub 仓库，最近一次推送是 2026 年 10 月 1 日，还在活跃维护，README 上挂着 MELPA 和 MELPA Stable 徽章——但<strong>没有 ELPA 徽章</strong>，而 consult、vertico、ivy 都进了 GNU ELPA。这是官方包仓库对一个项目成熟度的背书差距。</p>
+
+  <p>技术处境：Helm 的核心机制是<strong>自己接管</strong>迷你缓冲区，并且<strong>替换</strong>（而不是扩展）Emacs 的补全机制。它的架构和 consult 走的「只做命令 + 用标准 <code>completing-read</code>」路线在哲学上就冲突：Helm 强调视觉化的候选窗口，而 Emacs 30 以后社区更倾向于让命令在不同补全 UI 下都能工作。</p>
+
+  <div class="callout note"><b>要点</b><p><strong>「替换」具体替换了什么，读者最需要知道这一点，因为它决定了你该怎么排查。</strong>指的是<strong>迷你缓冲区（minibuffer）的行为</strong>：Helm 自己接管它，于是 <kbd>M-x</kbd> <kbd>RET</kbd>、<kbd>C-x</kbd> <kbd>C</kbd><kbd>f</kbd>、<code>M-x</code> 这些本来要弹出一个输入框的动作，全都会先弹出 Helm 那个大候选窗口。<strong>Emacs 自己的补全引擎（<code>completion-styles</code>、<code>vertico-mode</code>）被绕过了，不是被增强。</strong></p>
+    <p><strong>而 consult 不会碰 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd>、<kbd>M</kbd><kbd>TAB</kbd>、<kbd>C</kbd><kbd>s</kbd>、<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 这些内置键。</strong>本书作者在本机 Emacs 32.0.50 上把装好的 <code>consult 3.6</code> 整个目录 <code>grep -rl "C-M-i"</code> 过一遍，<strong>零命中</strong>——也就是说 consult 作者根本没碰过这个键。<strong>所以「被窗口管理器抢了 <kbd>M</kbd><kbd>TAB</kbd> 就换 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd>」和「会不会和 consult 打架」是两个不相干的问题</strong>：前者是键盘硬件问题，后者是包之间的问题，<kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> 两边都不沾。</p>
+    <p>真正会互相干扰的，是 <code>helm-mode</code>、<code>ivy-mode</code>、<code>selectrum-mode</code>、<code>ido-mode</code>、<code>ido-ubiquitous-mode</code> 这几个——<strong>consult 的 README 在排错清单里明确把这几个列为「遇到 bug 必须先关掉」</strong>。也就是说：<strong>consult 和这些是替代关系，和 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> 这种内置键位不是。</strong></p>
+  </div>
+
+  <p><strong>建议</strong>：不要新装 Helm——照着原书 p.170–175 装，你会得到一个能用、但会跟现代 Emacs 的其他部分持续摩擦的方案。已经装了也不必恐慌，它不跟内置功能冲突，只是你得记住它那一整套键位和命令名（下面折叠区里完整保留了）。</p>
+
+  <h4>IDO 今天的处境，以及内置的 <code>fido-mode</code></h4>
+
+  <p>IDO 只对「文件和 buffer 名」这一类补全做了深度优化，其他地方用不上；它是 2000 年代初的作品，Emacs 后来十几年的补全架构改进它基本没享受到。</p>
+
+  <p><strong>今天如果你还想要「就地补全」那种手感，Emacs 自带了一个：<code>fido-mode</code>。</strong></p>
+
+  <p>这是个很多人不知道的事实：<strong><code>fido-mode</code> 是 Emacs 内置的</strong>，不需要装任何包。我在 Emacs 32.0.50 上查到它的定义在 <code>icomplete.el</code> 里，文档字符串原文是「An enhanced <code>icomplete-mode</code> that emulates <code>ido-mode</code>」——<strong>一个模仿 ido-mode 的增强版 icomplete-mode</strong>。<code>fido-vertical-mode</code>（竖直列表版）是 Emacs 28 新增的（NEWS.28 明确记录了「New minor modes <code>icomplete-vertical-mode</code> and <code>fido-vertical-mode</code>」）。所以原书第 180 页推荐你「去装第三方 FIDO 包」，今天只需要：</p>
+
+  <pre class="el"><code>(fido-mode 1)</code></pre>
+
+  <p>放进初始化文件（或 <kbd>M-x fido-mode</kbd> 临时开）就行。它会自动启用 <code>icomplete-mode</code>（所以不用另外开 <code>icomplete-mode</code>），把候选就地填进迷你缓冲区，并自动使用 <code>flex</code> 匹配风格。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong><code>fido-mode</code> 和 <code>vertico-mode</code> 不要同时开。</strong> 两者都想接管迷你缓冲区的呈现，会互相打架。要竖直下拉列表用 <code>vertico-mode</code>，要就地补全用 <code>fido-mode</code>，二选一。</p></div>
+
+  <p>IDO 本身的键位（如果你已经用了 <code>(ido-mode 1)</code>）：Emacs 32 的 <code>ido.el</code> 里有四张键位表。<code>ido-common-completion-map</code>（所有 IDO 命令共有）里常用的是 <kbd>C</kbd><kbd>s</kbd> / <kbd>C</kbd><kbd>r</kbd>（<code>ido-next-match</code> / <code>ido-prev-match</code>）、<kbd>TAB</kbd>（<code>ido-complete</code>，回到传统 <kbd>TAB</kbd> 补全）、<kbd>SPC</kbd>（<code>ido-complete-space</code>，补全并吃掉一个空格，<strong>这是 IDO 最好用的键</strong>）、<kbd>RET</kbd>（<code>ido-exit-minibuffer</code>，接受当前匹配）、<kbd>C</kbd><kbd>d</kbd>（<code>ido-magic-delete-char</code>，智能删除）、<kbd>M</kbd><kbd>SPC</kbd>（<code>ido-take-first-match</code>，直接选第一个匹配）、<kbd>?</kbd>（<code>ido-completion-help</code>，列出全部键位）。文件那张 <code>ido-file-dir-completion-map</code> 里 <kbd>DEL</kbd> 和 <kbd>Backspace</kbd> 都是 <code>ido-delete-backward-updir</code>、<kbd>C</kbd><kbd>l</kbd> 是 <code>ido-reread-directory</code>、<kbd>M</kbd><kbd>f</kbd> 是 <code>ido-wide-find-file-or-pop-dir</code>。buffer 那张 <code>ido-buffer-completion-map</code> 里 <kbd>C</kbd><kbd>k</kbd> 是 <code>ido-kill-buffer-at-head</code>、<kbd>C</kbd><kbd>o</kbd> 是 <code>ido-toggle-virtual-buffers</code>。</p>
+
+  <div class="callout note"><b>要点</b><p>原书 p.178 给的 IDO 文件/目录键位表里有三条<strong>在今天的 Emacs 32 里已经不成立</strong>：<kbd>C</kbd><kbd>d</kbd>（原书写「在当前目录打开 Dired」，现在这个键是 <code>ido-magic-delete-char</code>，开 Dired 改成了 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>d</kbd>）、<kbd>/</kbd><kbd>/</kbd>（原书写「跳到根目录」）、<kbd>~</kbd><kbd>/</kbd>（原书写「跳到家目录」）——这三个在 <code>ido.el</code> 里已经没有对应绑定了。<kbd>C</kbd><kbd>s</kbd> / <kbd>C</kbd><kbd>r</kbd> 和 <kbd>TAB</kbd> 在文件与 buffer 两张表里都有，含义与原书一致；<kbd>RET</kbd> 两表都是接受匹配。原书表格之外的 <kbd>C</kbd><kbd>k</kbd>、<kbd>C</kbd><kbd>o</kbd>、<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd>（<code>ido-enter-find-file</code>）也是原书没提的。</p></div>
+
+  <h4>从 Helm / IDO 迁到 consult：一份可执行清单</h4>
+
+  <p>原则是<strong>一次只换一层</strong>，不要同时改键位和引擎：</p>
+
+  <ol>
+    <li><strong>先关 IDO。</strong> 把配置里的 <code>(ido-mode 1)</code>、<code>(setq ido-everywhere t)</code>、<code>(setq ido-enable-flex-matching t)</code> 删掉或注释掉。<code>ido-everywhere</code> 在 Emacs 32 里已是一个 minor mode（原书让你 <code>setq</code>，今天写 <code>(ido-everywhere 1)</code> 效果一样），不关掉它才会到处劫持读文件名的入口。</li>
+    <li><strong>装 <code>vertico</code> 和 <code>consult</code>。</strong> <code>M-x package-install RET vertico RET</code>、<code>M-x package-install RET consult RET</code>。<strong>不要同时保留 helm。</strong>装之前重启 Emacs 让 package 系统生效。<strong>如果提示找不到这个包</strong>，说明你的 <code>GNU ELPA archive</code> 没配好或者网络不通——用上面那段「技巧」里的 <code>package-list-packages</code> 核实一遍，必要时先把 MELPA 加进去（<code>https://melpa.org/packages/</code>，第 0 章 0.3 节有方法），这两个包在 MELPA 上是确定有的。</li>
+    <li><strong>先只开 <code>vertico</code>。</strong> 写 <code>(vertico-mode 1)</code> 和 <code>(setq completion-styles '(substring basic))</code>，重启。这一阶段所有迷你缓冲区都会变成竖直候选列表，但命令还是原来的内置命令。</li>
+    <li><strong>用一周，只把三个键绑到 consult。</strong> 建议从 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> → <code>consult-buffer</code>、<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> → <code>consult-find</code>、<kbd>M</kbd><kbd>g</kbd> <kbd>i</kbd> → <code>consult-imenu</code> 开始，因为最常用、替换后收益最明显。用顺手了再逐个加。</li>
+    <li><strong>加 Isearch 集成（可选，推荐）。</strong> 把 <code>consult-line</code> 绑到 <code>isearch-mode-map</code> 的 <kbd>M</kbd><kbd>s</kbd> <kbd>l</kbd>，<code>consult-line-multi</code> 绑到 <kbd>M</kbd><kbd>s</kbd> <kbd>L</kbd>。这是 consult 体验的分水岭：搜完之后能直接进入「选中所有匹配行」的编辑状态，而不只是跳转。</li>
+    <li><strong>卸载 Helm（可选，也是全清单里唯一不可逆的一步）。</strong> 确认已不再需要任何 <kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> 开头的命令之后，再 <code>M-x package-delete RET helm RET</code>。<strong>「先看清楚会删掉什么」具体是哪几个键：</strong><code>M-x package-menu RET</code> 打开 <code>*Package Menu*</code> 缓冲区，<strong>光标停在某个包上时，缓冲区顶部会列出它的依赖</strong>；按 <kbd>RET</kbd> 展开这个包的详情，看清 <strong>Installed by</strong> 和 <strong>Version</strong> 两行；确定要删了按 <kbd>d</kbd>，Emacs 会问「这些依赖也要一起删吗」，逐个看清楚再答 <kbd>y</kbd>。<strong>如果不确定就按 <kbd>q</kbd> 退出，什么都没发生</strong>——这才是「不要跳过确认」的真正含义。</li>
+    <li><strong>删错了怎么办。</strong> <code>package-delete</code> 只删 <code>elpa/</code> 目录里那个包的目录，<strong>不碰你的 <code>init.el</code></strong>，所以配置不会因为删包而报错，只是那些命令变成 <code>void-function</code>。<strong>回滚很简单：重新 <code>M-x package-install RET helm RET</code> 装回来，然后重启 Emacs</strong>。真正删不回来的只有「当初没装的」那部分。</li>
+    <li><strong>加 marginalia / embark（以后再说）。</strong> 这两个是纯增强，关掉也不会坏。</li>
+  </ol>
+
+  <p>如果你<strong>不想装任何东西</strong>，第 2–6 步全部跳过，只做第 1 步（关掉 IDO），然后把 <code>(fido-mode 1)</code> 写进去。这是今天「零依赖但仍有就地补全」的最小方案。</p>
+
+  <details class="deep"><summary>进阶：Helm 的完整键位表（原书 p.171–175，今天仅供已装 Helm 的读者查阅）</summary>
+  <p>以下原样保留自原书，供已经装了 Helm 的读者查键位。<strong>新读者请跳过本框。</strong>Helm 是第三方包（不在 Emacs 里，也不在 GNU ELPA），安装方式是 <code>M-x package-install</code> 后输入 <code>helm</code> 回车，重启 Emacs。</p>
+  <p>所有 Helm 命令共享前缀键 <kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd>。原书对这个前缀键的批评我同意一半：它离 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd>（退出 Emacs）太近，后续键位（如 <kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>g</kbd>）也确实拗口——但你在用 Helm，这些键已经生效了，记下来就行。</p>
+  <p><strong>Helm 通用键位：</strong><kbd>RET</kbd> 执行<strong>主要动作</strong>（通常是跳转、打开、显示）；<kbd>C</kbd><kbd>e</kbd> 执行<strong>次要动作</strong>——有个容易被误会的细节，<kbd>C</kbd><kbd>e</kbd> 原本是「移到行尾」这个基本移动命令，<strong>在 Helm 里如果光标还不在行尾它仍然移到行尾，只有在行尾时才触发次要动作</strong>；<kbd>C</kbd><kbd>j</kbd> 执行<strong>第三动作</strong>；<kbd>TAB</kbd> 切换到<strong>动作选择器</strong>，同样支持边打字边筛选；<kbd>C</kbd><kbd>n</kbd> / <kbd>C</kbd><kbd>p</kbd> 下一个 / 上一个候选；<kbd>C</kbd><kbd>v</kbd> / <kbd>M</kbd><kbd>v</kbd> 向下 / 向上翻页；<kbd>M</kbd><kbd>&lt;</kbd> / <kbd>M</kbd><kbd>&gt;</kbd> 跳到列表开头 / 结尾；<kbd>C</kbd><kbd>g</kbd> 是退出 Helm 的万能键。</p>
+  <p><strong>Helm 的主要补全引擎（都带 <kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> 前缀）：</strong><kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>b</kbd> 继续上一次的 Helm 命令（<code>helm-resume</code>）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>/</kbd> 在当前目录跑 <code>find</code> 命令行工具（<code>helm-find-files</code>）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>a</kbd> 是 <code>M-x apropos</code> 的补全版（<code>helm-apropos</code>，看 <em>Commands</em> 分组就好，<em>Functions</em> 是内部函数）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>m</kbd> 是 man page 的补全（<code>helm-man</code>）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>i</kbd> 是来自 imenu 或 Semantic 的补全（<code>helm-imenu</code>）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>r</kbd> 是交互式正则构造器（<code>helm-regexp-builder</code>）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>h</kbd> <kbd>r</kbd> 在 Emacs Info 里搜主题（<code>helm-info-emacs</code>）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>M</kbd><kbd>x</kbd> 是 <code>M-x</code> 的补全（<code>helm-M-x</code>）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> 用 Helm 匹配 occur 的模式（<code>helm-occur</code>）；<kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> <kbd>g</kbd> 是 Google Suggest 搜索建议（<code>helm-google-suggest</code>），原书很喜欢这个功能，选中结果按 <kbd>RET</kbd> 就用默认浏览器搜索，键位拗口是事实，可以用 <code>remap-key</code> 改掉。</p>
+  <p><strong>怎么发现 Helm 自己的命令？</strong>原书这段思路适用于任何 Emacs 功能，值得保留：Emacs Lisp <strong>没有命名空间</strong>，所以包作者习惯给自己的命令统一加包名前缀（<code>helm-</code>）。于是 <code>M-x apropos-command</code>（<code>C</code><kbd>h</kbd> <kbd>a</kbd>）输 <code>^helm-</code> 就能列出所有以 <code>helm-</code> 开头的命令，<code>M-x apropos-variable</code> 输 <code>^helm-</code> 列变量。想查前缀键绑了谁，用 <code>describe-key</code>：敲完前缀再敲 <kbd>C</kbd><kbd>h</kbd>，即 <kbd>C</kbd><kbd>x</kbd> <kbd>c</kbd> <kbd>C</kbd><kbd>h</kbd>。两个方法问的其实是不同问题（<strong>一个问「有什么命令」，一个问「这个键按下去会怎样」</strong>），所以两个都做。Helm 还有自己的 apropos 引擎 <code>M-x helm-apropos</code>。</p>
+  </details>
+
+  <div class="drill" data-answer="Emacs 32 里 define-thing-at-point 已移除；Emacs 30+ 改用 thing-at-point-provider-alist / forward-thing-provider-alist / bounds-of-thing-at-point-provider-alist。">
+    <p class="drill-q"><b>练习 8</b>　你在网上读到一篇文章说包作者用 <code>define-thing-at-point</code> 注册新的 thing 类型。这个说法在 Emacs 32 上还成立吗？如果不成立，该用什么代替？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>不成立。我在本机 Emacs 32.0.50 上实测 <code>(fboundp 'define-thing-at-point)</code> 返回 <code>nil</code>，本机 Emacs 32 的 Elisp 手册里也查不到这个词条——这个宏已经从内核移除了。Emacs 30 开始的正规接口是三个 provider 列表变量：<code>thing-at-point-provider-alist</code>、<code>forward-thing-provider-alist</code>、<code>bounds-of-thing-at-point-provider-alist</code>。作为使用者你不需要碰这些，只需要知道「thing at point 是可扩展的」，这样遇到 <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>.</kbd> 取错东西时能判断是包的问题而不是自己的问题。</p></div>
+  </div>
+
+  <div class="drill" data-answer="关掉 ido-mode / ido-everywhere；装 vertico 和 consult（作者的依据是项目 README，装前自己用 package-list-packages 核实一次）；不要同时开 fido-mode 和 vertico-mode">
+    <p class="drill-q"><b>练习 9</b>　你已经按原书装好了 Helm，并且配置了 <code>(ido-mode 1)</code>、<code>(setq ido-everywhere t)</code>、<code>(setq ido-enable-flex-matching t)</code>。今天要迁到主流方案，正确顺序是什么？迁移前最先要做的一件事是什么？另外，「零依赖」方案又是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>最先做的是<strong>关掉 IDO</strong>：删掉 <code>(ido-mode 1)</code>、<code>(setq ido-everywhere t)</code>、<code>(setq ido-enable-flex-matching t)</code>（<code>ido-everywhere</code> 在 Emacs 32 里已是 minor mode，写 <code>(ido-everywhere 1)</code> 等价）。然后 <code>M-x package-install</code> 装 <code>vertico</code> 和 <code>consult</code>（两者都已进 GNU ELPA，MELPA 也有），<strong>不要同时保留 helm</strong>；先只开 <code>(vertico-mode 1)</code> 加 <code>(setq completion-styles '(substring basic))</code>，用一周，再逐步把 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd>、<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd>、<kbd>M</kbd><kbd>g</kbd> <kbd>i</kbd> 换成 consult 版本；确认不用了才卸载 helm（<code>M-x package-menu</code> 里选中包 → 看顶部依赖 → <kbd>RET</kbd> 看详情 → <kbd>d</kbd> 删除 → <kbd>y</kbd> 确认；删错了重新 <code>package-install</code> 装回来即可，<code>init.el</code> 不受影响）。<strong>零依赖方案</strong>是只做第一步，然后写 <code>(fido-mode 1)</code>——<strong><code>fido-mode</code> 是 Emacs 内置的</strong>，在 <code>icomplete.el</code> 里，不需要装包。但注意 <code>fido-mode</code> 与 <code>vertico-mode</code> 只能二选一。</p></div>
+  </div>
+
+  <h3>Grep：在 Emacs 里搜索文件系统</h3>
+
+  <p>isearch 和 occur 都只管一个缓冲区。真正常见的任务是「这个标识符在整个项目里出现在哪些文件」，这需要 <code>grep</code>——操作系统上的一个外部程序，遍历目录树把匹配行打印出来。Emacs 有一整族命令去调用它，并把结果变成可跳转、可编辑的缓冲区。</p>
+
+  <div class="callout note"><b>要点</b><p>Emacs 里用 grep 和在终端里用是两种体验。你不需要退出编辑器、不需要 tmux、不需要重新 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 打开文件：Emacs 调完 grep 会开一个 <code>*grep*</code> 缓冲区，每一行匹配都是超链接，回车就跳到源文件那一行，源文件没开就自动打开。很多 Vim 用户切换到 Emacs 后最先感受到的效率提升就在这里。</p></div>
+
+  <p>grep 这一族命令<strong>没有任何一个默认绑定按键</strong>，全部要用 <code>M-x</code> 调用，用顺手了再自己绑键。理解它们的关键是分两大类：</p>
+
+  <ul>
+    <li><strong>低层——你自己给完整命令行。</strong><code>M-x grep</code>（<code>grep</code>）给你一条建议好的 grep 命令串，你补上搜索模式和额外选项；<code>M-x grep-find</code>（<code>grep-find</code>）同上但用 <code>find</code> 递下去找文件，命令串由变量 <code>grep-find-command</code> 提供。原书用得少，理由是它们太底层：你想搜「一组文件里的某个模式」时太麻烦。只有当你要传特定选项（比如 <code>-i</code>、<code>-A 5</code>）时才有必要。</li>
+    <li><strong>高层——只问几个问题：搜什么内容、搜哪些文件、<strong>从哪儿开始搜</strong>。</strong><code>M-x lgrep</code>（<code>lgrep</code>）给定搜索模式和 <strong>glob 模式</strong>（一种通配符写法，如 <code>*.c</code>）；<code>M-x rgrep</code>（<code>rgrep</code>）再问你从哪个目录开始，<strong>递归</strong>搜子目录，<strong>这是最常用的那条命令</strong>；<code>M-x rzgrep</code>（<code>rzgrep</code>）像 rgrep 但搜 <strong>gzip 压缩过的文件</strong>。它们把命令行完全藏起来，还会<strong>聪明地猜</strong>：按当前缓冲区的文件类型推断该搜什么扩展名，并把光标处的符号作为搜索串的建议值。<strong>但「猜」出来的目录默认值未必是你要的</strong>——所以正停在一个标识符上时，<code>M-x rgrep</code> 之后<strong>第一个提示先别急着回车</strong>，看一眼 <code>Base directory:</code> 那一行对不对（下一小节专门讲这个）。</li>
+  </ul>
+
+  <p>「递归」是 rgrep 的价值所在——现代项目动辄几千个文件，逐个打开搜索是不可能的。</p>
+
+  <h4><code>M-x rgrep</code> 到底在哪个目录搜：<strong>必须搞清的一件事</strong></h4>
+
+  <p>上面说 <code>rgrep</code> 「问两个问题」，<strong>这是简化说法，会害你。</strong>实际它问<strong>三个</strong>问题，而且<strong>第一个问题的默认值不是项目根，是当前缓冲区所在的那个目录</strong>。本书作者在本机 Emacs 32.0.50 上查了 <code>grep.el</code> 里 <code>rgrep</code> 的交互规格，它实际是这么走的：</p>
+  <div class="keys">
+    <h4><code>M-x rgrep</code> 的三个提问，依次是什么</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>第一个问题</td><td><code>Base directory:</code></td><td><strong>从哪个目录开始往下递归。</strong>默认值是当前缓冲区的 <code>default-directory</code>。<strong>这一步不能一路回车放过去</strong>——放过去就是只搜你当前这个文件所在的目录，不是项目根</td></tr>
+        <tr><td>第二个问题</td><td><code>Search for:</code></td><td>搜索串（正则）。默认会预填光标处的符号</td></tr>
+        <tr><td>第三个问题</td><td><code>Search for "…" in files matching wildcard:</code></td><td>文件名通配模式。<strong>按 <kbd>TAB</kbd> 会列出一堆现成的别名</strong>（下一段解释），直接输别名或按 <kbd>TAB</kbd> 选都行</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>照着这个顺序，一个具体的例子。假设你的项目叫 <code>myproject</code>，里面有 <code>src/api/user.py</code>、<code>src/api/auth.py</code>、<code>tests/test_user.py</code>、<code>README.md</code> 四个文件，<strong>而你当前打开的是 <code>src/api/user.py</code>，光标停在函数名 <code>parse_config</code> 上</strong>。此时按 <kbd>M</kbd><kbd>x</kbd> 输 <code>rgrep</code> 回车：</p>
+
+  <pre class="term"><code>Base directory: /home/you/myproject/src/api/    ← 默认值！这是最容易踩的坑
+Search for: parse_config                       ← 默认预填了光标处的 parse_config
+Search for "parse_config" in files matching wildcard: *.py
+                                               ← 默认按当前文件类型推断</code></pre>
+
+  <p>三个默认值分别意味着：<strong>只搜 <code>src/api/</code> 及其子目录</strong>（<code>auth.py</code> 会被搜到，<code>tests/test_user.py</code> 和 <code>README.md</code> 不会）；<strong>搜的是 <code>parse_config</code> 这一个词</strong>；<strong>只有 <code>.py</code> 文件算数</strong>。一路 <kbd>RET</kbd> 下去得到的就是「<code>src/api/</code> 里的 <code>.py</code> 文件中出现 <code>parse_config</code> 的所有行」。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong>三个默认值各有一个坑，踩哪个都会让「搜不到」变成一件很费时间的事。</strong></p>
+    <ul>
+      <li><strong>目录</strong>：默认是 <code>src/api/</code>，<strong>不是项目根</strong>。想搜整个仓库，就在 <code>Base directory:</code> 那里把路径改成 <code>/home/you/myproject</code>（末尾加不加 <code>/</code> 都行）。<strong>改目录和保留 glob 是两个独立的选择</strong>——目录决定「从哪儿往下走」，glob 决定「哪些文件算数」。</li>
+      <li><strong>glob</strong>：默认只按当前文件类型推断。<strong>在 <code>.py</code> 文件里搜 <code>*.py</code>，就搜不到 <code>README.md</code> 里的引用、也搜不到 <code>Makefile</code> 和 <code>.yml</code>。这一格的默认值有优先顺序：先按当前文件的扩展名去匹配一张<strong>内置别名表</strong>，匹配上就用那一组（比如在 <code>.h</code> 文件里默认给的是 <code>*.h</code>）；匹配不上就直接用 <code>*.&lt;扩展名&gt;</code>。所以你在 <code>.cc</code> 文件里会看到 <code>*.cc *.cxx *.cpp *.C *.CC *.c++</code> 这样一串——<strong>这一格本来就接受多个用空格隔开的模式</strong>，内置别名表里 <code>cc</code>、<code>cchh</code> 这些多模式条目就是证据。想要更多可以直接写：<code>*.py *.md *.yml</code>。</li>
+      <li><strong>搜索串</strong>：预填的是<strong>光标处的那一个符号</strong>。光标不在标识符上时预填的是空的，得自己打。</li>
+    </ul>
+    <p><strong>「搜不到」的三种可能，按这个顺序排查：</strong>① 目录对不对（看 <code>Base directory:</code> 那一行）；② glob 把你想搜的文件类型排除掉了；③ 搜索串大小写不对——<code>grep</code> 默认<strong>区分大小写</strong>，搜 <code>parse_config</code> 找不到 <code>Parse_Config</code>。</p>
+  </div>
+
+  <div class="callout tip"><b>技巧</b><p><strong>第三格按 <kbd>TAB</kbd> 就能省掉手打。</strong>Emacs 内置了一张文件名通配符别名表，本书作者在 Emacs 32.0.50 上查到的默认值是（<code>grep-files-aliases</code>）：<code>all</code> 对应 <code>* .*</code>（全都要）、<code>el</code> 对应 <code>*.el</code>、<code>ch</code> 对应 <code>*.[ch]</code>、<code>c</code> 对应 <code>*.c</code>、<code>cc</code> 对应 <code>*.cc *.cxx *.cpp *.C *.CC *.c++</code>、<code>m</code> 对应 <code>[Mm]akefile*</code>、<code>tex</code> 对应 <code>*.tex</code>，等等。<strong>所以「想搜整个项目所有文件」有一个现成答案：在那一格输入 <code>all</code> 再按 <kbd>TAB</kbd>，它会展开成 <code>* .*</code></strong>——注意 <code>*</code> 和 <code>.*</code> <strong>之间有一个空格</strong>，那是 Emacs 自己生成的写法（分隔文件通配与内容通配），不要手打漏掉。想改这张表用 <kbd>M</kbd><kbd>x</kbd> <code>customize</code> 搜 <code>grep-files-aliases</code>。</p></div>
+
+  <div class="callout note"><b>要点</b><p><strong>自动排除的是哪些目录？</strong>不是「Emacs 拍脑袋决定的」，是直接取自版本控制系统的排除名单。<code>grep.el</code> 里 <code>grep-find-ignored-directories</code>（<code>rgrep</code> 不再递归进去的目录）的<strong>默认值就是变量 <code>vc-directory-exclusion-list</code> 的值</strong>，本书作者在 Emacs 32.0.50 的 <code>vc-hooks.el</code> 第 129–132 行查到它长这样：</p>
+    <pre class="term"><code>"SCCS" "RCS" "CVS" "MCVS" ".src" ".svn" ".git" ".hg" ".bzr"
+"_MTN" "_darcs" "{arch}" ".repo" ".jj"</code></pre>
+    <p>另外还有 <code>grep-find-ignored-files</code> 管文件级排除，它的默认值是从 <code>completion-ignored-extensions</code> 推出来的（<code>.elc</code>、<code>.pyc</code>、<code>.o</code>、<code>~</code> 结尾的备份、<code>.class</code> 这类都算，本书作者在 32.0.50 上打印过那个变量的完整值）。<strong>两个变量都能用 <kbd>M</kbd><kbd>x</kbd> <code>customize</code> 改</strong>；觉得默认排得不够（比如想连 <code>node_modules</code> 也排掉），改 <code>grep-find-ignored-directories</code> 加一条即可。</p>
+    <p>本书作者在 32.0.50 上实测过：<strong>Emacs 内核没有 ripgrep 支持</strong>——<code>(fboundp 'ripgrep-any-handler)</code> 返回 <code>nil</code>，<code>rg</code> 也不在 Emacs 32 里。所以 <code>rgrep</code> 底下跑的还是系统上的 <code>grep</code> / <code>find</code>，想要 ripgrep 的速度要自己接（见下面的折叠块）。</p>
+  </div>
+
+  <h4><code>grep-mode</code> 缓冲区</h4>
+
+  <p>Emacs 里做任何事最后结果都是一个<strong>缓冲区</strong>，grep 也不例外：Emacs 把 grep 进程的输出<strong>管道</strong>（pipe，一个进程把输出直接接到另一个进程的输入）进一个叫 <code>*grep*</code> 的缓冲区，用 <code>grep-mode</code>（主模式）显示它。这个模式给每行匹配加高亮并做成指向「文件名 + 行号」的超链接。</p>
+
+  <p>原书有个很值得学的观察：<strong><code>*grep*</code> 缓冲区里的文本长得和终端里 <code>grep</code> 的输出一模一样</strong>，因为 Emacs 用的就是原始输出，只是加了超链接和高亮。你可以自己验证：新建一个空缓冲区（<kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 然后输一个没被占用的名字），敲进去一行 <code>my_file.txt:10:This does not exist!</code>，然后按 <code>M-x grep-mode</code>，Emacs 会把 <code>10</code> 高亮成超链接。Emacs 大量采用这种「把外部命令的原始输出灌进缓冲区再解释它」的低技术但极其有效的做法，你以后还会遇到很多次。</p>
+
+  <h4>在 grep 结果里跳转</h4>
+
+  <p><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd>（<code>next-error</code>）跳到下一个匹配，<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>p</kbd>（<code>previous-error</code>）跳到上一个——跟 occur 那节是同一套机制。Emacs 会自动打开还没打开的文件、跳到对应行；已经打开的就直接切过去。这就是为什么你只需要记住<strong>一对</strong>键。审阅结果时按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd> 打开 <code>next-error-follow-minor-mode</code>，另一窗口会跟着 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 的节奏实时显示上下文。</p>
+
+  <h4>怎么配置 grep</h4>
+
+  <p>原书建议你 <code>M-x customize-group grep</code> 去配置，这一招今天依然有效（<code>customize</code> 是 Emacs 内置的配置界面）。这里说两件 grep 命令在背后「猜」的事：<strong>跨平台一致</strong>——Emacs 要在各种平台上表现一致，有些平台没有 <code>xargs</code>（把 find 的输出喂给另一个命令的工具），Emacs 会检测并改用 <code>find</code> 自己的 <code>-exec</code> 开关，而且各种 shell 的引号和转义规则不同，Emacs 会相应处理；<strong>自动排除无意义的目录</strong>——Emacs 会自动把版本控制目录（<code>.git</code>）、回收站等从搜索范围里排除，省得你搜出一堆噪音。</p>
+
+  <details class="deep"><summary>进阶：Windows 上的 grep / find，以及用 ripgrep 加速</summary>
+  <p><strong>Windows 的坑（原书 p.180–183 讲的是真问题，今天仍然存在，只是解法变了）：</strong>Windows 没有和 Unix <code>grep</code> 对等的工具，自带的 <code>findstr</code> 也不被 Emacs 默认调用；更麻烦的是 Windows 上有个老的 <code>find</code> 命令（搜文件名用的那个），Emacs 默认会拿它当 Unix 的 <code>find</code> 用，结果完全不对。原书给的解法是安装 GNU Coreutils（核心工具集，含 grep/find 的 Windows 移植版）并把它的 <code>bin</code> 目录加进 <code>PATH</code>：</p>
+  <pre class="el"><code>(setenv "PATH" (concat "C:\\gnuwin32\\bin\\"
+                      path-separator
+                      (getenv "PATH")))</code></pre>
+  <p>把路径换成你的 GNU 工具实际安装目录后重启 Emacs。这个做法今天依然有效，只是路径示例该用 MSYS2 之类工具链的真实路径。<strong>注意</strong>：如果用 WSL（Windows 子系统）里的 Emacs，或用 <code>Scoop</code> / <code>winget</code> 装了 <code>ripgrep</code>，这个问题通常自动消失。</p>
+  <p><strong>ripgrep（rg）：今天的实际答案。</strong>ripgrep 是 Rust 写的 <code>grep</code> 替代品，默认忽略 <code>.gitignore</code>、多线程、支持 <code>-t rust</code> 之类的文件类型过滤，比 GNU grep 快一个数量级。Emacs 内核<strong>没有</strong>内置支持——我实测 <code>(fboundp 'ripgrep-any-handler)</code> 返回 <code>nil</code>，<code>rg</code> 不在 Emacs 32 里。两条路：一是用 <code>consult</code> 的 <code>consult-ripgrep</code>（官方推荐绑在 <kbd>M</kbd><kbd>s</kbd> <kbd>r</kbd>），最省事；二是 <code>M-x grep</code> 后把命令行手写成 <code>rg --line-number --with-filename --context=3 PATTERN</code>，<code>rg</code> 默认输出格式（<code>文件:行号:内容</code>）恰好和 Emacs 的 <code>grep-mode</code> 兼容，所以高亮和跳转都能正常工作。</p>
+  <p>补一条纠正：consult README 里提到「Emacs 31 上有 <code>grep-edit-mode</code>」可以在 grep 缓冲区里直接改源码。我在本机 Emacs 32.0.50 上核对过，<strong>这个命令目前并不存在</strong>（<code>(fboundp 'grep-edit-mode)</code> 为 <code>nil</code>，本机 NEWS.31 里也查不到），别照抄。真要在 grep 结果里改代码，现在的方案是第三方包 <code>wgrep</code>，或经由 embark 导出到 Occur 缓冲区（支持 <kbd>e</kbd> 直接编辑）。</p>
+  </details>
+
+  <div class="keys">
+    <h4>本节按键：Grep</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>rgrep</code></td><td><code>rgrep</code></td><td>递归搜索目录树（最常用）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>lgrep</code></td><td><code>lgrep</code></td><td>按 glob 模式搜当前目录</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>rzgrep</code></td><td><code>rzgrep</code></td><td>递归搜 gzip 压缩文件</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>grep</code></td><td><code>grep</code></td><td>手写完整 grep 命令行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>grep-find</code></td><td><code>grep-find</code></td><td>手写完整 grep 命令行，用 find 递文件</td></tr>
+        <tr><td><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>p</kbd></td><td><code>next-error</code></td><td>在 <code>*grep*</code> 结果间跳转</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>next-error-follow-minor-mode</code></td><td>跳转时在另一窗口同步显示上下文</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize-group grep</code></td><td><code>customize</code></td><td>配置 grep 相关选项</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>compile</code></td><td><code>compile</code></td><td>编译并进入 <code>*compilation*</code> 缓冲区，共享同一套跳转键</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="M-x rgrep：问搜索模式和 glob 模式，递归搜整个目录树，自动排除隐藏目录，Emacs 自动推测文件类型和光标处符号作为默认值。">
+    <p class="drill-q"><b>练习 10</b>　你停在一个名为 <code>parse_config</code> 的函数上，想知道整个项目里还有哪些地方调用了它。Emacs 里的最短路径是什么？Emacs 会替你猜哪些东西让你少打字？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>M-x rgrep</code>（命令 <code>rgrep</code>）。它只问两件事：搜索模式和 glob 模式，然后递归搜整个目录树。Emacs 帮你猜的部分：①按当前缓冲区的文件类型推断该搜哪种扩展名；②把光标处的符号（这里是 <code>parse_config</code>）作为搜索串的建议值；③自动把 <code>.git</code> 之类的版本控制目录排除掉。所以你完全可以 <kbd>RET</kbd> <kbd>RET</kbd> 直接开跑。搜完在 <code>*grep*</code> 缓冲区用 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> / <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>p</kbd> 在结果间跳。</p></div>
+  </div>
+
+  <h3>零散的移动命令</h3>
+
+  <p>原书在搜索之后附了一组「其它移动命令」，日常使用频率不高但每个都有明确用途，值得在第 3、4 章的基本移动之外补进工具箱。</p>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>r</kbd> 与 <kbd>C</kbd><kbd>l</kbd> 功能相近：前者先把光标移到行首再在窗口<strong>顶部 / 中部 / 底部</strong>循环，后者<strong>滚动窗口</strong>让光标所在行重新居中到这三个位置。原书说他天天用 <kbd>C</kbd><kbd>l</kbd>：<strong>这是让缓冲区视野跟着阅读位置移动的最快办法</strong>，比如你正在读文件末尾 200 行，按几下让前面的内容露出来。<kbd>C</kbd><kbd>M</kbd><kbd>l</kbd> 更聪明：它会智能滚动，让光标所在的<strong>注释块或定义块</strong>完整可见。</li>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>n</kbd> 设置<strong>目标列</strong>。默认上下移动时 Emacs 尽量保持你的水平位置；设了目标列后它会强制让光标落在目标列那一格。取消用前缀参数 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>n</kbd>——<strong>这是同一个命令加前缀参数，不是另一个命令</strong>。原书说它对多数人兴趣有限，我同意，但知道它存在能省掉一些「怎么让缩进对齐」的困惑。</li>
+    <li><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>g</kbd> 跳到指定行，<kbd>M</kbd><kbd>g</kbd> <kbd>g</kbd> 是同一命令的别名形式（<code>goto-map</code> 里 <kbd>M</kbd><kbd>g</kbd> <kbd>ESC</kbd> <kbd>g</kbd> 也一样）。数字前缀可直接跳：<kbd>M</kbd><kbd>5</kbd><kbd>5</kbd> <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>g</kbd> 到第 55 行。数字前缀一律用 <kbd>M</kbd> 加数字而不是 <kbd>C</kbd> 加数字，手不用换到控制键上。<kbd>M</kbd><kbd>g</kbd> <kbd>TAB</kbd>（<code>move-to-column</code>）跳到指定列，<kbd>M</kbd><kbd>g</kbd> <kbd>c</kbd>（<code>goto-char</code>）跳到从缓冲区开头算起的第 N 个字符，如 <kbd>M</kbd><kbd>4</kbd><kbd>2</kbd> <kbd>M</kbd><kbd>g</kbd> <kbd>c</kbd> 跳到第 42 个字符；后两个的命令名原书没提，这里补上。</li>
+  </ul>
+
+  <p>原书在结论里提了两个比命令本身更重要的建议：</p>
+
+  <ol>
+    <li><strong>把 Caps Lock 重映射成 Control。</strong> 如果你用标准键盘，<kbd>Control</kbd> 键在主键区左下角，距离太远。换成 <kbd>Control</kbd> 之后，<kbd>C</kbd> 前缀的所有命令（<kbd>C</kbd><kbd>s</kbd>、<kbd>C</kbd><kbd>x</kbd>、<kbd>C</kbd><kbd>a</kbd>）手感会彻底改变，原书说他「离开 Emacs 也离不开」。这一步在操作系统层面做（macOS：系统设置 → 键盘 → 修饰键；Linux/Windows：键盘驱动或 <code>xcape</code> 之类工具；机械键盘则在固件里改）。</li>
+    <li><strong>一次只改一个习惯。</strong> 如果你刚接触 Emacs，继续用方向键完全没问题。等基本移动练熟了，你会自己开始觉得「右手离开主键区去够方向键」变慢了——<strong>这个转变应该由你自己的身体反馈触发，而不是被人告知</strong>。</li>
+  </ol>
+
+  <div class="keys">
+    <h4>本节按键：其它移动命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>r</kbd></td><td><code>move-to-window-line-top-bottom</code></td><td>光标移到窗口顶 / 中 / 底循环</td></tr>
+        <tr><td><kbd>C</kbd><kbd>l</kbd></td><td><code>recenter-top-bottom</code></td><td>重新居中，滚动窗口显示更多上文 / 下文</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>l</kbd></td><td><code>reposition-window</code></td><td>智能滚动，让所在注释 / 定义完整可见</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>n</kbd></td><td><code>set-goal-column</code></td><td>设置目标列</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>n</kbd></td><td><code>set-goal-column</code>（前缀参数）</td><td>取消目标列</td></tr>
+        <tr><td><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>g</kbd></td><td><code>goto-line</code></td><td>跳到指定行（<kbd>M</kbd><kbd>5</kbd><kbd>5</kbd> 前缀直达第 55 行）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>g</kbd> <kbd>TAB</kbd></td><td><code>move-to-column</code></td><td>跳到指定列</td></tr>
+        <tr><td><kbd>M</kbd><kbd>g</kbd> <kbd>c</kbd></td><td><code>goto-char</code></td><td>跳到第 N 个字符</td></tr>
+        <tr><td><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>&gt;</kbd></td><td><code>next-error</code></td><td>跳到最后一个匹配</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>SPC</kbd></td><td><code>set-mark-command</code>（前缀参数）</td><td>跳到标记处（Isearch 退出时留下的那个）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd></td><td><code>exchange-point-and-mark</code></td><td>在光标和标记之间来回交换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd></td><td><code>next-error</code></td><td>在上一份匹配清单里向后跳一格</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="设 isearch-allow-motion 为 t 后，C-v / M-v 在 Isearch 中跳到当前窗口外可见的下一个 / 上一个匹配，每按一次跳一屏。M-s M-&lt; 与 M-s M-&gt; 则跳到全缓冲区首 / 末匹配，且默认可用。">
+    <p class="drill-q"><b>练习 11</b>　一个 5000 行的文件里有 200 处待办标记，你想快速看清它们大致分布在哪些区域（不是逐个看内容）。用什么组合？需要改配置吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>先 <code>(setq isearch-allow-motion t)</code>（Emacs 28 引入，默认 <code>nil</code>）。然后 <kbd>C</kbd><kbd>s</kbd> 搜那个标记，反复按 <kbd>C</kbd><kbd>v</kbd>（<code>scroll-up-command</code>，在 Isearch 中被重定义为「跳到当前窗口还没显示的下一个匹配」）和 <kbd>M</kbd><kbd>v</kbd> 往回跳，每按一次滚一屏，200 个匹配十几屏就能扫完分布。补充一点：<code>isearch-allow-motion</code> 还会让 <kbd>M</kbd><kbd>&lt;</kbd> / <kbd>M</kbd><kbd>&gt;</kbd> 在 Isearch 里变成「跳到首 / 末匹配」；但<strong>跳首末匹配不需要这个开关</strong>，直接用 <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&lt;</kbd> / <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>&gt;</kbd> 即可（Emacs 28+，默认可用）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="case-fold-search 默认为 t：搜索串全小写时不区分大小写，搜索串里出现大写字母时自动转为区分大小写。要整个关掉就 (setq case-fold-search nil)。">
+    <p class="drill-q"><b>练习 12</b>　你用 <kbd>C</kbd><kbd>s</kbd> 搜小写 <code>error</code>，结果里混进了 <code>ERROR</code> 和 <code>Error</code>；但你搜 <code>Error</code> 时只匹配到了 <code>Error</code>。这个行为叫什么、由哪个变量控制？如果想连这个「小写时宽松」的默认也关掉，写什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>这叫<strong>大小写折叠</strong>（case folding），由 <code>case-fold-search</code> 控制（默认 <code>t</code>）。规则来自 <code>search-upper-case</code>（默认 <code>not-yanks</code>）：搜索串里出现大写字母时自动转为区分大小写。想整个关掉就写 <code>(setq case-fold-search nil)</code>，之后搜 <code>error</code> 就只匹配全小写的。想只在某一次搜索里临时区分大小写而全局不动，按 <kbd>M</kbd><kbd>s</kbd> <kbd>c</kbd>（<code>isearch-toggle-case-fold</code>，或等价的 <kbd>M</kbd><kbd>c</kbd>），开关只影响当前这次搜索。</p></div>
+  </div>
+
+  <div class="drill" data-answer="Emacs 29 起 imenu 才有全局键 M-g i；Emacs 28 及更早只能 M-x imenu 或自行 global-set-key。Emacs 30 新增 imenu-flatten。">
+    <p class="drill-q"><b>练习 13</b>　<code>M-g i</code> 是哪个命令的默认全局键位？这个键位从哪个 Emacs 版本才开始有？在更早的版本里怎么调用同一个功能？Emacs 30 又给它加了什么新选项？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M-g i</kbd> 是 <code>imenu</code> 的默认全局键位，<strong>Emacs 29 起</strong>才有（我在本机 Emacs 32.0.50 上实测 <code>(key-binding (kbd "M-g i"))</code> 返回 <code>imenu</code>）。Emacs 28 及更早只能 <code>M-x imenu</code> 调用，或自己写 <code>(global-set-key (kbd "M-i") 'imenu)</code>——但 <kbd>M-i</kbd> 默认是 <code>tab-to-tab-stop</code>，今天不推荐再绑，改用 consult 生态挂在 <kbd>M</kbd><kbd>g</kbd> <kbd>i</kbd> 上的 <code>consult-imenu</code>。Emacs 30 新增了 <code>imenu-flatten</code> 变量（控制是否把 imenu 层级拍平成一维列表），还允许通过 <code>completion-category-overrides</code> 自定义 imenu 补全的排序。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-s M-. 即 isearch-forward-thing-at-point；默认按 isearch-forward-thing-at-point（默认 (region url symbol sexp)）的顺序试：选区 → URL → 符号 → S 表达式。">
+    <p class="drill-q"><b>练习 14</b>　你光标停在一个 URL 中间，希望用「这段 URL」直接开始搜索，不需要手打。按哪个键？Emacs 按什么顺序决定要搜哪一块文字？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>M</kbd><kbd>s</kbd> <kbd>M</kbd><kbd>.</kbd>，命令是 <code>isearch-forward-thing-at-point</code>。取哪一块由变量 <code>isearch-forward-thing-at-point</code> 决定，默认值 <code>'(region url symbol sexp)</code> 就是一个<strong>按顺序尝试</strong>的列表：有激活的选区就用选区文本，否则试 URL，再试符号，最后试 S 表达式（用括号平衡切出的一段代码）。所以它恰好覆盖三种常见情况：选中一段文字、停在一个 URL 上、停在一个函数调用上。想只要符号、不做这一串尝试，用 <kbd>M</kbd><kbd>s</kbd> <kbd>.</kbd>（<code>isearch-forward-symbol-at-point</code>）。</p></div>
+  </div>
+
+  <h3>本章小结</h3>
+
+  <p>三个层次，从轻到重：</p>
+
+  <ol>
+    <li><strong>缓冲区内的跳跃</strong>——<kbd>C</kbd><kbd>s</kbd> / <kbd>C</kbd><kbd>r</kbd> 的 Isearch，加上一整组开关（大小写、正则、词、符号、字符折叠、隐藏文本）、一组「从光标处取材」的键（<kbd>C</kbd><kbd>w</kbd>、<kbd>M</kbd><kbd>s</kbd> <kbd>C</kbd><kbd>e</kbd>）、以及 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> / <kbd>M</kbd><kbd>%</kbd> 两个「搜索结束即行动」的出口。</li>
+    <li><strong>缓冲区内 / 间的汇总</strong>——<code>occur</code> 把匹配行汇成一张可跳转、可原地编辑的清单；<code>imenu</code> 把当前文件编成一份索引；<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> / <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>p</kbd> 是贯穿 occur、grep、compile 的通用跳转键。</li>
+    <li><strong>文件系统上的跳跃</strong>——<code>rgrep</code> 加 <code>*grep*</code> 缓冲区；补全方案的选择（今天建议 vertico + consult，或零依赖的 <code>fido-mode</code>）。</li>
+  </ol>
+
+  <p>原书结尾那段我认为是整本书最好的话，意思是：<strong>记不住命令名和按键绑定完全没关系，重要的是你知道去哪查</strong>——<code>M-x apropos-command</code> 按名字找命令，<code>C-h f</code> 查一个函数，<code>C-h k</code> 查一个键，敲完前缀再敲 <kbd>C</kbd><kbd>h</kbd> 列出该前缀下的全部命令。看懂 Emacs 的源码和 Info 文档，比背下五百个键位有用得多。</p>
+
+  <p>下一章开始进入编辑：杀死与粘贴、查询替换、转置、填充。到那时你会发现，移动和编辑在 Emacs 里本来就是同一件事的两面。</p>
+
+  <div class="callout tip"><b>技巧</b><p>建议的动手顺序：先只练 <kbd>C</kbd><kbd>s</kbd> 一个键，用到不用想；然后是 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>（occur）；然后是 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 配合 grep。<strong>补全方案最后再选</strong>——它是让你每天舒服的工具，不是让你每天卡住的前提。</p></div>
+</section>

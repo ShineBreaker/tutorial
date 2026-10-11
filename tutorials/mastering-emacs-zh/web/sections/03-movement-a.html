@@ -1,0 +1,954 @@
+<section class="ch" id="ch-03-movement-a" data-stage="基础" data-min="45">
+  <h2 class="ch-title">三、移动理论（一）：基础动作、窗口与标签页</h2>
+  <p class="ch-lead">这一章解决三件事：① 搞懂 Emacs 移动的三层划分，知道本章该记住什么；② 建立 <strong>buffer / window / frame</strong> 三层心智模型——Emacs 的 window 不是别的编辑器里那种固定分屏，它是<strong>随用随建、用完就删</strong>的显示区，<strong>frame</strong> 才是你在屏幕上看到的那个 GUI 窗口；③ 掌握打开、保存、退出、切换 buffer 这几个基础命令，以及窗口、frame、标签栏、标签行各自的键位。这一章的键位我都在本机 <strong>GNU Emacs 32.0.50</strong> 上用 <code>(key-binding (kbd "…"))</code> 逐条查过，凡是与原书写成时的年代不符的地方（键位改过、默认值改过、命令被合并或删除）都标了出来。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>本章的命令和键位我是在本机 Emacs 32.0.50 上逐条实测的（<code>emacs --batch -Q --eval '(key-binding (kbd "C-x C-f"))'</code> 这类查询），版本相关的结论来自本机安装的 GNU Emacs 手册（版本标注 <em>updated for Emacs version 32.0.50</em>）与 <code>etc/NEWS.29/30/31</code> 原文。凡是我无法在本机核实、又需要联网查证的结论，正文里都明确写了「未核实」，请以你自己环境的实际结果为准。</p>
+  </div>
+
+  <h3>一、移动分三层：局部、区域、全局</h3>
+
+  <p>Emacs 用户常说的「移动」其实是三样东西。原书把它们分成三层，我沿用这个划分，因为分清了层次，你才知道哪些命令值得背、哪些只是路过看看。</p>
+
+  <ul>
+    <li><strong>局部移动</strong>（local movement）：在光标附近挪动，不离开当前这块文本。移动的<strong>语法单元</strong>（syntactic unit，指 Emacs 里能被整体识别的一组字符，比如一个词、一行、一个括号对）可以是字符、词、行、句、段、S 表达式。这一层是第 4 章的内容。</li>
+    <li><strong>区域移动</strong>（regional movement）：比局部移动大一号的整块结构。写代码时是整个函数、整个类定义；写文档时是整章、整节。这一层同样在第 4、5 章。</li>
+    <li><strong>全局移动</strong>（global movement）：从一个 buffer 到另一个 buffer，或从一个 window 到下一个 window。<strong>本章只讲这一层。</strong></li>
+  </ul>
+
+  <p>为什么先讲全局？因为零基础的人第一次打开 Emacs，卡住他的往往不是「<kbd>C</kbd><kbd>f</kbd> 前进一个字符」这种局部移动，而是「我明明只想打开一个文件，怎么屏幕上突然多出一半来？」这种全局问题。Emacs 会自己开窗口这件事，不理解它，后面所有的操作都会变成背命令。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>Emacs 官方手册把这一整块内容拆成 <em>Buffers</em>、<em>Windows</em>、<em>Frames</em>、<em>Tab Bars</em> 四个节点（我用 <code>zcat …/share/info/emacs.info.gz</code> 在本机核对了节点名）。本章就按这个顺序讲：buffer 是文本本体，window 是显示位置，frame 是外框，标签栏是窗口布局的集合。</p>
+  </div>
+
+  <h3>二、最重要的心智模型：buffer、window、frame 三层</h3>
+
+  <p>先给定义，每个定义都用你已经在用的编辑器经验打个比方：</p>
+
+  <ul>
+    <li><strong>buffer</strong>（缓冲区）：一段正在编辑的文本。它<strong>不等于文件</strong>。文件只是 buffer 的一种「落脚点」；Emacs 自己生成的临时文本（帮助、编译日志、shell 输出、抓取网页）也是 buffer，只不过没有对应文件。你在 VS Code 里关掉一个标签页，那个 tab 就是一个 buffer。</li>
+    <li><strong>window</strong>（窗口）：frame 里面的一块显示区域，负责显示<strong>某一个 buffer</strong>。这是初学者误解最深的一个词——它不是操作系统的窗口，而是 frame 内部的「一块格子」。</li>
+    <li><strong>frame</strong>（框架）：你在操作系统任务栏里看到、可以拖动、可以最小化的那个<strong>窗口</strong>。别人说的「打开一个新窗口」，在 Emacs 里必须说成「打开一个新 frame」。</li>
+  </ul>
+
+  <p>把三层关系记成一句话：<strong>一个 frame 装着一堆 window；每个 window 显示一个 buffer；同一个 buffer 可以同时被好几个 window 显示</strong>。官方手册 <em>Basic Window</em> 节点确认了最后这点：同一 buffer 出现在多个 window 里时，这些 window 会同步显示修改，但<strong>各自的 point（光标位置）互相独立</strong>，而 mark 只有一份。</p>
+
+  <div class="keys">
+    <h4>术语对照：你熟悉的编辑器 ↔ Emacs</h4>
+    <table>
+      <thead><tr><th>你熟悉的东西</th><th>Emacs 叫什么</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>标签页 / tab（VS Code 顶部那一排）</td><td><strong>buffer</strong>，显示时叫 tab line 或 tab bar</td><td>buffer 是文本本体；顶部的标签行是 buffer 的<em>视图</em></td></tr>
+        <tr><td>编辑器分组 / editor group（分屏格子）</td><td><strong>window</strong></td><td>但 Emacs 的 window 是<em>随用随建</em>的，不是固定格子</td></tr>
+        <tr><td>整个应用窗口（Windows 任务栏上的那个）</td><td><strong>frame</strong></td><td>GUI Emacs 的一个 frame ≈ 一个操作系统窗口</td></tr>
+        <tr><td>「新建窗口」这个说法</td><td>要说「新建 frame」（<kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>2</kbd>）或「分裂 window」（<kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd>）</td><td>这个词的歧义是初学者最大的成本来源</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>想知道自己在哪个 frame，不用做任何按键——看模式行。</strong>第 2 章讲过：frame 编号（更准确说是 frame 名，Emacs 31 起才有）就显示在模式行上、缓冲区名的左边，初始那个 frame 叫 <code>F1</code>。<strong>想知道当前 buffer 名，也看模式行</strong>，就是中间那一段。<strong>别去按 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 来问这件事：</strong>它是 <code>switch-to-buffer</code>，会把当前 frame 整个换成 buffer 列表窗口，既不回答问题，还把你正在编辑的内容顶掉了。</p>
+    <p>frame 之间的切换用 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd>（新开一个 frame 打开当前 buffer），window 之间的切换用 <kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd>。这两个「o」是本章最容易混的一对按键，<strong>本节末尾的练习 1 会用一个具体场景把 <kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd> 讲开，第九节的练习 12 再讲 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd></strong>——中间那几节都没碰过 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd>，读到第九节之前先记着「它也是换到别处去，只是换的是 frame 不是 window」就够了。</p>
+  </div>
+
+  <h4>Emacs 会自己开窗口，这不是 bug</h4>
+
+  <p>Emacs 的设计里，window 是<strong>临时工位</strong>：需要时开，不需要时关，窗口布局本来就是经常变的。官方手册 <em>Basic Window</em> 节点说得很直接：显示信息的命令（比如 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 看函数说明、<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 列 buffer）通常是在<strong>非当前 window</strong> 里显示，不会动你正在编辑的那个 window；而 <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> 系列命令则明确要求 Emacs 去「另开一个 window」。</p>
+
+  <p>你自己会遇到的典型三件事：</p>
+
+  <ol>
+    <li>按 <kbd>C</kbd><kbd>h</kbd> 任何键（帮助）→ Emacs 弹出一个叫 <code>*Help*</code> 的 buffer，通常放在屏幕下半部分的一个新 window 里，不打断你原来的位置。</li>
+    <li>按 <kbd>M</kbd><kbd>x</kbd> <code>compile</code> 编译 → <code>*compilation*</code> buffer 出现在另一个 window。手册 <em>Compilation</em> 节点原话是：「Starting a compilation displays the ‘<code>*compilation*</code>’ buffer in another window but does not select it.」</li>
+    <li>按 <kbd>M</kbd><kbd>x</kbd> <code>shell</code> 开 shell → 同理，<code>*shell*</code> buffer 单独占一块。</li>
+  </ol>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>所以：<strong>Emacs 30 起新增了变量 <code>warning-display-at-bottom</code>（我核对了本机 <code>lisp/emacs-lisp/warnings.el:124</code>，默认值确实是 <code>t</code>），含义是警告 buffer 一律显示在当前 frame 的底部</strong>——源码注释写得很细：「Emacs will attempt to display the window showing the warning buffer at the bottom of the selected frame, whether by reusing the bottom-most window or by creating a new window at the bottom of the frame」，并且会滚动到 buffer 末尾显示最后一条警告。它影响的范围包括字节编译器和原生编译器（native compiler）发出的警告，还有 <code>check-declare</code> 之类的检查结果。设成 <code>nil</code> 就回到「由 <code>display-buffer</code> 自己决定显示在哪」的旧行为。</p>
+    <p>你可能会在本章第二节那个「Emacs 自己开窗口」的清单里再补一条：<strong>编译警告、字节编译警告，都会开一个底部窗口。</strong>而 <code>etc/NEWS.30</code> 的原始条目是：「Warnings are now by default displayed in a new window at frame's bottom.」——注意它说的是「new window」，而源码注释说得更细：能复用底部已有的 window 就复用，必要时才新建。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键（框架与基本移动）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd></td><td><code>other-window</code></td><td>在<strong>同一 frame 内</strong>切到下一个 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd></td><td><code>other-frame</code></td><td>切到<strong>另一个 frame</strong> 并把它抬起来</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>2</kbd></td><td><code>make-frame-command</code></td><td>新建一个 frame</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>0</kbd></td><td><code>delete-frame</code></td><td>删掉当前 frame（注意是数字 0，不是字母 o）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>z</kbd></td><td><code>suspend-frame</code></td><td>最小化 frame（GUI 下）/ 挂起进程（终端下）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="C-x o 切 window（同一 frame 内）；C-x 5 o 切 frame（操作系统窗口之间）。两个都是 o，区别只在 5">
+    <p class="drill-q"><b>练习 1</b>　你把屏幕切成上下两块，想在两块之间来回跳，用哪个键？如果是两块<strong>都在同一个应用窗口里</strong>，<kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd> 和 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd> 分别是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>同一 frame 内切 window 用 <kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd>（<code>other-window</code>），连按可以轮转所有 window；切 frame 用 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd>（<code>other-frame</code>），它会切换并把目标 frame 抬到最前。两个键的第三个字符都是字母 <kbd>o</kbd>，区别只在第二个字符是 <kbd>x</kbd> 还是 <kbd>5</kbd>。</p>
+    <p>官方手册 <em>Frames</em> 节点特别提醒过：删 frame 是 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>0</kbd>，<strong>是数字 0，不是字母 o</strong>。我在 Emacs 32.0.50 上实测这两个绑定分别是 <code>other-window</code> 和 <code>other-frame</code>，没变。</p></div>
+  </div>
+
+  <div class="drill" data-answer="buffer 是文本本体；Emacs 没有「关闭就丢弃」的强制要求，buffer 会一直留在 Emacs 进程里，kill-buffer 只是删掉它">
+    <p class="drill-q"><b>练习 2</b>　你说「打开三个文件」，在 Emacs 里准确的说法是什么？Emacs 会不会因为你「用完」一个文件就自动把它扔掉？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>准确说法是「打开了三个 <strong>buffer</strong>」，如果这三个 buffer 同时要看见，就再分裂出三个 <strong>window</strong> 来显示它们；如果你想让它们变成任务栏上的三个独立窗口，那才需要三个 <strong>frame</strong>。</p>
+    <p>Emacs <strong>不会</strong>自动扔掉 buffer。buffer 会一直存活在你的 Emacs 进程里，直到你显式 <kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd>（<code>kill-buffer</code>）或退出 Emacs。原书作者的说法是：认真用 Emacs 的人手上同时挂着几百上千个 buffer 也毫无压力，因为一个 buffer 除了少量元数据和它自己的编码系统，内存占用就只比文本本身的字节数多一点点。这条属于「知道了会安心、但不需要做什么」的知识。</p>
+    <p>反过来推论也成立：你不必养成「随手关文件」的习惯，这和 VS Code 里「不关 tab 内存就涨」的直觉正好相反。</p></div>
+  </div>
+
+  <h3>三、还不会用 Emacs 时，先摸菜单栏</h3>
+
+  <p>原书给新手的建议是：在你把键位记熟之前，菜单栏（menu bar，GUI 和终端 Emacs 顶部都有的那一行 <em>File / Edit / Buffers / Tools / Help</em>）是完全正当的学习工具。我同意这个建议，但有两个前提必须说清楚，否则你会卡住。</p>
+
+  <p><strong>前提一：菜单栏能用键盘激活。</strong>按 <kbd>F10</kbd> 就能把菜单栏点亮。手册 <em>Menu Bars</em> 节点明确写着这个键运行的命令是 <code>menu-bar-open</code>，并且给出了完整的键盘走法：用方向键或 <kbd>C</kbd><kbd>b</kbd> / <kbd>C</kbd><kbd>f</kbd>（左右）、<kbd>C</kbd><kbd>p</kbd> / <kbd>C</kbd><kbd>n</kbd>（上下）在菜单之间移动，<kbd>RET</kbd> 选中，<kbd>C</kbd><kbd>g</kbd> 或 <kbd>ESC</kbd> <kbd>ESC</kbd> <kbd>ESC</kbd> 退出菜单导航。手册还提醒了一句很实际的话：如果 Emacs 是用 GUI 工具包构建的（比如 GTK），菜单由工具包自己画，取消导航的按键可能和上面描述的不同。</p>
+
+  <p>我需要说明一处<strong>验证的边界</strong>：在本机 <code>emacs --batch -Q</code> 里查 <code>(key-binding (kbd "F10"))</code> 返回 <code>nil</code>，因为 batch 模式既没有终端也没有 GUI，菜单栏根本没被初始化。所以「<kbd>F10</kbd> 在交互环境里绑到 <code>menu-bar-open</code>」这条我依据的是<strong>手册原文</strong>而不是本机键位实测——这是本次全章里少数几条没有键位实测支撑的断言之一。</p>
+
+  <p>终端 Emacs 还有个额外选项：把变量 <code>tty-menu-open-use-tmm</code> 打开后，<kbd>F10</kbd> 会改为运行 <code>tmm-menubar</code>，把菜单渲染在回显区而不是下拉；也可以随时按 <kbd>M</kbd><kbd>`</kbd> 直接调 <code>tmm-menubar</code>。</p>
+
+  <p><strong>前提二：终端里能不能用鼠标，取决于有没有开鼠标次模式。</strong>在终端里跑 Emacs 时，鼠标事件是靠终端转发给 Emacs 的，Emacs 这边要有一个次模式来接收。xterm 系终端（xterm、gnome-terminal、konsole、iTerm2）用 <kbd>M</kbd><kbd>x</kbd> <code>xterm-mouse-mode</code>（我实测确认命令存在）；Linux 文本控制台（tty1 那种）要用 <kbd>M</kbd><kbd>x</kbd> <code>gpm-mouse-mode</code>，前提是系统里装了并跑着 gpm 服务。</p>
+
+  <p>这里有个新手容易困惑的点：<code>xterm-mouse-mode</code> 是个全局次模式，<strong>Emacs 启动时如果检测到你的终端支持鼠标，它会自己打开</strong>——所以很多时候你以为「要先开」其实它早就开着。敲 <kbd>M</kbd><kbd>x</kbd> <code>xterm-mouse-mode</code> 是<strong>切换</strong>它：开着的时候再敲一次就关掉。想知道当前状态，按 <kbd>M</kbd><kbd>x</kbd> <code>describe-mode</code>。</p>
+
+  <p>开着之后也有个限制值得知道：手册 <em>Text-Only Mouse</em> 节点说，这个模式下「基本上只支持不带修饰键的单击」；想让终端自己做它那套（典型场景是<strong>拖选文本</strong>），得<strong>按住 <kbd>Shift</kbd> 再点</strong>。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>菜单栏不只是「新手拐杖」。每个 major mode（Emacs 给 buffer 选的语言模式，比如 <code>emacs-lisp-mode</code>、<code>python-mode</code>、<code>sh-mode</code>）通常会往菜单栏里塞一条自己的菜单，把该模式最常用的操作列出来。你可以把它当成「这份模式的说明书」用——想知道某个模式下有哪些命令，打开菜单看一眼比翻文档快。</p>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>等你确实用顺了再隐藏菜单栏：<kbd>M</kbd><kbd>x</kbd> <code>menu-bar-mode</code> 是切换命令（我实测确认它是命令），执行一次关掉、再执行一次开回来。之所以值得等到后期，是因为它会占掉一行屏幕高度。原书作者也是这个建议。</p>
+    <p>如果你的配置是从 starter kit（比如 Doom Emacs、Spacemacs）或别人的 <code>init.el</code> 里抄来的，菜单栏可能已经被关掉了、而你还不知道该怎么打开。原书特别提醒过这种情况：这时候 <kbd>M</kbd><kbd>x</kbd> <code>menu-bar-mode</code> 可以救你，但你还得回头把自己配置里隐藏它的那行找出来删掉，否则下次启动又没了。</p>
+  </div>
+
+  <details class="deep">
+    <summary>进阶：<code>xterm-mouse-mode</code> 之外，终端里还有哪些鼠标相关的坑</summary>
+    <p>终端 Emacs 的鼠标支持是一层套一层的：</p>
+    <ul>
+      <li><kbd>M</kbd><kbd>x</kbd> <code>xterm-mouse-mode</code> 只覆盖常见的 xterm 系终端（xterm、gnome-terminal、konsole、iTerm2 都兼容）。在 tmux 或 screen 里跑 Emacs 时，鼠标事件能不能到你手上取决于<strong>终端复用器有没有转发鼠标</strong>：现代 tmux 默认就是开的（我在本机 tmux 3.7c 上用 <code>tmux -f /dev/null start-server ';' show-options -g mouse</code> 查过，返回 <code>mouse on</code>），老版本 tmux 默认是关的，那时需要在 <code>~/.tmux.conf</code> 里写 <code>set -g mouse on</code>；screen 则要开 <code>mouse</code>。这些是终端侧的开关，和 Emacs 里的 <code>xterm-mouse-mode</code> 是两件事，两个都到位鼠标才可用。</li>
+<li>鼠标抢走单击，但没抢走拖选。这是 xterm 鼠标协议的设计取舍：Emacs 只接管「不带修饰键的单击」，而按住 <kbd>Shift</kbd> 的点击仍然归终端——所以终端里的拖选文本照常能用。你会发现「单击跳光标」和「拖选」并存，这正是这个协议规定的。</li>
+    <li>GUI Emacs 不需要 <code>xterm-mouse-mode</code>，鼠标天生可用；<code>xterm-mouse-mode</code> 只影响终端 Emacs。在 <code>emacsclient</code> 客户端窗口里鼠标行为跟随你连的那个服务端 Emacs（因为所有帧都是服务端画的）。</li>
+    </ul>
+    <p>这一节列的三点里，「哪些终端需要额外开关」是你自己在自己的环境里才能定的：Emacs 端看 <code>xterm-mouse-mode</code> / <code>gpm-mouse-mode</code> 有没有开（<kbd>M</kbd><kbd>x</kbd> <code>describe-mode</code>），终端复用器端看它自己转发不转发鼠标。我无法替你确认。</p>
+  </details>
+
+  <h3>四、打开文件：<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd></h3>
+
+  <p>原书反复强调的一件小事值得放在最前面：<strong>Emacs 不区分「打开已有文件」和「新建文件」</strong>。你按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 敲一个路径，Emacs 就去找那个文件，找到就显示内容，找不到就给你一个空 buffer，等你打字，<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd> 保存时才真正在磁盘上创建它。原书管这个动作叫 <em>visit</em>（访问）一个文件，但也说「叫 open 也完全没问题」，我就不额外造词了。手册 <em>Visiting</em> 节点用的词是 <code>find-file</code>（命令名）。</p>
+
+  <div class="keys">
+    <h4>日常基础键（全部在本机 Emacs 32.0.50 实测过绑定）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>find-file</code></td><td>打开（访问）一个文件；文件不存在就新建空 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd></td><td><code>save-buffer</code></td><td>保存当前 buffer 到它对应的文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer</code></td><td>切换到另一个 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd></td><td><code>kill-buffer</code></td><td>杀掉（关闭）当前 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd></td><td><code>list-buffers</code></td><td>列出所有 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>save-buffers-kill-terminal</code></td><td>退出 Emacs（会先逐个问要不要保存）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>w</kbd></td><td><code>write-file</code></td><td>把当前 buffer 存到<strong>另一个</strong>文件（相当于「另存为」）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd></td><td><code>save-some-buffers</code></td><td>逐个询问并保存所有改动过的文件 buffer</td></tr>
+        <tr><td><kbd>ESC</kbd> <kbd>ESC</kbd> <kbd>ESC</kbd></td><td><code>keyboard-escape-quit</code></td><td>「我卡住了」，一键回到正常状态</td></tr>
+        <tr><td><kbd>C</kbd><kbd>/</kbd></td><td><code>undo</code></td><td>撤销一步（等价键 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd>、<kbd>C</kbd><kbd>_</kbd>）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Emacs 怎么知道该用哪种语言模式</h4>
+
+  <p>打开文件时 Emacs 会挑一个 <strong>major mode</strong>（Emacs 给 buffer 选的语言模式，决定缩进、注释符号、语法高亮、Tab 键行为、菜单栏内容）。它有四层判断，从前往后套：</p>
+
+  <ol>
+    <li><strong>文件内局部变量</strong>（file-local variables）：写在文件头或文件尾的指令。</li>
+    <li><strong>解释器声明</strong>（interpreter-mode-alist）：文件第一行的 <code>#!</code> Shebang 行，例如 <code>#!/usr/bin/env python</code>、<code>#!/bin/bash</code>。Emacs 靠它认出这是个脚本并启用对应 major mode。</li>
+    <li><strong>魔数匹配</strong>（magic-mode-alist）：拿文件开头的内容去匹配正则。历史功能，<strong>今天默认是空的</strong>（详见下面的方框）。</li>
+    <li><strong>文件名 / 扩展名匹配</strong>（auto-mode-alist）：一张大表，把扩展名或文件名映射到 major mode 函数。这是绝大多数情况的实际决策者。</li>
+  </ol>
+
+  <p>文件头写法长这样（这一行要放在文件第一行，或紧跟在 Shebang 行后面）：</p>
+
+<pre class="term"><code># -*- mode: python -*-
+或者文件尾：
+
+Local Variables:
+mode: python
+End:</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>关于 <code>magic-mode-alist</code>：原书说它是 Emacs 判断模式的一个机制，这一点没错，但今天的默认值是空的。</strong>我在 Emacs 32.0.50 上实测 <code>(default-value 'magic-mode-alist)</code> 返回 <code>nil</code>，源码 <code>lisp/files.el:3461</code> 的定义就是 <code>(defvar magic-mode-alist nil …)</code>。也就是说，纯靠内容匹配的「魔数模式」在默认配置下不会发生任何事。你要是想用它，得自己往这张表里加正则。</p>
+    <p>同一个源码文件里我实测确认的两个真实默认值是：<code>enable-local-variables</code> = <code>t</code>（允许文件里的局部变量生效）、<code>enable-local-eval</code> = <code>maybe</code>（文件里 <code>eval</code> 型的局部变量要问你一句才生效）。这就是为什么你打开一个别人写的文件时，Emacs 偶尔会弹出一个「这个文件想设置这些变量，你信吗？」的小询问。</p>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>手册 <em>Saving Files → Backup</em> 之后的 <em>Customize Save</em> 提到：Emacs 把「来自文件内部的变量」分成<strong>安全</strong>（由 Emacs 维护者判定，比如缩进宽度）和<strong>不安全</strong>（能让 Emacs 执行任意代码）两类。不安全的默认会被<strong>询问</strong>而不是直接执行——因为 Emacs 本质上是在「直接运行一个文件里的话」，这不是小事。</p>
+    <p>如果你打开一个陌生仓库的文件总被弹窗烦到，可以把 <code>enable-local-eval</code> 设成 <code>nil</code> 一劳永逸（代价是那些文件靠 <code>eval</code> 声明的设置失效）；<kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> <kbd>RET</kbd> <code>enable-local-eval</code> <kbd>RET</kbd> 就能改。</p>
+  </div>
+
+  <h4>编码和行尾：Emacs 帮你省掉的麻烦</h4>
+
+  <p>除了 major mode，Emacs 打开文件时还会顺手判断两件事：<strong>编码系统</strong>（coding system，字节到文字的映射规则，中文环境尤其重要）和<strong>行尾符</strong>（line ending）。</p>
+
+  <ul>
+    <li><strong>编码</strong>：Emacs 的 Unicode 支持很完整，能在不同编码之间透明读写。看当前 buffer 用的是什么编码，按 <kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd>（<code>describe-coding-system</code>，我实测绑定确认）。</li>
+    <li><strong>行尾</strong>：文件用 CRLF（DOS/Windows）打开，保存时还写 CRLF；LF（Unix）也保持 LF。这是 Emacs 少有的贴心设计之一，能避免「在我机器上是好的，传到服务器就崩了」。</li>
+  </ul>
+
+  <p>模式行（mode line，每个 window 底部显示 buffer 名的那一行）手册 <em>Mode Line</em> 节点给出的整体格式是 <code>CS:CH-DFR&nbsp;&nbsp;BUF&nbsp;&nbsp;&nbsp;&nbsp;POS LINE&nbsp;&nbsp;&nbsp;(MAJOR MINOR)</code>。<strong>这一行几乎每一格都是条件显示的</strong>——某一格出不出现在什么情况下，跟你跑在终端里还是图形界面里直接相关，所以「为什么我看到的和书上的不一样」通常不是出错。拿第 2 章那条 <code>*scratch*</code> 的实例逐格对照：</p>
+
+  <pre class="term"><code>-UUU:--- F1  *scratch*      All L4     (Lisp Interaction ElDoc) ---</code></pre>
+
+  <div class="keys">
+    <h4>模式行每一格对应什么</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>最前面的 <code>UU</code></td><td>CS 段的前两格</td><td>键盘输入和终端输出的编码系统，<strong>只在文本终端上出现</strong>，图形界面里没有</td></tr>
+        <tr><td>第三个 <code>U</code></td><td>CS 段的第三格</td><td>buffer 文字本身的编码：<code>-</code> 没做特殊处理、<code>=</code> 完全不转换（非文本文件常见）、<code>U</code> UTF-8、<code>1</code> ISO Latin-1</td></tr>
+        <tr><td>后面的 <code>:</code></td><td>CH 前的行尾符</td><td>Unix 风格是 <code>:</code>；DOS 风格显示成 <code>\</code> 或 <code>(DOS)</code>；老 Macintosh 风格显示成 <code>/</code> 或 <code>(Mac)</code>。手册明确说「显示成哪一个取决于操作系统」，所以 Windows 版看到 <code>(DOS)</code>、Linux 上看到 <code>\</code>，说的是同一件事</td></tr>
+        <tr><td>紧跟的两个 <code>-</code></td><td>CH 段</td><td><code>--</code> 表示 buffer 和磁盘上一致；<code>**</code> 表示改过还没存盘；只读 buffer 改过时是 <code>*</code> 一个星号，没改时是 <code>-</code></td></tr>
+        <tr><td>再往后的 <code>-</code></td><td>D 格</td><td>窗口有没有被 <code>delete-windows-on</code> 之类命令锁给当前 buffer（dedicated）。默认显示短横线，等价于没 dedicated</td></tr>
+        <tr><td>那个 <code>F1</code></td><td>FR 段</td><td><strong>当前 frame 的名字，只在文本终端上显示。</strong><strong>Emacs 31 起</strong>frame 才有了名字，初始那个叫 <code>F1</code>；命令行加 <code>--daemon</code> 启动、再用 <code>emacsclient</code> 连上来的 frame 这里显示成 <code>1</code> 之类，是专门用来认「这是客户端 frame」的标记</td></tr>
+        <tr><td><code>*scratch*</code></td><td>BUF 段</td><td>缓冲区名。两边带星号就是「有改动没存盘」；前面有 <code>%</code> 表示磁盘上的文件在 Emacs 之外被改过</td></tr>
+        <tr><td><code>All</code></td><td>POS 段</td><td>buffer 全部可见时是 <code>All</code>；否则是 <code>Top</code>（正在看开头）、<code>Bot</code>（正在看结尾）或 <code>NN%</code>。这一格可以改成显示百分比、行列号或时间</td></tr>
+        <tr><td><code>L4</code></td><td>LINE 段</td><td><code>L</code> 加上光标所在行号，这里是第 4 行</td></tr>
+        <tr><td><code>(Lisp Interaction ElDoc)</code></td><td>(MAJOR MINOR)</td><td>括号里第一个是主模式名，后面是已启用的次模式。同一格里也会显示 <code>Narrow</code>（buffer 被 narrow 过）、<code>Def</code>（keymap 里没有的键会自插入）等标记</td></tr>
+        <tr><td>最右边的 <code>---</code></td><td>不属于任何一格</td><td><strong>那是文本终端把模式行补到窗口右边缘的填充横线</strong>。手册原文是「on a text terminal this text is followed by a series of dashes… These dashes are omitted on a graphical display」——图形界面里不画</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>把这张表和第 2 章那条实例叠在一起看，三个「多出来的东西」就有解释了：<strong>开头的 <code>UU</code></strong> 是键盘与终端编码（仅终端）、<strong>中间的 <code>F1</code></strong> 是 frame 名（仅终端，Emacs 31 起）、<strong>末尾的 <code>---</code></strong> 是终端填充线（仅终端）。<strong>你在图形界面里启动 Emacs，这三样都看不见，模式行会短一大截——这不是你的 Emacs 缺了什么。</strong></p>
+
+  <div class="callout tip"><b>技巧</b><p><strong>格式再复杂也有绕开的办法：改变量比记格式快。</strong>每一格都有对应的变量：<code>mode-line-format</code>（整行）、<code>mode-line-buffer-identification</code>（BUF）、<code>mode-line-position</code>（POS）、<code>mode-line-frame-identification</code>（FR）、<code>mode-line-remote</code>（R）。按 <kbd>M</kbd><kbd>x</kbd> 输入 <code>mode-line-format</code> 回车能看到格式串里每个 <code>%</code> 记号的文档（比如 <code>%m</code> 是模式名、<code>%b</code> 是缓冲区名）。<strong>想查某一格当前由谁控制，先按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd></strong> 查上面这几个变量名。</p></div>
+
+  <p><strong>唯一必须靠查询才能搞清的是编码那一格</strong>：按 <kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd>（<code>describe-coding-system</code>）看当前 buffer 到底在用哪套编码，本书作者在 Emacs 32.0.50 上实测这个绑定确实存在。</p>
+
+  <details class="deep">
+    <summary>进阶：文件局部变量为什么既是特性也是攻击面</summary>
+    <p>文件局部变量（file-local variables）让你把「这个文件缩进用 4 空格、Tab 宽度 2」这样的设置直接写进文件本身，随文件走——这在团队协作里非常顺手。</p>
+    <p>但机制上是这样的：Emacs 读到一个文件时会去解析文件头/文件尾的指令块，然后<strong>对变量求值</strong>。这就是为什么 Emacs 把变量分成 safe / unsafe 两类，并把求值类指令的默认策略设成 <code>maybe</code>（询问）。如果某个变量被判定为 unsafe，Emacs 会停下来问你要不要接受。</p>
+    <p>与之相关的几个可调项（都是我在 Emacs 32.0.50 上实测存在且有默认值的）：</p>
+    <ul>
+      <li><code>enable-local-variables</code>，默认 <code>t</code>——控制是否采纳文件里的局部变量。</li>
+      <li><code>enable-local-eval</code>，默认 <code>maybe</code>——控制 <code>eval</code> 型局部变量是直接执行、忽略还是询问。</li>
+      <li><code>safe-local-eval-forms</code>——白名单，即使 <code>enable-local-eval</code> 设成 <code>nil</code>，这张表里的形式仍会执行（<code>lisp/files.el:3871</code> 处定义，默认值里全是时间戳相关的钩子，比如往 <code>write-file-hooks</code> 里塞 <code>time-stamp</code>）。</li>
+    </ul>
+    <p>顺带说一句：手册 <em>Undo</em> 节点里有一条很少人注意的规则——<strong>名字以空格开头的 buffer 永远不记录撤销信息</strong>。Emacs 内部有一批这样的 buffer 存临时文本，比如源码里写死的 <code>" *temp*"</code>、<code>" *nslookup*"</code>、<code>" *Input History*"</code>（注意开头那个空格）。在里面编辑到的东西是撤不回来的。</p>
+  </details>
+
+  <div class="keys">
+    <h4>本节按键（查状态与求助）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd></td><td><code>describe-coding-system</code></td><td>查看当前 buffer 的编码系统</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>h</kbd></td><td><code>view-hello-file</code></td><td>打开 Emacs 自带的演示文件「Hello」，看 Unicode 效果</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd></td><td><code>describe-key</code></td><td>问 Emacs「这个键是干什么的」，然后按一个键</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>view-emacs-FAQ</code></td><td>打开 Emacs 的常见问题解答（注意：<kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 是 <code>describe-function</code>，不是它）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd></td><td><code>execute-extended-command</code></td><td>按名字调用任意命令，不知道按键时用它</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="C-x C-f 是 find-file；文件不存在也会打开，得到一个空 buffer，C-x C-s 保存时才真正创建磁盘文件">
+    <p class="drill-q"><b>练习 3</b>　你想新建一个还不存在的文件 <code>notes/hello.md</code>。Emacs 里怎么操作？如果只按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 敲这个路径就回车，磁盘上会出现文件吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>操作就是 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd>，输入 <code>notes/hello.md</code>，回车。Emacs <strong>不区分打开和新建</strong>：文件不存在时它给你一个空 buffer，模式行上的 buffer 名就是 <code>notes/hello.md</code>。</p>
+    <p>磁盘上<strong>不会</strong>出现文件，要等你按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd>（<code>save-buffer</code>）才真正写入。</p>
+    <p>有个真实的坑要提醒：如果中间目录 <code>notes/</code> 也不存在，保存会失败并报错。这不是 Emacs 的 bug，是文件系统在拒绝你；Emacs 32 的错误提示里会写明原因。</p></div>
+  </div>
+
+  <div class="drill" data-answer="依次是：文件局部变量 → interpreter-mode-alist（Shebang）→ magic-mode-alist → auto-mode-alist">
+    <p class="drill-q"><b>练习 4</b>　Emacs 判断一个 buffer 该用哪种 major mode，检查顺序是哪四层？（提示：原书把它们列出来了，其中一层在今天的 Emacs 里默认是空的。）</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按原书给的顺序：<strong>① 文件局部变量</strong>（文件头 <code>-*- mode: xxx -*-</code> 或文件尾 <code>Local Variables:</code> 块）→ <strong>② 解释器声明</strong>（<code>interpreter-mode-alist</code> 变量识别的 <code>#!</code> Shebang 行）→ <strong>③ 魔数匹配</strong>（<code>magic-mode-alist</code>）→ <strong>④ 自动模式匹配</strong>（<code>auto-mode-alist</code>，扩展名和文件名映射表）。</p>
+    <p>第 ③ 层的现代情况：<code>magic-mode-alist</code> 这个变量在 Emacs 32.0.50 里<strong>仍然存在但默认值是 <code>nil</code></strong>（我实测 <code>(default-value 'magic-mode-alist)</code> = <code>nil</code>，源码 <code>lisp/files.el:3461</code>）。所以默认配置下这一层等于不存在。</p>
+    <p>第 ④ 层才是主力：<code>/etc/passwd</code> 会被 <code>etc-passwd-generic-mode</code> 打开，<code>.zip</code> 会被 <code>archive-mode</code> 打开——原书这两个例子我核对过手册的 <em>Visiting</em> 与 <em>Major Modes</em> 描述，仍然准确。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-h C → describe-coding-system；模式行最左侧 CS 段的助记符表示编码系统（U = UTF-8，1 = ISO Latin-1），冒号表示 Unix 行尾">
+    <p class="drill-q"><b>练习 5</b>　一个文件在编辑器里显示乱码，你怀疑是编码问题。用哪个按键可以确切地知道 Emacs 认为它是什么编码？模式行上那个开头的字母又是什么意思？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>确切的办法是 <kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd>，即 <code>describe-coding-system</code>（我实测该绑定在 Emacs 32.0.50 上成立）。它会列出与当前 buffer 关联的所有编码系统；对于普通文件，它们几乎总是同一个。</p>
+    <p>模式行最左边是 <code>CS:CH</code> 这一小段（手册 <em>Mode Line</em> 节点给的完整格式是 <code>CS:CH-DFR  BUF  POS LINE  (MAJOR MINOR)</code>）。<code>CS</code> 是编码系统的助记符：<code>-</code> 表示没做特殊处理、<code>=</code> 表示完全不转换、<code>1</code> 表示 ISO Latin-1，多字节编码则显示各自的助记符（UTF-8 是 <code>U</code>）。紧跟其后的符号说明行尾：<code>:</code> 是 Unix 风格，DOS 风格显示成 <code>(DOS)</code> 或 <code>\</code>，老 Macintosh 风格显示成 <code>(Mac)</code> 或 <code>/</code>（手册说具体用哪一个「取决于操作系统」）。</p>
+    <p>注意这是「提示」不是「保证」——手册明确说过确切记号取决于你用的几百种编码系统里的哪一种，所以拿不准就按 <kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd>。</p></div>
+  </div>
+
+  <h3>五、保存与退出：Emacs 会先问你，而且问得很有礼貌</h3>
+
+  <h4><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd>：保存当前 buffer</h4>
+
+  <p>Emacs 里<strong>每个 buffer 都能保存</strong>，哪怕它根本没有对应文件——帮助 buffer、编译日志、shell 输出都能存，Emacs 会问你要个文件名。你通常见到的情形只有两种：</p>
+
+  <ul>
+    <li>buffer 已经关联了文件 → 直接写回那个文件，回显区显示 <code>Wrote /path/to/file</code>；</li>
+    <li>buffer 没有关联文件（临时 buffer）→ Emacs 问你要文件名。</li>
+  </ul>
+
+  <p>想让当前 buffer 存到<strong>另一个</strong>文件（其他编辑器的「另存为」），用 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>w</kbd>（<code>write-file</code>）。想一口气把<strong>所有</strong>改动过的文件存一遍，用 <kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd>（<code>save-some-buffers</code>），它会一个一个问你。</p>
+
+  <p>手册 <em>Save Commands</em> 节点还给了两个冷门但有用的：<kbd>M</kbd><kbd>~</kbd>（<code>not-modified</code>）把当前 buffer 标记回「未改动」，<kbd>C</kbd><kbd>u</kbd> <kbd>M</kbd><kbd>~</kbd> 反过来标记成「改过了」。前者用来回答「这文件到底改没改」，后者用来骗过 Emacs 的修改检查——<strong>属于知道了就好，不要用来绕过别人的代码评审</strong>。</p>
+
+  <h4><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd>：退出 Emacs</h4>
+
+  <p><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd> 绑的是 <code>save-buffers-kill-terminal</code>。用两段式按键是为了防止误触。它的工作流程：先逐个询问是否保存改动的文件 buffer；如果你选择不全保存，Emacs <strong>会再问一次</strong>确认，因为不保存的内容真的会丢；如果还有子进程在跑（比如 shell），Emacs 也会问一次，因为杀掉 Emacs 会连带杀掉这些进程。</p>
+
+  <p>原书给了一张回答表。我把本机 Emacs 32.0.50 源码 <code>lisp/files.el:6498</code> 处 <code>save-some-buffers</code> 的文档字符串核对了一遍，<strong>它比原书那张表更全</strong>：</p>
+
+  <div class="keys">
+    <h4>Emacs 问你要不要保存时的全部回答</h4>
+    <table>
+      <thead><tr><th>按键</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>y</kbd> 或 <kbd>SPC</kbd></td><td>保存这一个 buffer，然后继续问下一个</td></tr>
+        <tr><td><kbd>n</kbd> 或 <kbd>DEL</kbd></td><td>不保存这一个，继续问下一个</td></tr>
+        <tr><td><kbd>M</kbd><kbd>~</kbd></td><td>不保存，并且把这个 buffer 标记成「未改动」</td></tr>
+        <tr><td><kbd>C</kbd><kbd>r</kbd></td><td>先用 <code>view-buffer</code> 看看这个 buffer 再决定</td></tr>
+        <tr><td><kbd>d</kbd></td><td>用 <code>diff-buffer-with-file</code> 比对磁盘上的文件和 buffer 内容</td></tr>
+        <tr><td><kbd>!</kbd></td><td>保存这个，<strong>以及剩下所有的，不再问</strong></td></tr>
+        <tr><td><kbd>.</kbd></td><td>只保存这一个，跳过剩下的全部</td></tr>
+        <tr><td><kbd>q</kbd> 或 <kbd>RET</kbd></td><td>中止保存流程，一个都不再存</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd></td><td>在提示里显示帮助</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td>中止保存<strong>并且</strong>放弃退出（这是 <kbd>C</kbd><kbd>g</kbd> 的通用中止行为）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>下次退出时不想被一个个问，直接在第一个提示敲 <kbd>!</kbd>，Emacs 会把所有改动过的文件都存下来。手册 <em>Exiting</em> 节点确认了 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd> 如果有改动过的「访问文件的 buffer」会先挨个问；<kbd>M</kbd><kbd>x</kbd> <code>kill-emacs</code> 则<strong>完全不问</strong>直接杀——那等同于「我确定所有东西都存好了」，别乱用。</p>
+  </div>
+
+  <p>还有两个可调的确认开关，两个默认值我都在本机实测过：<code>confirm-kill-emacs</code> 默认 <code>nil</code>（非 <code>nil</code> 时它被当成一个「是否允许退出」的判断函数，比如设成 <code>yes-or-no-p</code> 就会每次退多问一次）；<code>confirm-kill-processes</code> 默认 <code>t</code>（有子进程时问一次；设成 <code>nil</code> 则不问）。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>如果你是用 <strong>emacsclient</strong>（<code>emacsclient</code> 命令行客户端）连到后台 Emacs 服务的（Emacs server 模式，典型场景是编辑器跟随命令行编辑远程文件），那么在<strong>客户端</strong>按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd> 只会关闭这个客户端连接，不会结束 Emacs 进程。手册 <em>Exiting</em> 节点专门写了这条。</p>
+  </div>
+
+  <h3>六、切换 buffer：<kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 和它的补全世界</h3>
+
+  <p>按 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd>（<code>switch-to-buffer</code>）之后，Emacs 在 minibuffer 里问「Switch to buffer:」，并且<strong>已经帮你填好了一个名字</strong>。这个默认值是 <code>(other-buffer (current-buffer))</code>——也就是你<em>上一个</em>待过的那个 buffer，直接 <kbd>RET</kbd> 就回去了，等价于在桌面和浏览器之间来回切。我读了 <code>lisp/window.el:9485</code> 处的 <code>read-buffer-to-switch</code> 确认了这一点，同时它还<strong>把当前 buffer 从候选列表里排除</strong>，所以你在列表里不会看到自己。</p>
+
+  <div class="keys">
+    <h4>buffer 相关按键</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer</code></td><td>切换 buffer；默认填的是上一个待过的 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd></td><td><code>list-buffers</code></td><td>列出所有 buffer（生成 <code>*Buffer List*</code>）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd></td><td><code>kill-buffer</code></td><td>杀掉指定 buffer（默认当前这个）；如果它是个<strong>改动过</strong>的文件 buffer，Emacs 会要求你输入 <code>yes</code> 才真的删</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>ibuffer</code></td><td><code>ibuffer</code></td><td>交互式 buffer 列表，比 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 好用得多（默认没绑键）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer-other-window</code></td><td>在<strong>另一个 window</strong> 切换 buffer 并跳过去</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer-other-frame</code></td><td>在<strong>另一个 frame</strong> 切换 buffer</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>为什么 buffer 名字有两副面孔</h4>
+
+  <p>Emacs 用 buffer 名字里有没有 <code>*</code> 来区分两类 buffer：名字<strong>带星号</strong>的（<code>*Help*</code>、<code>*compilation*</code>、<code>*shell*</code>、<code>*Messages*</code>）是 Emacs 自己生成的，要么跟外部程序交互，要么存临时信息；<strong>不带星号</strong>的通常是你从文件打开的正经 buffer。还有第三类别忘了：<strong>名字以空格开头</strong>的内部 buffer（<code>" *temp*"</code>、<code>" *nslookup*"</code> 这种），Emacs 专门用它们存中间结果（前面讲撤销时提过，这类 buffer 连撤销记录都没有）。星号和空格这两条约定在模式行和 buffer 列表里都一眼可见，看多了自然就认得。</p>
+
+  <p>原书还提到一个 Emacs 特有的用法：<strong>scratch buffer</strong>（草稿 buffer）——敲一个<em>不存在</em>的 buffer 名按 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd>，Emacs 会直接给你新建一个。比如把一段代码复制进一个叫 <code>scratch</code> 的 buffer 里随便改，改坏了扔掉也不心疼，因为那本来就没有对应文件。</p>
+
+  <h4>补全：这一章里变化最大的部分</h4>
+
+  <p>原书写这段的时候，建议分版本选方案：「Emacs 27 以下用 IDO，27 及以上用 FIDO（FIDO 是 IDO 的替代实现）」，并点名了一堆框架 Helm、Ivy、Selectrum、Vertico、Icicles、Icomplete。**这套推荐今天已经过时了，而且过时的方式很能说明问题**——Emacs 把 FIDO 收编进了内置代码。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>Emacs 32 里已经找不到 <code>fido.el</code> 这个文件了。</strong>我在本机 Emacs 32.0.50 上用 <code>(locate-library "fido")</code> 查询返回 <code>nil</code>，并在整个 Emacs 安装目录 <code>find</code> 也搜不到任何 <code>fido*</code> 文件。<code>fido-mode</code> 这个<strong>命令还在</strong>——我实测 <code>(require 'icomplete)</code> 之后 <code>(commandp 'fido-mode)</code> 为真——但它的定义搬到了 <code>lisp/icomplete.el:543</code>，文档字符串第一行现在是「An enhanced <code>icomplete-mode</code> that emulates <code>ido-mode</code>」。也就是说 <strong>FIDO 变成了 Icomplete 的一个模式</strong>，你仍然可以照原书敲 <kbd>M</kbd><kbd>x</kbd> <code>fido-mode</code>，效果和以前一样，不需要装任何东西。</p>
+    <p>所以本节给你的今天的建议是：先什么都不装，用内置的；觉得候选列表不顺眼了，再开 <code>fido-mode</code>；觉得还不够，再考虑第三方的 <code>consult</code>。</p>
+  </div>
+
+  <p>内置补全在 Emacs 29 经历了一次大改：新增了<strong>补全样式</strong>（completion style，即候选怎么算出来）这个概念，由变量 <code>completion-styles</code> 控制。我在本机 Emacs 32.0.50 上实测它的默认值是：</p>
+
+<pre class="el"><code>completion-styles   ; =&gt; (basic partial-completion emacs22)</code></pre>
+
+  <p>意思是「依次尝试三种风格：精确前缀匹配 → 部分（子串）匹配 → Emacs 22 老行为」。这就是为什么今天的 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 比老版本「好按一点」：你敲片段它也能匹配上。<strong>至于 <code>use-completion</code> 这个开关变量，我需要明确说明：在 Emacs 32.0.50 的全部 Lisp 源码（<code>lisp/</code> 整个目录）和本机安装的 info 手册里，<code>grep</code> 都找不到这个变量</strong>——只剩下 <code>use-completion-under-point</code> 这类同前缀的<strong>函数</strong>。如果你在别处读到「把 <code>use-completion</code> 设成 t 就能开新补全」，那是旧版本或博客里的过时说法，在今天的 Emacs 上照抄会得到一个 void-variable（变量不存在）错误。</p>
+
+  <p>要调补全的样子，用这几个变量（都在 <code>minibuffer</code> 这个 customize 组里，<kbd>M</kbd><kbd>x</kbd> <code>customize-group</code> <kbd>RET</kbd> <code>minibuffer</code> 就能打开面板）：</p>
+
+  <ul>
+    <li><code>completion-styles</code>——换候选算法，加 <code>flex</code>（模糊匹配，把 <code>fzq</code> 匹配到 <code>foo-zebra-quux</code>）或 <code>basic</code> 都可以。</li>
+    <li><code>completion-auto-help</code>——决定 <code>*Completions*</code> buffer（候选列表）什么时候出现。我在本机 Emacs 32.0.50 的 <code>lisp/minibuffer.el:1138</code> 处核对了它的文档字符串：可取 <code>nil</code>（不显示）、<code>t</code>（<strong>默认值</strong>，只在补全失败时显示）、<code>lazy</code>（失败两次才显示）、<code>visible</code>（失败一次就显示并保持可见）、<code>always</code>（每次尝试都显示）。</li>
+    <li><code>completion-cycle-threshold</code>——候选超过多少个就不再自动全部显示。</li>
+  </ul>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>把 <kbd>M</kbd><kbd>x</kbd> <code>ibuffer</code> 绑成默认的 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd>，是回报率最高的一处配置。原书给的写法是 <code>(global-set-key [remap list-buffers] 'ibuffer)</code>——这里的 <code>remap</code> 意思是「不是新增按键，而是把 <code>list-buffers</code> 这个命令本身换成 <code>ibuffer</code>」，所以 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 依然按，但弹出来的界面可以边打字边过滤、实时排序。</p>
+  </div>
+
+  <div class="drill" data-answer="C-x C-b 换成 ibuffer：写 (global-set-key [remap list-buffers] 'ibuffer)；Emacs 32 的 fido-mode 已并入 icomplete，不用装包">
+    <p class="drill-q"><b>练习 6</b>　<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 列 buffer 的界面很难用。换成 <code>ibuffer</code> 的那行配置怎么写？原书推荐的 FIDO，在 Emacs 32 上还需要装吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>配置写在自己的初始化文件里（Emacs 启动时读的用户配置）：</p>
+<pre class="el"><code>(global-set-key [remap list-buffers] #'ibuffer)</code></pre>
+    <p>改完怎么生效不用重启：<kbd>M</kbd><kbd>x</kbd> <code>eval-buffer</code>，在弹出的文件名里选你的初始化文件（默认是 <code>~/.emacs.d/init.el</code> 或 <code>~/.emacs</code>），回车即可重新加载整个配置。</p>
+    <p>FIDO <strong>不用装</strong>。我实测 <code>(locate-library "fido")</code> 在 Emacs 32.0.50 上返回 <code>nil</code>，安装目录里没有 <code>fido.el</code>；但 <code>(require 'icomplete)</code> 之后 <code>(commandp 'fido-mode)</code> 为真，定义在 <code>lisp/icomplete.el:543</code>。<kbd>M</kbd><kbd>x</kbd> <code>fido-mode</code> 照敲即可。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x kill-buffer 是「关闭」，但不必常用；用 C-x 5 0 关的是 frame，不是 buffer">
+    <p class="drill-q"><b>练习 7</b>　「关掉当前文件」在 Emacs 里有两个不同的按键，你该怎么选？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>先问自己想关的是哪一层：</p>
+    <ul>
+      <li>只是想<strong>不再显示</strong>这个 buffer，绝大多数情况下什么都不用做——直接 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 切走就是了，buffer 会安静地留在后台等你回来。</li>
+      <li>真的要<strong>删除</strong>这个 buffer：<kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd>（<code>kill-buffer</code>）。它会先在 minibuffer 里问你要杀哪个 buffer，直接 <kbd>RET</kbd> 就是当前这个；如果这个 buffer 关联着文件<strong>而且改过</strong>，Emacs 要求你输入完整的 <code>yes</code> 才肯删。</li>
+      <li>想一次清一批：<kbd>M</kbd><kbd>x</kbd> <code>kill-some-buffers</code> 会挨个问。注意它<strong>完全跳过名字以空格开头的内部 buffer</strong>（<code>" *temp*"</code> 那一类），这类 buffer 要删得自己 <kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd> 并点名。</li>
+      <li>想关掉的是<strong>屏幕上的那块区域</strong>：<kbd>C</kbd><kbd>x</kbd> <kbd>0</kbd>（<code>delete-window</code>）只删 window，不动 buffer。</li>
+      <li>想关掉的是<strong>整个应用窗口</strong>：<kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>0</kbd>（<code>delete-frame</code>）。</li>
+    </ul>
+    <p>四个键对应四个不同的东西，这就是本章第二节那张对照表的价值所在。原书作者的态度是「不必强行杀 buffer，让它待着」，因为 buffer 的内存开销接近于文本本身。</p></div>
+  </div>
+
+  <h3>七、卡住时的万能键，以及 Emacs 最反直觉的撤销</h3>
+
+  <h4><kbd>ESC</kbd> <kbd>ESC</kbd> <kbd>ESC</kbd>：一键回到正常</h4>
+
+  <p>连按三次 <kbd>ESC</kbd>（别连着手滑，按三下要有节奏地敲），命令是 <code>keyboard-escape-quit</code>（我实测绑定确认）。手册 <em>Basic Files</em> 之外的行为说明是：它会<strong>退出 minibuffer 提示、取消数字前缀、退出递归编辑层、把所有 window 收成一个</strong>。原书把它的口诀写成「如果卡住了就敲三下 ESC，大概能解决」——这个建议在今天依然成立。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>它会把窗口布局压回单窗口，<strong>你辛苦摆好的多窗口布局会被打散</strong>。这不是 bug，是它的设计目标（回到「最基本的正常状态」）。真怕丢布局，就先开 <code>winner-mode</code>（第八节），或者用标签栏记住那套布局。</p>
+  </div>
+
+  <h4>撤销环：Emacs 的撤销和其他编辑器不一样</h4>
+
+  <p>手册把撤销系统归在 <em>Undo</em> 节点（18.1 节）。核心机制叫<strong>撤销环</strong>（undo ring）：Emacs 把你做过的每一个改动都记在一个环里，<strong>包括「撤销」这个动作本身</strong>。而大多数编辑器用的是<strong>线性撤销栈</strong>——你撤销之后再打字，被撤销的那几步就永久消失了。</p>
+
+  <p>三条必须记住的规则：</p>
+
+  <ol>
+    <li><strong>一次 <kbd>C</kbd><kbd>/</kbd> 撤销的是「一个撤销单元」</strong>，不是一个按键。连续打字会被合并成一个单元；<kbd>RET</kbd>、退格、移动光标这类动作会「封口」，让前后分开。</li>
+    <li><strong>只有「再敲一次撤销」才能继续往回撤</strong>。一旦你做了别的动作（哪怕只是移动光标），撤销序列就断了。</li>
+    <li><strong>断了之后，刚才那串撤销本身被记进了环里</strong>。所以你再按 <kbd>C</kbd><kbd>/</kbd>，撤掉的是「你刚才那些撤销动作」——也就是说它变成了<strong>重做</strong>。手册 <em>Undo</em> 节点的原话是：「Any command other than an undo command breaks the sequence of undo commands. Starting from that moment, the entire sequence of undo commands that you have just performed are themselves placed into the undo record.」</li>
+  </ol>
+
+  <p>这三条的后果就是原书那句结论：<strong>在 Emacs 里你几乎不可能因为撤销而丢数据</strong>，因为「撤销」这个动作本身也能被撤销。所以原书建议「放心大胆地试」——这个建议在今天依然安全。</p>
+
+  <h4>原书那个七步例子（值得你亲手敲一遍）</h4>
+
+  <p>用一个新 buffer，把 <code>█</code> 想成光标。下面的过程照抄原书第 101–102 页，我只是把文字描述换成了对照：</p>
+
+<pre class="term"><code>1. 输入两行：
+   Hello
+   Emacs█
+
+2. 按一次 C-/：
+   Hello
+   █                 ← 只撤掉了 Emacs 这个词，换行留下了
+
+3. 再按一次 C-/：
+   Hello█             ← 换行也被撤掉了
+
+4. 再按回车，输入 World：
+   Hello
+   World█             ← 此时你写过东西、撤过、又写了新东西
+
+5. 连按两次 C-/：
+   Hello
+   Emacs█             ← 撤回到你最初写的样子！这就是「撤销本身被撤销」
+
+6. 再连按 C-/，你会依次看到 World 被撤掉、回车被撤掉，
+   最后一直能撤到整个 buffer 空白。</code></pre>
+
+  <p>第 2 步「换行被保留」不是巧合。Emacs 的实际规则（手册 <em>Undo</em> 节点写的是 consecutive character insertion 通常合并，query-replace 之类会拆细），<strong>换行会触发 undo boundary</strong>，因为原书的理由很实在：想撤销时，你通常不想连带撤销一大段散文或代码，只想撤掉最近敲的那几个字。这条边界的存在本身就是为了让「一次撤一步」符合直觉。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>关于上面的过程我需要说明验证方式：我用 <code>emacs --batch -Q</code> 反复尝试模拟（batch 模式下 Emacs 的命令循环不运行，撤销记录无法建立，<code>C-/</code> 会直接报 <code>No further undo information</code>），<strong>没能拿到逐帧的实测输出</strong>。所以上面这个七步过程是<strong>照原书书稿复述</strong>，而不是我实测的结果——它的每一步都和本机 Emacs 32.0.50 手册 <em>Undo</em> 节点的文字描述一致，但如果你要拿它当验收标准，请自己在交互式 Emacs 里敲一遍确认。</p>
+  </div>
+
+  <h4>想要「经典撤销/重做」怎么办</h4>
+
+  <p>Emacs 28 起有两个新命令专门解决「我也想要别的编辑器那种 undo/redo」的诉求：</p>
+
+  <ul>
+    <li><kbd>M</kbd><kbd>x</kbd> <code>undo-only</code>——就是 <code>undo</code>，但<strong>不会</strong>把你刚撤掉的东西重做回来。<strong>它没有默认键位</strong>（手册 <em>Undo</em> 节点只写「<code>M-x undo-only</code>」），要用 <kbd>M</kbd><kbd>x</kbd> 调。</li>
+    <li><kbd>M</kbd><kbd>x</kbd> <code>undo-redo</code>，键位 <kbd>C</kbd><kbd>?</kbd> 和 <kbd>C</kbd><kbd>M</kbd><kbd>_</kbd>——显式重做「刚才那些撤销动作」。手册特别注明：<strong>它自己不会被记录成可撤销的动作</strong>。</li>
+  </ul>
+
+  <p>这两个绑定我在本机 Emacs 32.0.50 上实测确认（<kbd>C</kbd><kbd>?</kbd> 和 <kbd>C</kbd><kbd>M</kbd><kbd>_</kbd> 都指向 <code>undo-redo</code>；<code>(where-is-internal 'undo-only)</code> 返回 <code>nil</code>，说明它确实没有键位绑定，要用 <kbd>M</kbd><kbd>x</kbd> 调）。</p>
+
+  <p>原书的建议是<strong>别用</strong>这两个命令，去适应撤销环。原书作者的理由我觉得很值得转述：这个概念在 Emacs 里到处都是——register 轮转、mark ring、minibuffer 历史、tab bar 历史，全是「环」而不是「栈」。学会环，其他地方就都通了。</p>
+
+  <details class="deep">
+    <summary>进阶：撤销记录存在哪、会丢吗</summary>
+    <p>撤销信息存在 buffer 里（所以它跟着 buffer 走，切换 buffer 不会丢），但会<strong>被回收</strong>。手册给了三个以字节为单位的变量，我在 Emacs 32.0.50 上实测了默认值：</p>
+    <ul>
+      <li><code>undo-limit</code>，默认 <strong>160000</strong> 字节——软上限。Emacs 会保留足够多的历史到达这个大小，但不会为更早的改动继续保留。</li>
+      <li><code>undo-strong-limit</code>，默认 <strong>240000</strong> 字节——硬上限。任何（除了最近一次）超过这个体积的历史会被丢弃。</li>
+      <li><code>undo-outer-limit</code>，默认 <code>nil</code>——即使用内部默认值。手册说是 24,000,000 字节（24 MB）。超过它 Emacs 会丢掉全部撤销数据并警告你，「这是唯一一种你无法撤销最后一条命令的情况」。</li>
+    </ul>
+    <p>结论很实用：<strong>你在正常写代码时几乎不可能撞到这些上限</strong>，因为撤销数据会被逐步回收；只有一次改动大到几十 MB 才会出问题。</p>
+    <p>另一条冷知识（同出自 <em>Undo</em> 节点）：<strong>名字以空格开头的 buffer 永远不记录撤销信息</strong>。如果某个临时 buffer 里东西被误改了，是撤不回来的。</p>
+    <p>还想更进一步的话，Emacs Wiki 上有个广受欢迎的第三方包 <strong>Undo Tree</strong>，它把撤销环画成一棵可点击的树，直观显示「哪条分支是我正在走的、哪条是你撤回去的」。原书脚注也提了它。它不在 Emacs 自带里，需要自己从 MELPA/ELPA 或源码安装。</p>
+  </details>
+
+  <h4>Emacs 28 起的重复按键</h4>
+
+  <p>Emacs 28 加了 <strong>repeat-mode</strong>：开了之后，某些多键命令可以只敲第一键重复执行。撤销是典型例子——</p>
+
+<pre class="el"><code>;; 在初始化文件里写这两行即可
+(repeat-mode 1)</code></pre>
+
+  <p>开启后 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> <kbd>u</kbd> <kbd>u</kbd> 就等于连敲三次 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd>。想看哪些命令支持重复，<kbd>M</kbd><kbd>x</kbd> <code>describe-repeat-maps</code>（注意：这个命令在 <code>repeat.el</code> 里，我实测确认它是 interactive 的，但必须先让 <code>repeat.el</code> 被加载——<kbd>M</kbd><kbd>x</kbd> <code>repeat-mode</code> 一下它就出现了；<code>emacs --batch -Q</code> 里直接查 <code>(commandp 'describe-repeat-maps)</code> 会返回 <code>nil</code>，因为没 <code>require</code>）。</p>
+
+  <div class="keys">
+    <h4>本节按键（卡住与撤销）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>ESC</kbd> <kbd>ESC</kbd> <kbd>ESC</kbd></td><td><code>keyboard-escape-quit</code></td><td>取消前缀、退出提示、收成一个 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>/</kbd></td><td><code>undo</code></td><td>撤销一步（<strong>首选</strong>）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd></td><td><code>undo</code></td><td>撤销一步（同一个命令，好记的别名）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>_</kbd></td><td><code>undo</code></td><td>撤销一步（部分终端上敲不出 <kbd>C</kbd><kbd>/</kbd> 时的备用）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>/</kbd></td><td><code>undo</code>（带前缀）</td><td>「局部撤销」：只在当前 region 内撤。手册说，<strong>只有在 transient-mark-mode 关着时才需要加 <kbd>C</kbd><kbd>u</kbd></strong>——transient-mark-mode 开着且 region 激活时，直接按 <kbd>C</kbd><kbd>/</kbd> 就已经是局部撤销了</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>undo-only</code></td><td><code>undo-only</code></td><td>继续往回撤，但<strong>不</strong>把撤掉的改动重做回来</td></tr>
+        <tr><td><kbd>C</kbd><kbd>?</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>_</kbd></td><td><code>undo-redo</code></td><td>显式重做刚才的撤销</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>repeat-mode</code></td><td><code>repeat-mode</code></td><td>开关重复按键（Emacs 28 起；默认关）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>describe-repeat-maps</code></td><td><code>describe-repeat-maps</code></td><td>列出所有支持重复的键</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="drill" data-answer="撤销环：undo 本身也是一条记录；打断后再 C-/ 会变成重做；用 undo-only / undo-redo 拿到经典语义">
+    <p class="drill-q"><b>练习 8</b>　你写了三行文本，连按三次 <kbd>C</kbd><kbd>/</kbd> 全撤掉了，然后突然觉得第三行写得不好。你想在别的编辑器里那样「撤销一次把第三行变回来」——Emacs 里怎么做？再进一步，如果你连撤了三次又改了点别的，再按 <kbd>C</kbd><kbd>/</kbd> 会发生什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>Emacs 的做法是<strong>把重做当成撤销的一部分</strong>：那串「撤销」本身已经被记进了撤销环，所以再按 <kbd>C</kbd><kbd>/</kbd>，撤掉的就是「你刚才撤了三下」这个动作本身，效果正是把第三行变回来。手册 <em>Undo</em> 节点原话：「the entire sequence of undo commands that you have just performed are themselves placed into the undo record」。</p>
+    <p>第二个问题也一样：打断之后（比如你移动了光标或敲了新字），<kbd>C</kbd><kbd>/</kbd> 会先「撤销你打断前的那串撤销」= 重做，然后继续往后撤更早的改动。结论就是<strong>在 Emacs 里撤销历史几乎不可能真的丢掉</strong>。</p>
+    <p>如果你实在想要别的编辑器那种干净的 undo/redo，用 <kbd>M</kbd><kbd>x</kbd> <code>undo-only</code>（只撤不重做）和 <kbd>C</kbd><kbd>?</kbd>（<code>undo-redo</code>，显式重做）。原书作者建议别用，把环学明白更划算。</p></div>
+  </div>
+
+  <div class="drill" data-answer="ESC ESC ESC = keyboard-escape-quit；副作用是把多窗口布局压回一个窗口">
+    <p class="drill-q"><b>练习 9</b>　你在 minibuffer 里输到一半，突然想取消这次输入；或者你不小心敲了个 <kbd>3</kbd> 变成「接下来要做三次」的前缀。哪个键能一次解决这两种情况？它有什么副作用？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>连敲三次 <kbd>ESC</kbd>（<code>keyboard-escape-quit</code>，我实测绑定确认）。它会取消 minibuffer 的输入、取消数字前缀、退出递归编辑，并把<strong>所有 window 收成一个</strong>。</p>
+    <p>副作用就是最后那条：如果你正开着三四个 window，一按就全没了。这个「回到最基本状态」正是它的设计意图，但在你精心摆好布局时是件大事。防一手的方法是开 <code>winner-mode</code>（<kbd>M</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>left</kbd> 撤销窗口操作），或者干脆用标签栏把布局固定下来——这正是第八节和第十节的内容。</p>
+    <p>顺带一提：<kbd>C</kbd><kbd>g</kbd>（<code>keyboard-quit</code>，我实测绑定确认）也能中止很多操作，但它是通用中止，行为不如 <kbd>ESC</kbd><kbd>ESC</kbd><kbd>ESC</kbd> 这么「一键归位」。</p></div>
+  </div>
+
+  <h3>八、窗口管理：五个键就能用，会用之后再谈技巧</h3>
+
+  <p>原书在这里放了一句很实在的话：窗口管理其实不复杂，复杂的不是按键，而是<strong>接受「window 随用随建」这个前提</strong>。下面这五个键就是全部的日常需求：</p>
+
+  <div class="keys">
+    <h4>窗口管理五键（本机 Emacs 32.0.50 实测绑定）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd></td><td><code>split-window-below</code></td><td>上下分裂（当前 window 在上，新的在下）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd></td><td><code>split-window-right</code></td><td>左右分裂（当前 window 在左，新的在右）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>0</kbd></td><td><code>delete-window</code></td><td>删掉当前 window（总是光标所在的那个）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>1</kbd></td><td><code>delete-other-windows</code></td><td>删掉<strong>其他所有</strong> window，只留当前这个</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd></td><td><code>other-window</code></td><td>跳到下一个 window（循环）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>两个容易踩的细节：</p>
+
+  <ul>
+    <li><kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd> 分裂后，<strong>当前 window 是上面的那个</strong>，新 window 在下面且<em>没有选中</em>；<kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd> 同理，当前在左。你通常需要立刻按 <kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd> 跳过去。</li>
+    <li>Emacs 会自动平分空间。屏幕宽就左右分（<kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd>），屏幕方就上下分（<kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd>）。原书作者说他习惯固定摆成 2×2 的四格。</li>
+  </ul>
+
+  <h4>撤销窗口操作：<code>winner-mode</code></h4>
+
+  <p>窗口操作最容易出「手滑」——想 <kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd> 结果按成了 <kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd>。Emacs 自带一个次模式专门对付这个：<strong><code>winner-mode</code></strong>（默认关闭）。开了之后它会记住你的每一次窗口操作，可以用 <kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>left</kbd> 退回去、<kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>right</kbd> 前进。</p>
+
+  <p>我实测确认了：这两个键<strong>默认没有绑定</strong>（<code>(key-binding (kbd "C-c &lt;left&gt;"))</code> 返回 <code>nil</code>），只有开了 <code>winner-mode</code> 之后才变成 <code>winner-undo</code> 和 <code>winner-redo</code>。写进初始化文件：</p>
+
+<pre class="el"><code>(winner-mode 1)</code></pre>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><code>winner-mode</code> 和后面第十节要讲的 <code>tab-bar-history-mode</code> <strong>默认抢同一对键</strong>：我实测 <code>tab-bar-history-mode</code> 开启后 <kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>left</kbd> 变成 <code>tab-bar-history-back</code>、<kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>right</kbd> 变成 <code>tab-bar-history-forward</code>（原书写这本书时这两个命令还<em>没有</em>默认键位，需要自己绑——这是它和今天的一处差别）。两个都开的话，<strong>赢的一定是 <code>winner-mode</code>，和谁先开后开无关</strong>（我两种顺序都试过：先开 tab-bar-history 再开 winner 是 <code>winner-undo</code>，反过来也是 <code>winner-undo</code>）——因为 <code>winner-mode</code> 的次模式键表在查找顺序上比 <code>tab-bar-history-mode</code> 写在全局键表里的绑定更靠前。想都用就自己挑一对没被占的键。原书脚注也提醒过这一点。</p>
+  </div>
+
+  <h4>按方向切窗口：<code>windmove</code></h4>
+
+  <p><code>windmove</code> 是 Emacs <strong>自带</strong>的（不用装包），提供按罗盘方向移动光标的能力，而不必循环 <kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd>。在初始化文件里加一行：</p>
+
+<pre class="el"><code>(windmove-default-keybindings)</code></pre>
+
+  <p>实测结果：执行后 <kbd>S</kbd><kbd>&lt;</kbd> <kbd>left</kbd>、<kbd>S</kbd><kbd>&gt;</kbd> <kbd>right</kbd>、<kbd>S</kbd><kbd>↑</kbd>、<kbd>S</kbd><kbd>↓</kbd> 分别绑定到 <code>windmove-left</code> / <code>windmove-right</code> / <code>windmove-up</code> / <code>windmove-down</code>（我实测 <code>(key-binding (kbd "S-&lt;left&gt;"))</code> 等四项成立，而 <code>(key-binding (kbd "S-&lt;"))</code> 这类「字符版」写法返回 <code>nil</code>——不要把它们和方向键弄混）。按住 <kbd>Shift</kbd> 加方向键就从「移动文本光标」变成了「在窗口之间跳」，各跳各的，互不干扰。原书写的就是这四个键。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>代价是 Shift 选择没了。</strong>手册 <em>Window Convenience</em> 节点明确提醒：<code>windmove-default-keybindings</code> 把命令绑到 <code>S-方向键</code> 上，而这么做的结果是 <em>这些键的 Shift 选择功能会被关掉</em>（*"doing so disables shift selection for those keys"*）。也就是说以后你没法用 <kbd>S</kbd>+方向键选文本了。</p>
+    <p>手册还给了另外三组可选的默认绑定，你要是不想要这个副作用就换一组用：<code>windmove-display-default-keybindings</code>（为「下一条命令要把 buffer 显示到哪个方向」提供绑定）、<code>windmove-delete-default-keybindings</code>（方向删除 window）、<code>windmove-swap-states-default-keybindings</code>（方向交换两个 window 的内容）。</p>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>如果你不想动 <kbd>Shift</kbd>，改绑到别处也可以，但<strong>先查一下你要占的那几个键现在绑了什么</strong>。我在本机 Emacs 32.0.50 上实测的默认绑定是：<kbd>M</kbd><kbd>&lt;</kbd> <kbd>left</kbd> 和 <kbd>M</kbd><kbd>&gt;</kbd> <kbd>right</kbd> 已经是 <code>left-word</code> / <code>right-word</code>（按词左右移），<kbd>M</kbd><kbd>&lt;</kbd> <kbd>up</kbd> 和 <kbd>M</kbd><kbd>&lt;</kbd> <kbd>down</kbd> 才是真正的空绑定。好消息是：被占的 <code>left-word</code> / <code>right-word</code> 另有备份（<kbd>C</kbd><kbd>&lt;</kbd> <kbd>left</kbd> / <kbd>C</kbd><kbd>&gt;</kbd> <kbd>right</kbd> 同样是按词移动），而 <code>beginning-of-buffer</code> / <code>end-of-buffer</code> 在 <kbd>M</kbd><kbd>&lt;</kbd>、<kbd>M</kbd><kbd>&gt;</kbd>、<kbd>C</kbd><kbd>&lt;</kbd> <kbd>home</kbd>、<kbd>C</kbd><kbd>&lt;</kbd> <kbd>end</kbd> 四处都有绑定，覆盖 <kbd>M</kbd> 方向键不会让你丢掉「跳到文件首尾」。</p>
+<pre class="el"><code>(global-set-key (kbd "M-&lt;left&gt;")  'windmove-left)
+(global-set-key (kbd "M-&lt;right&gt;") 'windmove-right)
+(global-set-key (kbd "M-&lt;up&gt;")    'windmove-up)
+(global-set-key (kbd "M-&lt;down&gt;")  'windmove-down)</code></pre>
+  </div>
+
+  <h4>在另一个 window 里干活：<kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> 系列</h4>
+
+  <p>上面的五键有个笨拙之处：想让<em>别的</em> window 换个 buffer，你得先 <kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd> 跳过去，再 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 换回来，来回打断。Emacs 为此准备了一整套「在另一个 window 里做 X」的命令，前缀键是 <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd>：</p>
+
+  <div class="keys">
+    <h4><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> 系列（全部实测绑定）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>f</kbd></td><td><code>find-file-other-window</code></td><td>在另一个 window 打开文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>find-file-other-window</code></td><td>同上（另一种写法，两个键完全等价）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer-other-window</code></td><td>在另一个 window 切换 buffer，并跳到那里</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>d</kbd></td><td><code>dired-other-window</code></td><td>在另一个 window 打开目录列表（Dired）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>p</kbd></td><td><code>project-other-window-command</code></td><td>在另一个 window 运行项目命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>0</kbd></td><td><code>kill-buffer-and-window</code></td><td>杀掉这个 buffer <strong>并且</strong>删掉这个 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>r</kbd></td><td><code>find-file-read-only-other-window</code></td><td>在另一个 window 以只读方式打开文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>C</kbd><kbd>o</kbd></td><td><code>display-buffer</code></td><td>把 buffer 显示到某个 window，但<strong>不</strong>选中它</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>4</kbd></td><td><code>other-window-prefix</code></td><td>通用前缀：把「下一条命令要显示的 buffer」放到别的 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>1</kbd></td><td><code>same-window-prefix</code></td><td>反向：要求在当前 window 显示</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>C</kbd><kbd>h</kbd></td><td>（不是绑定，是 <kbd>C</kbd><kbd>h</kbd> 的内建行为）</td><td>在前缀之后敲 <kbd>C</kbd><kbd>h</kbd>，Emacs 会显示该前缀键下的全部命令</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>把上面这张表和日常的 <kbd>C</kbd><kbd>x</kbd> 对照，你会发现一个漂亮的规律：<strong><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> 就是「<kbd>C</kbd><kbd>x</kbd> 那一套加上在别的 window 做」的版本</strong>。<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> → <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>f</kbd>，<kbd>C</kbd><kbd>x</kbd> <kbd>d</kbd> → <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>d</kbd>，<kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> → <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd>，<kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd> → <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>0</kbd>（在另一个 window 杀掉 buffer 并关掉那块区域）。这个对称不是巧合，正是它好记的原因。手册 <em>Displaying Buffers</em> 节点也从另一个角度确认了它：所有命令名以 <code>-other-window</code> 结尾的（「<code>C-x 4</code>」系列都属于这类）行为等同于 <code>display-buffer</code>，只是永远不在当前 window 里显示。</p>
+  </div>
+
+  <div class="drill" data-answer="先 C-x o 跳过去再 C-x b；或者一步到位用 C-x 4 b（switch-to-buffer-other-window）">
+    <p class="drill-q"><b>练习 10</b>　你在左边 window 编辑 <code>a.txt</code>，右边 window 放着 <code>b.txt</code>。你想把右边的 buffer 换成 <code>c.txt</code>。有几种做法？哪种最省按键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>两种做法：</p>
+    <ol>
+      <li>笨办法：<kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd> 跳到右边 → <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 换 buffer → 打完字再 <kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd> 跳回来。三段操作。</li>
+      <li>一步到位：<kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd>（<code>switch-to-buffer-other-window</code>，实测绑定确认），在<em>另一个</em> window 切 buffer <strong>并且跳到那个 window</strong>。一段操作。</li>
+    </ol>
+    <p>「另一个 window」大致就是「当前 window 之后的那个」（按 window 的环形顺序找）——所以如果你当前正好在右边，<kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd> 会作用到左边那个。这在只有两个 window 时无所谓，窗口一多就得先看清自己在哪。</p>
+
+    <div class="callout note"><b>要点</b><p><strong>它内部调用的是 <code>display-buffer</code></strong>：如果 frame 里确实没有别的 window 可用，Emacs 会现分裂一个出来。<strong>但不是无条件的</strong>——变量 <code>split-height-threshold</code>（默认 <code>80</code>）和 <code>split-width-threshold</code>（默认 <code>150</code>）管的是「<strong>现有窗口够不够大，值得再分一刀</strong>」。按 <code>window.el</code> 里的原始定义：<code>split-height-threshold</code> 是「<strong>window 至少要有这么多行，<code>split-window-sensibly</code> 才允许纵向分裂</strong>」，<code>split-width-threshold</code> 同理按列算。<strong>唯一的例外是：当这个 window 是 frame 里唯一一个，或者其余窗口都是 dedicated，那时可以无视这个值照分不误。</strong>所以在一个只有 40 行的终端里，只有这一个 window 时你按 <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd> 还是会分；等到你有了两三个 window、每个都不够高，它就不肯再分了。两个变量都用 <kbd>M</kbd><kbd>x</kbd> <code>customize</code> 改，本书作者在 Emacs 32.0.50 上确认过这两个默认值（<code>split-height-threshold</code> 的 :version 标的是 23.1，也就是 Emacs 23 起就是这个默认）。</p></div>
+    <p>注意 <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>C</kbd><kbd>o</kbd>（<code>display-buffer</code>）和 <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd> 的区别：前者只把 buffer 显示到某个窗口<strong>不选中</strong>，适合「我想让它在那边露个脸但别打断我」，后者会把你带过去。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x 2 分上下（当前在上），C-x 3 分左右（当前在左）；分裂后光标留在原来的 window">
+    <p class="drill-q"><b>练习 11</b>　你想把屏幕分左右两块，但按了 <kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd>。怎么改回来？另外，分裂完成后光标（point）留在哪个 window 里？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd> 是<strong>上下</strong>分，<kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd> 才是<strong>左右</strong>分。记法：数字 2 像上下两行，数字 3 像竖着切三块的右侧那块。这只是助记，Emacs 本身没有强制约定。</p>
+    <p>分裂完成后，<strong>光标留在原来那个 window</strong>（上面或左边），新 window 虽然已经创建但没被选中。手册 <em>Splitting Windows</em> 节点确认了这点。所以你通常要立刻按一下 <kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd> 跳进新 window。</p>
+    <p>补救办法：手滑了就按 <kbd>C</kbd><kbd>x</kbd> <kbd>1</kbd>（<code>delete-other-windows</code>）清掉重来；或者一开始就开 <code>winner-mode</code>，用 <kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>left</kbd> 退回去。</p></div>
+  </div>
+
+  <h3>九、frame：Emacs 的「GUI 窗口」，以及它今天为什么不好使</h3>
+
+  <p>现在可以正式介绍 <strong>frame</strong> 了。用一句话复述官方手册 <em>Frames</em> 节点的定义：Emacs 跑在图形界面时，会占一个系统级的图形显示区域，手册管它叫 frame，并且<strong>把这个词专门留给它</strong>，而把「显示 buffer 的那块区域」留给 window。</p>
+
+  <p>所以：<strong>别的编辑器里说的「窗口」= Emacs 的 frame；别的编辑器里的「分屏格子」= Emacs 的 window。</strong>这就是为什么原书在这一节专门加了一句「frame 在终端 Emacs 里也能用」——终端 Emacs 的 frame 是整块终端屏幕，同一时刻只能显示一个。</p>
+
+  <div class="keys">
+    <h4><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> 系列（全部实测绑定）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>2</kbd></td><td><code>make-frame-command</code></td><td>新建一个 frame</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>c</kbd></td><td><code>clone-frame</code></td><td>按当前 frame 的布局和参数克隆一个新 frame</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd></td><td><code>other-frame</code></td><td>切到另一个 frame 并抬起来（连按循环）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>0</kbd></td><td><code>delete-frame</code></td><td>删掉当前 frame（只有这一个时会报错）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>1</kbd></td><td><code>delete-other-frames</code></td><td>删掉当前终端上除当前之外的所有 frame</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>u</kbd></td><td><code>undelete-frame</code></td><td>恢复最近删掉的 frame（需开 <code>undelete-frame-mode</code>，默认关）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer-other-frame</code></td><td>在另一个 frame 切换 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>f</kbd> / <kbd>C</kbd><kbd>f</kbd></td><td><code>find-file-other-frame</code></td><td>在另一个 frame 打开文件（两种写法等价）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>d</kbd></td><td><code>dired-other-frame</code></td><td>在另一个 frame 打开目录列表</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>r</kbd></td><td><code>find-file-read-only-other-frame</code></td><td>在另一个 frame 以只读方式打开文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>p</kbd></td><td><code>project-other-frame-command</code></td><td>在另一个 frame 运行项目命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>C</kbd><kbd>o</kbd></td><td><code>display-buffer-other-frame</code></td><td>把 buffer 显示到另一个 frame，不选中</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>5</kbd></td><td><code>other-frame-prefix</code></td><td>通用前缀：让下一条命令显示的 buffer 落在另一个 frame</td></tr>
+        <tr><td><kbd>C</kbd><kbd>z</kbd></td><td><code>suspend-frame</code></td><td>最小化当前 frame</td></tr>
+        <tr><td><kbd>M</kbd><kbd>&lt;</kbd><kbd>F10</kbd></td><td><code>toggle-frame-maximized</code></td><td>最大化 / 还原当前 frame</td></tr>
+        <tr><td><kbd>F11</kbd></td><td><code>toggle-frame-fullscreen</code></td><td>全屏 / 退出全屏</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>和 <kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> 一样，<kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> 就是「C-x 那一套加上在另一个 frame 做」——这个对称同样成立，记住一个就记住两个。</p>
+
+  <p>还有一个值得知道的便利行为：<strong>如果那个 buffer 已经在某个 frame 里可见，<kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> 系列会直接切到那个 frame，而不是新建一个</strong>。手册 <em>Creating Frames</em> 节点原话是：「If an existing visible or iconified frame already displays the requested buffer, that frame is raised and deiconified」。所以 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>f</kbd> 打开一个你正开着的文件时，不会多出窗口，只是把那个 frame 抬起来。</p>
+
+  <h4>今天的实际情况：frame 体系比原书写的时候更不好用</h4>
+
+  <p>原书写这段时对 frame 的评价就已经偏保守了：所有 frame 共享同一个 Emacs 会话，管理起来「有点别扭」，作者建议「试试看合不合手」。<strong>这个评价在今天的 Wayland 和 macOS 上更成立了</strong>，原因不是 Emacs 的代码退化了，而是桌面环境变了。下面是我在本机能核实的部分——引用全部来自本机安装的 Emacs 32.0.50 手册和 <code>etc/NEWS.*</code> 原文。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>Wayland：窗口的位置不由 Emacs 决定。</strong>手册 <em>Environment Variables</em> 节点里关于 <code>WAYLAND_DISPLAY</code> 只有一句：「Pgtk Emacs (built with <code>--with-pgtk</code>) can run on Wayland natively.」也就是说 Wayland 上的图形 Emacs 走的是 GTK 那一套纯 GTK 构建（<code>--with-pgtk</code>）。</p>
+    <p>而 <code>etc/NEWS.29</code> 里对这个构建有一段明确的警告，照抄要点：这个构建可以跑在任何 GDK 支持的窗口系统上（Wayland、Broadway 等），<strong>但作者建议只在你用的窗口系统不是 X 的时候才用它；在 X 上跑它「已知有问题」（known to have problems），具体表现为「令人不快的 frame 定位（undesirable frame positioning）」和各种键盘序列输入问题，并点名了 <kbd>C</kbd><kbd>;</kbd> 和 <kbd>C</kbd><kbd>S</kbd><kbd>u</kbd> 这类键</strong>。</p>
+    <p>这条 NEWS 出自 Emacs 29 的开发期，它说明两件事：一是 Wayland 上的 Emacs 是「能用」的，二是这条路上仍有已知毛刺。<strong>我没有办法在本机（X11 与 Wayland 环境都在，但无法判定 Emacs 32.0.50 在 Wayland 下的实际表现）验证今天的状态，也无法联网核对最新的 bug 进展</strong>——如果你的 Wayland 桌面下 Emacs 的 frame 行为异常，第一时间该看的是 <code>*Messages*</code> buffer 和 <kbd>M</kbd><kbd>x</kbd> <code>report-emacs-bug</code>，而不是硬调参数。</p>
+  </div>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>合成器带来的另一个坑，Emacs 30 才补上。</strong><code>etc/NEWS.30</code> 里有一条：「Emacs now updates invisible frames that are made visible by a compositor.」——意思是「如果一个被 Emacs 判定为不可见（invisible）或已图标化的 frame 被合成器（compositor）显示出来了，Emacs 现在会重绘它」。此前这类 frame 因为 <code>frame-visible-p</code> 返回 <code>nil</code> 而不刷新，症状是「窗口出现了但内容是花的、或者干脆空白」。这是典型的「Emacs 的窗口模型和现代桌面合成器的模型对不上」的 bug，而它到 Emacs 30 才被修。</p>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>macOS：先搞清楚你的 Emacs 是哪种构建。</strong>本机安装的 Emacs 32 手册在附录 F（<em>Emacs and macOS / GNUstep</em>）里写得很清楚：「On macOS, Emacs can be built either without window system support, with X11, or with the Cocoa interface; this section only applies to the Cocoa build.」手册还解释了为什么相关命令都以 <code>ns-</code> 开头：「Emacs uses the term ‘Nextstep’ internally, instead of ‘Cocoa’ or ‘macOS’」。</p>
+    <p>Cocoa 构建上还有几条 frame 相关的行为差异，举两个手册原文点名的：<code>ns-use-native-fullscreen</code>（是否使用系统原生全屏，手册注明原生全屏需要 macOS 10.7 及以上）；工具栏的处理——「NS builds consider the tool bar to be a window decoration, and therefore do not display it when a window is undecorated」，以及「On macOS the tool bar is hidden when the frame is put into fullscreen, but can be displayed by moving the mouse pointer to the top of the screen」。也就是说 macOS 上 Emacs frame 的行为和 X11 上并不完全一样。<strong>具体你的构建是哪种，判据是 <kbd>M</kbd><kbd>:</kbd> 执行后看 <code>system-configuration-features</code> 里有没有 <code>ns</code> 这一项——这一步需要你自己在 macOS 上确认，我没有 macOS 机器可验。</strong></p>
+  </div>
+
+  <h4>顺带说清一件事：<code>native-comp</code> 和 frame 没关系</h4>
+
+  <p>很多人把「Emacs 28+ 改了 native-comp」和「Emacs 的窗口系统在现代桌面下有问题」混在一起讲，但这两件事是分开的。核对本机 <code>etc/NEWS.28</code> 和 <code>NEWS.29</code> 的原文，事实是这样：</p>
+
+  <ul>
+    <li><strong>Emacs 28</strong>「optionally supports native compilation of Lisp files」——构建时加 <code>--with-native-compilation</code> 开启，依赖 <code>libgccjit</code>，这是把 Elisp 在运行时用 JIT 编译成本机代码，目标是<strong>让 Lisp 跑得更快</strong>。</li>
+    <li><strong>Emacs 29</strong> 让这件事更好用了：可以用 <code>--with-native-compilation=aot</code> 请求把整棵 Emacs 源码树里的 Lisp 全部提前（AOT，ahead-of-time）原生编译。NEWS 原文承认：「This feature existed in Emacs 28.1, but was less easy to request.」同版还新增了 <code>native-compile-prune-cache</code> 命令，并让 <code>symbol-file</code> 能报告 <code>.eln</code> 文件。</li>
+    <li><strong>Emacs 31</strong> 又补了 <code>native-compile-directory</code> 函数和 <code>native-comp-async-on-battery-power</code> 选项。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>所以准确的结论是：<strong><code>native-comp</code> 解决的是启动速度和运行速度，跟 frame 在 Wayland/macOS 下好不好用完全是两码事。</strong>你如果看到有人说「装上 native-comp 就没有多窗口问题」，那是不成立的；native-comp 影响的是 Emacs 启动时加载你的配置快不快。本书第 13 章会专门讲这件事，这里点到为止。</p>
+    <p>唯一真正把两者连起来的地方是上一条：native compiler 发出的警告也会受 <code>warning-display-at-bottom</code> 影响——所以一个用 native-comp 的配置里，编译警告同样会在 frame 底部开窗口。</p>
+  </div>
+
+  <h4>所以你该怎么办</h4>
+
+  <p>三条实用建议：</p>
+
+  <ol>
+    <li><strong>多显示器时用 frame。</strong>这是它唯一无可替代的场景——你想让 Emacs 在两个物理屏幕上各占一块并且互不干扰地滚动，这是平铺式窗口管理器和标签栏都做不到的。Emacs 内部完全支持一块屏幕一个 frame。</li>
+    <li><strong>同一块屏幕上，别用 frame，用标签栏。</strong>下一节的 Tab Bar 就是「像 frame 一样的逻辑分组，但不用真的开多个系统窗口」，原书作者也是这么定位它的。</li>
+    <li><strong>用了平铺式窗口管理器（i3、Sway、Hyprland、niri 之类）就别用 frame。</strong>窗口管理器会接管 frame 的摆放，Emacs 再去争就会打架。这一条是我的经验判断，不是手册规定：你自己试一次就知道冲突在哪。</li>
+  </ol>
+
+  <div class="drill" data-answer="删 window 用 C-x 0；删 frame 用 C-x 5 0（数字零，别按成字母 o）；字母 o = 移动，数字 0 = 删除">
+    <p class="drill-q"><b>练习 12</b>　有人说「Emacs 的窗口」，可能指系统窗口，也可能指 frame 里的一块区域。「我要关掉这块区域」和「我要关掉整个 Emacs 应用窗口」分别按哪个键？哪个键特别容易被按错？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>「关掉这块区域」是删 window：<kbd>C</kbd><kbd>x</kbd> <kbd>0</kbd>（<code>delete-window</code>），只影响当前这个 window，buffer 还在。「关掉整个 Emacs 应用窗口」是删 frame：<kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>0</kbd>（<code>delete-frame</code>），Emacs 进程继续跑，其他 frame 和所有 buffer 都在。</p>
+    <p>最容易按错的是 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>0</kbd> 和 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd>：一个数字零、一个字母 o，位置一样含义完全相反——<kbd>o</kbd> 是切到另一个 frame，<kbd>0</kbd> 是把当前 frame 关掉。手册 <em>Frames</em> 节点专门加了一句括号提醒「that is zero, not ‘o’」，可见连文档作者都觉得需要标出来。</p>
+    <p>同一规律也覆盖 window：<kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd> 切 window、<kbd>C</kbd><kbd>x</kbd> <kbd>0</kbd> 删 window。所以<strong>字母 o 表示「移动过去」，数字 0 表示「把它删掉」</strong>，这套规律在 window 和 frame 两套键位里都成立。</p></div>
+  </div>
+
+  <h3>十、标签栏与标签行：Emacs 27 起内置的「那一排 tab」</h3>
+
+  <p>Emacs 一直没有浏览器那种「标签栏」，是它被吐槽很多年的点。Emacs 27 一口气加了两个内置功能，解决两个不同的问题——原书这一节的标题就是「Tab Bars and Tab Lines」，别把它们混成一个东西：</p>
+
+  <ul>
+    <li><strong>Tab Bar</strong>（标签栏）：位于 <strong>frame 顶部</strong>，每个「标签」是一整套 <strong>window 配置</strong>（这个 frame 被怎么分成几块、每块放哪个 buffer）。它对应 IDE 里的「工作区 / 项目」。前缀键是 <kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd>。</li>
+    <li><strong>Tab Line</strong>（标签行）：位于<strong>每个 window 顶部</strong>，每个「标签」是这个 window 曾经显示过的 <strong>buffer</strong>。它才对应浏览器 / VS Code 那种「一排文件标签」。用 <kbd>M</kbd><kbd>x</kbd> <code>global-tab-line-mode</code> 开关。</li>
+  </ul>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>这两者的区别在手册里说得很明确（<em>Tab Bars</em> 与 <em>Tab Line</em> 两个节点都写了）：Tab Line 的标签用来在<strong>同一个 window 内换 buffer</strong>，Tab Bar 的标签用来在<strong>不同的 window 配置之间切换</strong>。想「同时看四个 buffer」用 Tab Bar；想在同一个格子里来回翻 buffer 用 Tab Line。</p>
+  </div>
+
+  <h4>Tab Bar：把一整套窗口布局存成一个标签</h4>
+
+  <p>原书对这个功能的定位很准：Tab Bar 相当于「有名字的、持久的窗口配置」，像 IDE 的工作区。如果你经常在「日程 + 邮件」和「代码 + 终端」这两套布局之间来回切，每个标签就是一套。</p>
+
+  <p>开启方式三选一：<kbd>M</kbd><kbd>x</kbd> <code>tab-bar-mode</code>（临时，立即生效，对所有 frame 生效）、<kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> <kbd>RET</kbd> <code>tab-bar-mode</code> <kbd>RET</kbd>（图形化改默认值并保存）、或者写进初始化文件：</p>
+
+<pre class="el"><code>(tab-bar-mode 1)</code></pre>
+
+  <div class="keys">
+    <h4><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> 系列（全部实测绑定）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>2</kbd></td><td><code>tab-new</code></td><td>新建一个标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>0</kbd></td><td><code>tab-close</code></td><td>关闭当前标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>1</kbd></td><td><code>tab-close-other</code></td><td>关闭除当前标签外的所有标签</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>u</kbd></td><td><code>tab-undo</code></td><td>恢复刚关闭的标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>o</kbd> / <kbd>C</kbd><kbd>&lt;</kbd> <kbd>tab</kbd></td><td><code>tab-next</code></td><td>下一个标签页（带数字前缀可跳 N 个；到末尾循环）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>S</kbd><kbd>&lt;</kbd> <kbd>tab</kbd></td><td><code>tab-previous</code></td><td>上一个标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>RET</kbd></td><td><code>tab-switch</code></td><td>按名字选择标签页（带补全；<kbd>M</kbd><kbd>n</kbd> 能翻出最近访问过的标签名）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>r</kbd></td><td><code>tab-rename</code></td><td>重命名当前标签</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>m</kbd></td><td><code>tab-move</code></td><td>把当前标签往右挪一位（带数字前缀可挪 N 位）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer-other-tab</code></td><td>在另一个标签页切换 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>f</kbd> / <kbd>C</kbd><kbd>f</kbd></td><td><code>find-file-other-tab</code></td><td>在另一个标签页打开文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>d</kbd></td><td><code>dired-other-tab</code></td><td>在另一个标签页打开目录列表</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>p</kbd></td><td><code>project-other-tab-command</code></td><td>在另一个标签页运行项目命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>t</kbd></td><td><code>other-tab-prefix</code></td><td>通用前缀：让下一条命令显示的 buffer 落到另一个标签页</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>原书这一行的键位和今天不一样。</strong>原书写「<kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>t</kbd> = Execute command in other tab」，并且说 <kbd>M</kbd><kbd>x</kbd> <code>tab-undo</code>、<kbd>M</kbd><kbd>x</kbd> <code>tab-list</code>、<kbd>M</kbd><kbd>x</kbd> <code>tab-recent</code>「都没有绑定按键」。我在 Emacs 32.0.50 上实测的结果：</p>
+    <ul>
+      <li><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>t</kbd> 现在的命令是 <code>other-tab-prefix</code>，它是<strong>前缀键</strong>（后面要再敲一条命令），不是「执行某条命令」。我实测 <code>(commandp 'tab-execute-command)</code> 返回假——<strong>Emacs 32 里根本没有 <code>tab-execute-command</code> 这个命令</strong>。手册 <em>Tab Bars</em> 节点现在的描述是：「This is a prefix command (<code>other-tab-prefix</code>) that affects the next command invoked immediately after this prefix command.」</li>
+      <li><code>tab-undo</code> <strong>现在有默认键位了</strong>：<kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>u</kbd>。我实测 <code>(where-is-internal 'tab-undo)</code> 返回 <code>C-x t u</code>。</li>
+      <li><code>tab-list</code> 和 <code>tab-recent</code> <strong>确实仍然没有默认键位</strong>（我实测 <code>where-is-internal</code> 对两者都返回 <code>nil</code>），要用 <kbd>M</kbd><kbd>x</kbd> 调。</li>
+    </ul>
+  </div>
+
+  <div class="keys">
+    <h4>没有键位、但值得知道的 Tab Bar 命令</h4>
+    <table>
+      <thead><tr><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>tab-list</code></td><td>弹出交互式标签列表，选一个切过去（实测为命令、无默认键位）</td></tr>
+        <tr><td><code>tab-switcher</code></td><td>带补全的标签切换器（实测为命令）</td></tr>
+        <tr><td><code>tab-recent</code></td><td>回到最近访问过的那个标签（实测为命令、无默认键位）</td></tr>
+        <tr><td><code>tab-new-to</code></td><td>在指定位置插入新标签（实测为命令，<kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>N</kbd>）</td></tr>
+        <tr><td><code>tab-group</code></td><td>把标签分组（<kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>G</kbd>；分组功能随 Emacs 28 加入，见 <code>etc/NEWS.28</code>）</td></tr>
+        <tr><td><code>toggle-frame-tab-bar</code></td><td>只给当前这一个 frame 开/关标签栏</td></tr>
+        <tr><td><code>tab-line-close-other-tabs</code></td><td>关闭标签行上除当前外的所有标签（Emacs 31 新增，实测存在）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Tab Bar 的三个可调项</h4>
+
+  <ul>
+    <li><code>tab-bar-show</code>（实测默认 <code>t</code>）：控制标签栏<strong>在什么时候显示</strong>。<code>t</code> 是「用新建标签的命令时就打开」；<code>1</code> 是「只有一个标签时隐藏，多于一个才显示」；正整数是「标签数超过它才显示」；<code>nil</code> 是「永远不显示，但所有命令照常可用」。<strong>不喜欢顶部那一行、但想要它的功能，就设成 <code>nil</code>。</strong></li>
+    <li><code>tab-bar-define-keys</code>（Emacs 31 新增，实测默认 <code>t</code>）：控制 Tab Bar 绑定哪些键。<code>t</code> 全部绑定；<code>numeric</code> 只绑定数字选择；<code>tab</code> 只绑定 <kbd>C</kbd><kbd>&lt;</kbd> <kbd>tab</kbd> / <kbd>C</kbd><kbd>S</kbd><kbd>&lt;</kbd> <kbd>tab</kbd>；<code>nil</code> 一个都不绑。存在的理由是避免和 outline 之类的 <kbd>tab</kbd> 绑定打架。</li>
+    <li><code>tab-bar-new-tab-choice</code>（实测默认 <code>t</code>）：决定新标签里放什么 buffer（<code>t</code> 就是沿用当前 buffer）。</li>
+  </ul>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>标签页历史：<code>tab-bar-history-mode</code>，以及它和原书不一样的地方。</strong>标签页的窗口布局也容易乱掉，你需要一个「退回刚才那套布局」的机制，这就是 <code>tab-bar-history-mode</code>（默认关）。开启方式：<kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> <kbd>RET</kbd> <code>tab-bar-history-mode</code> <kbd>RET</kbd>，或者写 <code>(tab-bar-history-mode 1)</code>。</p>
+    <p><strong>和原书的差别</strong>：原书说「在能在历史里前后走的命令没有绑定按键，你需要自己写两行绑定」，并给出：</p>
+<pre class="el"><code>(global-set-key (kbd "M-[") 'tab-bar-history-back)
+(global-set-key (kbd "M-]") 'tab-bar-history-forward)</code></pre>
+    <p>在 Emacs 32.0.50 上我实测：这两个命令仍然存在（<code>(commandp 'tab-bar-history-back)</code> 为真），<strong>但现在已经自带默认键位了</strong>——开启该模式后 <kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>left</kbd> 变成 <code>tab-bar-history-back</code>、<kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>right</kbd> 变成 <code>tab-bar-history-forward</code>（未开启时这两个键实测是空绑定）。所以今天你不用再写那两行了，直接开模式即可。</p>
+    <p>同时提醒：<code>winner-mode</code> 也用 <kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>left</kbd> / <kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>right</kbd>，而且<strong>两者同开时永远是 <code>winner-mode</code> 赢</strong>（不是「后开的赢」——我两种顺序都实测过，结果一样）。想让 tab 布局历史也能用，得自己另绑一对键。</p>
+  </div>
+
+  <h4>Tab Line：window 顶部的那一排 buffer</h4>
+
+  <p>开启：<kbd>M</kbd><kbd>x</kbd> <code>global-tab-line-mode</code>（对所有 buffer 生效），或者只给某个 buffer 开用 <kbd>M</kbd><kbd>x</kbd> <code>tab-line-mode</code>。手册 <em>Tab Line</em> 节点说：默认情况下它列出「在这个 window 里曾经显示过的所有 buffer」。</p>
+
+  <div class="keys">
+    <h4>Tab Line 键位（注意它们有历史）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用与版本差异</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>&lt;</kbd> <kbd>left</kbd></td><td><code>previous-buffer</code> → <code>tab-line-switch-to-prev-tab</code></td><td><strong>未开</strong> <code>global-tab-line-mode</code> 时是「上一个 buffer」（实测绑定确认）；<strong>Emacs 31.1 起</strong>，开启后会变成标签行专用的版本</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>&gt;</kbd> <kbd>right</kbd></td><td><code>next-buffer</code> → <code>tab-line-switch-to-next-tab</code></td><td>同上</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>M</kbd><kbd>&lt;</kbd> <kbd>left</kbd></td><td><code>tab-line-move-tab-backward</code></td><td>把当前标签往左挪（Emacs 31 新增；需先开 <code>global-tab-line-mode</code>，未开时是空绑定）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>M</kbd><kbd>&gt;</kbd> <kbd>right</kbd></td><td><code>tab-line-move-tab-forward</code></td><td>把当前标签往右挪（Emacs 31 新增；需先开 <code>global-tab-line-mode</code>）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>&lt;</kbd> <kbd>left</kbd></td><td><code>previous-buffer</code> → <code>tab-line-switch-to-prev-tab</code></td><td>和上一行同样的来历：默认是「上一个 buffer」，开了 <code>global-tab-line-mode</code> 后被换成标签行专用版本</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>我在本机 Emacs 32.0.50 的 <code>lisp/tab-line.el:1312</code> 处读了 <code>tab-line--define-keys</code> 的实现，它只在 <code>C-x &lt;left&gt;</code> <strong>当前还绑着 <code>previous-buffer</code> 时</strong>才覆盖它（代码里就是那句 <code>(when (eq (keymap-lookup ctl-x-map "&lt;left&gt;") 'previous-buffer)</code>，目的是不踩你已有的自定义绑定）；开关是变量 <code>tab-line-define-keys</code>（实测默认 <code>t</code>，是 Emacs 31.1 新增的用户选项）。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong>标签行和窗口工具栏抢同一块地方。</strong>手册 <em>Tab Line</em> 和 <em>Window Tool Bar</em> 两个节点都写了同一句话：标签行占用窗口顶部的同一块空间，<strong>同一时刻只能显示其中一个</strong>，除非你自己改 <code>tab-line-format</code>（或 <code>window-tool-bar-format</code>）把它们拼在一起。如果你的 Emacs 顶部有一条工具栏却看不到标签行，答案就是这个，不是标签行没开。</p>
+  </div>
+
+  <details class="deep">
+    <summary>进阶：Tab Line 能显示什么</summary>
+    <p>默认的 <code>tab-line-tabs-function</code>（实测默认 <code>tab-line-tabs-fixed-window-buffers</code>）只列这个 window 碰过的 buffer。手册 <em>Tab Line</em> 节点还提了两种有意思的自定义：</p>
+    <ul>
+      <li>只显示<strong>和当前 buffer 同 major mode</strong> 的那些 buffer——写代码时一排全是 .py 文件，很顺手。</li>
+      <li>按 <strong>major mode 分组</strong>，第一格显示模式名，点它弹出该模式下所有 buffer 的列表。</li>
+    </ul>
+    <p>实现方式都是给 <code>tab-line-tabs-function</code> 换一个自定义函数（Emacs 32 手册里也列出了 <code>tab-line-tabs-buffer-group-by-mode</code>、<code>tab-line-tabs-buffer-group-by-project</code> 这两个现成的分组函数）。再往下就是自己写 Elisp 了，第 12 章的内容。</p>
+  </details>
+
+  <h3>十一、本章按键总表</h3>
+
+  <p>这一张表是本章全部键位的汇总，方便你打印或抄下来贴在显示器边上。所有绑定都是我在本机 <strong>GNU Emacs 32.0.50</strong> 上用 <code>(key-binding (kbd "…"))</code> 查出来的；标注「需先开模式」的表示默认没绑，开启相应模式后才有。</p>
+
+  <div class="keys">
+    <h4>第 3 章按键总表</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>find-file</code></td><td>打开 / 新建文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd></td><td><code>save-buffer</code></td><td>保存当前 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>w</kbd></td><td><code>write-file</code></td><td>另存为另一个文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd></td><td><code>save-some-buffers</code></td><td>逐个询问并保存所有改动过的文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>save-buffers-kill-terminal</code></td><td>退出 Emacs</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer</code></td><td>切换 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd></td><td><code>list-buffers</code></td><td>列出所有 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd></td><td><code>kill-buffer</code></td><td>杀掉当前 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>/</kbd></td><td><code>undo</code></td><td>撤销一步</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd></td><td><code>undo</code></td><td>同上（好记的别名）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>?</kbd></td><td><code>undo-redo</code></td><td>显式重做刚才的撤销</td></tr>
+        <tr><td><kbd>ESC</kbd> <kbd>ESC</kbd> <kbd>ESC</kbd></td><td><code>keyboard-escape-quit</code></td><td>一键回到正常状态</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td><code>keyboard-quit</code></td><td>通用中止</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd></td><td><code>split-window-below</code></td><td>上下分屏</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd></td><td><code>split-window-right</code></td><td>左右分屏</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>0</kbd></td><td><code>delete-window</code></td><td>删掉当前 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>1</kbd></td><td><code>delete-other-windows</code></td><td>只留当前 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd></td><td><code>other-window</code></td><td>切换 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>f</kbd></td><td><code>find-file-other-window</code></td><td>在另一个 window 打开文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer-other-window</code></td><td>在另一个 window 切 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>0</kbd></td><td><code>kill-buffer-and-window</code></td><td>杀 buffer 并删 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>2</kbd></td><td><code>make-frame-command</code></td><td>新建 frame</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>o</kbd></td><td><code>other-frame</code></td><td>切换 frame</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>0</kbd></td><td><code>delete-frame</code></td><td>删掉当前 frame</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>2</kbd></td><td><code>tab-new</code></td><td>新建标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>0</kbd></td><td><code>tab-close</code></td><td>关闭标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>u</kbd></td><td><code>tab-undo</code></td><td>恢复关闭的标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>&lt;</kbd> <kbd>tab</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>t</kbd> <kbd>o</kbd></td><td><code>tab-next</code></td><td>下一个标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>S</kbd><kbd>&lt;</kbd> <kbd>tab</kbd></td><td><code>tab-previous</code></td><td>上一个标签页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>left</kbd> / <kbd>&lt;</kbd> <kbd>right</kbd></td><td><code>winner-undo</code> / <code>winner-redo</code></td><td>需先开 <code>winner-mode</code>（默认关）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>&lt;</kbd> <kbd>left</kbd> / <kbd>&lt;</kbd> <kbd>right</kbd></td><td><code>tab-bar-history-back</code> / <code>-forward</code></td><td>需先开 <code>tab-bar-history-mode</code>（默认关，与上行二选一）</td></tr>
+        <tr><td><kbd>S</kbd>+<kbd>方向键</kbd></td><td><code>windmove-*</code></td><td>需先执行 <code>windmove-default-keybindings</code>（会关掉这组键的 Shift 选择）</td></tr>
+        <tr><td><kbd>F10</kbd></td><td>菜单栏</td><td>用键盘激活菜单栏（batch 环境实测为空绑定，交互环境可用）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd></td><td><code>describe-coding-system</code></td><td>查当前 buffer 的编码</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd></td><td><code>describe-key</code></td><td>问 Emacs 某个键绑定到哪个命令</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd></td><td><code>execute-extended-command</code></td><td>按名字调命令，不知道按键时的兜底</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>十二、常见误区速查</h3>
+
+  <ul>
+    <li><strong>「window 是屏幕上的那块区域」——错。</strong>window 是 frame 内部的显示区；屏幕上能拖动的那个叫 frame。判断方法：能拖到第二块显示器上去的，是 frame。</li>
+    <li><strong>「Emacs 乱开窗口是 bug」——不是。</strong>帮助、编译、shell、甚至警告信息都会新开一个 window，这是设计。Emacs 30 起警告固定开在 frame 底部（<code>warning-display-at-bottom</code>，默认 <code>t</code>）。</li>
+    <li><strong>「<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 是打开文件」——半对。</strong>它同时是「新建文件」，两者走同一条命令，这是 Emacs 有意的设计。</li>
+    <li><strong>「不用了就 <kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd> 关掉」——没必要。</strong>buffer 留着几乎不占额外内存，直接 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 切走就行。</li>
+    <li><strong>「撤销是线性的，撤销后再改就丢了」——在 Emacs 里不成立。</strong>撤销动作本身也在撤销环里，见第七节。</li>
+    <li><strong>「<kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>0</kbd> 是切 frame」——错。</strong><kbd>o</kbd>（字母）才是切，<kbd>0</kbd>（数字）是删。</li>
+    <li><strong>「标签栏和标签行是一个东西」——不是。</strong>标签栏在 frame 顶部、管的是窗口配置；标签行在 window 顶部、管的是 buffer。而且它们和窗口工具栏抢同一块位置。</li>
+    <li><strong>「要用 FIDO 得先装包」——Emacs 27 以后不用。</strong>FIDO 已并入内置的 Icomplete，<kbd>M</kbd><kbd>x</kbd> <code>fido-mode</code> 直接可用（Emacs 32 的安装目录里已经没有 <code>fido.el</code> 这个文件了，我实测确认）。</li>
+    <li><strong>「把 <code>use-completion</code> 设成 t 就能开新补全」——在 Emacs 32 上会报错。</strong>这个变量在本机全部源码和手册里都查不到。</li>
+  </ul>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>本章之后，你已经具备了做「全局移动」的完整能力：打开、保存、退出、切 buffer、切 window、切 frame、切标签页，以及在卡住时自救。接下来一章（第 4 章）开始处理<strong>局部移动</strong>——在文本里按字符、词、行、句、段、S 表达式跳转，以及 mark、region、书签、寄存器和选区。那一章的键位密度比本章更高，建议配着速查表读。</p>
+  </div>
+
+  <div class="drill" data-answer="window=frame 内的显示区随用随建；frame=系统窗口；tab bar=窗口配置；tab line=window 内的 buffer">
+    <p class="drill-q"><b>练习 13</b>　用一句话分别解释这四个词：window、frame、tab bar、tab line。它们各自「管理」的是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>window</strong>：frame 内部的一块显示区域，显示一个 buffer；Emacs 的 window 是<strong>随用随建、用完就删</strong>的临时工位，不是固定格子。<strong>frame</strong>：你在任务栏上看到、可以拖动和最小化的那个操作系统窗口，里面装着若干 window。<strong>tab bar</strong>：frame 顶部那一排标签，每个标签是一整套<strong>window 配置</strong>（怎么分屏、每块放哪个 buffer），对应 IDE 的工作区。<strong>tab line</strong>：每个 window 顶部那一排标签，每个标签是这个 window 曾经显示过的<strong>buffer</strong>，对应浏览器 / VS Code 的文件标签。</p>
+    <p>记忆口诀：<strong>frame 装 window，tab bar 管 window 的排法，tab line 管 window 里的 buffer。</strong></p>
+    <p>再补一个实战细节：tab line 和窗口工具栏占同一块屏幕位置，同一时刻只能显示一个（手册 <em>Tab Line</em> 与 <em>Window Tool Bar</em> 两个节点都写了这点）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="tab-bar-mode 用 C-x t 前缀；tab-line 用 global-tab-line-mode；两者默认都关；tab-bar-show 设 nil 可隐藏标签栏但功能仍在">
+    <p class="drill-q"><b>练习 14</b>　你想试一下「标签栏」，又不想在顶部留一行碍眼。分别用什么命令开？开完之后怎么把那一行藏起来（功能还保留）？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>标签栏（Tab Bar）用 <kbd>M</kbd><kbd>x</kbd> <code>tab-bar-mode</code> 开，或在初始化文件写 <code>(tab-bar-mode 1)</code>。它默认是关的（我实测 <code>tab-bar-mode</code> 默认 <code>nil</code>）。标签行（Tab Line）用 <kbd>M</kbd><kbd>x</kbd> <code>global-tab-line-mode</code> 开，同样默认关（实测 <code>global-tab-line-mode</code> 默认 <code>nil</code>）。</p>
+    <p>隐藏标签栏但保留功能：把 <code>tab-bar-show</code> 设成 <code>nil</code>。手册 <em>Tab Bars</em> 节点明确说：设成 <code>nil</code> 后「仍然可以在不显示标签栏的情况下，用 <code>tab-next</code>、<code>tab-switcher</code> 等提供标签名补全的命令在命名的窗口配置之间切换」。<code>tab-bar-show</code> 的默认值我实测是 <code>t</code>，它的其他取值还有 <code>1</code>（只有一个标签时隐藏）和正整数（标签数超过它才显示）。</p>
+    <p>如果你要的其实是「window 顶部那排 buffer 标签」，那应该开 <code>global-tab-line-mode</code> 而不是 <code>tab-bar-mode</code>。这两个名字里的 bar 和 line 就是「frame 顶部」和「window 顶部」的区别。</p></div>
+  </div>
+</section>

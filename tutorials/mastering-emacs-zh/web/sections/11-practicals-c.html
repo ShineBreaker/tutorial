@@ -1,0 +1,701 @@
+<section class="ch" id="ch-11-practicals-c" data-stage="进阶" data-min="60">
+  <h2 class="ch-title">十一、实用篇（三）：Dired、编译与 Shell</h2>
+  <p class="ch-lead">这一章讲 Emacs 的第三重身份：如果 <code>C-x C-f</code> 打开的是文件，<code>C-x d</code> 打开的就是<strong>整个文件系统</strong>。你会学会在 Dired 缓冲区里标记、成批重命名、批量删除、跨目录操作，然后用 <code>M-!</code>、<code>M-x compile</code> 和三种内置 shell 把 Emacs 接到命令行上。读完你能把 90% 的 <code>ls</code> / <code>mv</code> / <code>make</code> / <code>grep</code> 杂活从终端搬进 Emacs，并且知道今天该选 <code>shell</code>、<code>eshell</code> 还是 <code>vterm</code>。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p>本章所有键位与命令名，都在<strong>本机 GNU Emacs 32.0.50</strong> 上用 <code>emacs --batch -Q --eval</code> 逐条查过。跟原文（写作于 Emacs 26–30 时代）不一致的地方，我都会单独标出来并说明「从哪个版本开始是这样」。凡是第三方包，会写明包名与安装源。</p>
+  </div>
+
+  <h3>一、Dired 是什么：Emacs 的「增强」模型</h3>
+
+  <p><strong>Dired</strong>（读作「迪瑞德」，全称 Directory Editor，目录编辑器）是 Emacs 自带的<strong>目录浏览器</strong>。它把一个目录下的文件列成一个<strong>可编辑的文本缓冲区</strong>，你在里面看到的每一行就是一个文件或子目录。</p>
+
+  <p>关键的心智模型是 <strong>augmentation</strong>（增强）：Emacs 并不自己实现「列目录」这件事，它调用外部命令 <code>ls -al</code>，把命令的<strong>标准输出原样塞进缓冲区</strong>，再对这个缓冲区做后处理——给文件加上字体高亮、给它加上「按下 <kbd>RET</kbd> 就能打开」的超链接属性、把权限字符串 <code>-rw-r--r--</code> 标成灰色、把目录名标成蓝色。Emacs 内部管这套机制叫一个 <strong>major mode</strong>（主模式）——dired 缓冲区的主模式就叫 <code>dired-mode</code>。</p>
+
+  <p>这个模型的价值在于：<strong>结果本身就是文本</strong>。所以 Dired 缓冲区里的所有移动命令（<kbd>C-s</kbd> / <kbd>C-r</kbd> 增量搜索、<kbd>C-n</kbd>、鼠标、书签、寄存器）全都免费可用；你也可以像对待任何文本一样选中几行、按 <kbd>M-w</kbd> 复制出去，粘到邮件或聊天窗口里。同一套机制也是 <code>M-x grep</code>、<code>M-x compile</code> 的工作方式——这正是原书反复强调的「Emacs 的 buffer 范式」在实践中最漂亮的一次体现。</p>
+
+  <pre class="term"><code>/usr/share/dict:
+total used in directory 2328 available 187646744
+drwxr-xr-x  2 root root     4096 Feb 16 09:57 .
+drwxr-xr-x 326 root root    12288 Mar 27 11:43 ..
+-rw-r--r--  1 root root   938848 Oct 23  2011 american
+-rw-r--r--  1 root root   938969 Oct 23  2011 british</code></pre>
+
+  <p>如果你用过 Linux 命令行，这段输出你一眼就认得。控制它的是变量 <code>dired-listing-switches</code>（<strong>dired 列目录时传给 <code>ls</code> 的开关</strong>），在 Emacs 32 里默认值就是字符串 <code>"-al"</code>。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>Windows 上没有 <code>ls</code> 怎么办？</strong>不用担心。Emacs 32 内置了一套用 Elisp 写的 <code>ls</code> 模拟层，直接调用操作系统接口取文件列表，<strong>不调用外部进程</strong>。所以 Windows、macOS、Linux 上的 Dired 界面完全一致。换句话说，Dired 在跨平台这一点上比「真的去跑 <code>ls</code>」更稳。</p>
+  </div>
+
+  <h4>打开 Dired 的四种方式</h4>
+
+  <ol>
+    <li><strong><kbd>C-x</kbd> <kbd>d</kbd></strong> —— 全局键，绑定到命令 <code>dired</code>。按下后 Emacs 在 minibuffer（<strong>屏幕底部那行迷你输入行</strong>）里问你要目录名，<strong>默认值是当前缓冲区所在的目录</strong>（变量 <code>default-directory</code>）。直接按 <kbd>RET</kbd> 就能看到当前文件所在目录的全部文件。</li>
+    <li><strong><kbd>C-x</kbd> <kbd>4</kbd> <kbd>d</kbd></strong> —— 命令 <code>dired-other-window</code>，在<strong>另一个窗口</strong>（Emacs 把一块屏幕区域叫做窗口，window，和操作系统窗口不是一回事）里打开，不打断你正在看的文件。</li>
+    <li><strong><kbd>C-x</kbd> <kbd>5</kbd> <kbd>d</kbd></strong> —— 命令 <code>dired-other-frame</code>，在<strong>另一个 Emacs 框架</strong>（frame，Emacs 里的顶层窗口，类比 VS Code 的多窗口）里打开。</li>
+    <li><strong><kbd>C-d</kbd></strong> —— 「在 <kbd>C-x</kbd> <kbd>C-f</kbd> 找文件的过程中按 <kbd>C-d</kbd> 跳到该文件所在目录的 Dired」这个技巧，<strong>是 <code>ido</code>（Emacs 自带的 IDO 模式）提供的，不是默认行为</strong>：它的命令叫 <code>ido-magic-delete-char</code>（<code>ido.el</code> 里叫「Magic C-d」），只有在光标已经位于输入行末尾、且你输入的词正好匹配一个已存在的文件或目录时才触发（源码注释原文是「<code>C-x C-f ... C-d</code>  enter <code>dired</code> on current directory」）；用 FIDO（第三方包，IDO 的改进版）同样有效。<strong>不用 IDO / FIDO 的话，Emacs 默认的 minibuffer 键位里根本没有 <kbd>C-d</kbd> 这一条</strong>——想达到同样效果，用 <kbd>C-x</kbd> <kbd>d</kbd> 或者 <code>M-x</code> <code>dired-jump</code>（光标所在文件的目录）就行。</li>
+  </ol>
+
+  <p>当然，任何命令都可以用 <kbd>M-x</kbd>（<strong>Emacs 的「万能前缀键」</strong>，按下后输入命令名再按 <kbd>RET</kbd>）调用，比如 <code>M-x dired</code>、<code>M-x dired-jump</code>。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>Tramp 联动。</strong>如果你在上一章学会了 Tramp（<strong>在 Emacs 里编辑远程机器上的文件</strong>），那么在 <code>/ssh:server:/home/me/src</code> 这类远程路径上执行 <kbd>C-x</kbd> <kbd>d</kbd>，Emacs 会自动弹出一个 Dired 缓冲区列出远程目录。所有标记、重命名、删除命令在远程目录上一样能用。这一条是 Dired 相对文件管理器最大的隐藏优势——<strong>你可以在远端机器上用 <code>M-x dired</code> + <code>R</code> 批量改文件名，不用 ssh 上去敲 <code>mv</code></strong>。</p>
+  </div>
+
+  <h3>二、导航：Dired 就是一个普通缓冲区</h3>
+
+  <p>因为 Dired 缓冲区本质是文本，所以它继承了 Emacs 全部的移动与搜索能力。增量搜索（<kbd>C-s</kbd> / <kbd>C-r</kbd>）、方向键、鼠标点击，在 Dired 里都照常工作。除此之外，Dired 自己额外提供了一批导航键——也包括一组专门在文件之间跳转的搜索键（<kbd>M-s</kbd> <kbd>a</kbd> <kbd>C-s</kbd>、<kbd>M-s</kbd> <kbd>f</kbd> <kbd>C-s</kbd>，见第四节）。</p>
+
+  <div class="keys">
+    <h4>本节按键：Dired 导航</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>RET</kbd></td><td><code>dired-find-file</code></td><td>访问光标处的文件；如果是目录，就开一个新的 Dired 缓冲区</td></tr>
+        <tr><td><kbd>C-o</kbd></td><td><code>dired-display-file</code></td><td><strong>「显示」</strong>而不是「编辑」：用 <code>display-buffer</code> 把光标处的文件显示到<strong>另一个窗口</strong>，当前 Dired 缓冲区不动。它跟 <kbd>RET</kbd> <strong>不是</strong>同一个命令（Emacs 32 实测 <code>lookup-key</code> 返回 <code>dired-display-file</code>）</td></tr>
+        <tr><td><kbd>o</kbd></td><td><code>dired-find-file-other-window</code></td><td>在另一个窗口打开该文件</td></tr>
+        <tr><td><kbd>v</kbd></td><td><code>dired-view-file</code></td><td>用 <code>view-file</code>（只读打开，不动你的文件）查看文件</td></tr>
+        <tr><td><kbd>^</kbd></td><td><code>dired-up-directory</code></td><td><strong>返回上一级目录</strong>（这是 Dired 里最常用的一个键，务必记住）</td></tr>
+        <tr><td><kbd>q</kbd></td><td><code>quit-window</code></td><td>关闭当前 Dired 缓冲区，回到上一个</td></tr>
+        <tr><td><kbd>n</kbd> / <kbd>C-n</kbd> / <kbd>SPC</kbd></td><td><code>dired-next-line</code></td><td>下一行，并把光标对齐到<strong>文件名前面</strong></td></tr>
+        <tr><td><kbd>p</kbd> / <kbd>C-p</kbd> / <kbd>S-SPC</kbd></td><td><code>dired-previous-line</code></td><td>上一行，同样对齐到文件名前面</td></tr>
+        <tr><td><kbd>&lt;</kbd> / <kbd>&gt;</kbd></td><td><code>dired-prev-dirline</code> / <code>dired-next-dirline</code></td><td>跳到上/下一个<strong>目录</strong>行（在塞了多个子目录的缓冲区里有用）</td></tr>
+        <tr><td><kbd>j</kbd></td><td><code>dired-goto-file</code></td><td>按名字快速跳到某个文件（输入时会自动补全）</td></tr>
+        <tr><td><kbd>g</kbd></td><td><code>revert-buffer</code></td><td><strong>刷新</strong>。改了文件、创建了文件之后按一下，列表就更新了</td></tr>
+        <tr><td><kbd>l</kbd></td><td><code>dired-do-redisplay</code></td><td>强制重新排版并重画（列表太长时使用）</td></tr>
+        <tr><td><kbd>s</kbd></td><td><code>dired-sort-toggle-or-edit</code></td><td>在「按名字排」和「按日期排」之间切换；<strong>加前缀参数</strong>（<kbd>C-u</kbd> <kbd>s</kbd>）则直接编辑 <code>dired-listing-switches</code>，让你改用别的 <code>ls</code> 开关</td></tr>
+        <tr><td><kbd>?</kbd></td><td><code>dired-summary</code></td><td>在回显区打印一份 Dired 基本命令速查和最近的 Dired 错误</td></tr>
+        <tr><td><kbd>M-{</kbd> / <kbd>M-}</kbd></td><td><code>dired-prev-marked-file</code> / <code>dired-next-marked-file</code></td><td>在<strong>标记过的</strong>文件之间前后跳转</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><kbd>^</kbd> 是「回到上级目录」，不是「回到上一行」。初学者经常把它和 <kbd>C-p</kbd> 搞混。在 Dired 里 <kbd>C-p</kbd> 是上一行，<kbd>^</kbd> 是上目录——这是 Emacs 里少数几个「符号键有独立含义」的地方。</p>
+  </div>
+
+  <h3>三、标记与取消标记：一次操作一批文件</h3>
+
+  <p><strong>mark</strong>（标记）和 <strong>flag</strong>（删除旗标）是 Dired 里两个必须分清的概念。原文特别强调了这一点，我再强调一遍：</p>
+
+  <ul>
+    <li><strong>标记 <code>*</code></strong>（命令 <code>dired-mark</code>，键 <kbd>m</kbd>）：这是<strong>「选中」</strong>的泛称。标记过的行左边会显示一个星号 <code>*</code>。之后你敲的<strong>大写字母批量操作命令</strong>（复制、重命名、改权限……）作用在所有被标记的文件上。标记<strong>不</strong>会导致任何文件被删除。</li>
+    <li><strong>删除旗标 <code>D</code></strong>（命令 <code>dired-flag-file-deletion</code>，键 <kbd>d</kbd>）：在行前面插一个字母 <code>D</code>。只有 <kbd>x</kbd> 这条命令会去删「被打了 D 旗标」的文件。</li>
+  </ul>
+
+  <p>两者的区别在实践中非常有用：你可以先打一堆 <code>*</code> 标记，选中一批要做某件事的文件；也可以打一堆 <code>D</code> 旗标，表示「这批待会儿要删」。它们互不干扰。原书写得很准确：「mark 永远不会被删除命令影响，flag 也永远不会被其它操作命令影响，只有一条命令会连标记的一起删。」</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><kbd>m</kbd> 和 <kbd>d</kbd> 执行完都会<strong>自动把光标移到下一项</strong>（相当于替你按了一次 <kbd>C-n</kbd>），所以你可以一路连按 <kbd>m</kbd> <kbd>m</kbd> <kbd>m</kbd> 一路标下去。嫌快就按住 <kbd>M-3</kbd> <kbd>m</kbd>——<strong>负数参数会让操作反向</strong>，即「标记当前项和往上两项」。<kbd>C-u</kbd> <kbd>m</kbd> 同理，往回标。</p>
+  </div>
+
+  <h4><code>*</code> 前缀键：批量标记的瑞士军刀</h4>
+
+  <p>单独的 <kbd>m</kbd> 只能一次标一个。<kbd>*</kbd>（星号）是一个<strong>前缀键</strong>，按下去会进入一个专门做批量标记的子映射——<strong>它不是一个独立命名的小键位表</strong>：<code>dired.el</code> 里直接写的是 <code>(define-key dired-mode-map "*" (make-sparse-keymap " *"))</code> 这样的匿名稀疏键位表，Emacs 里<strong>不存在 <code>dired-subdir-mode-map</code> 这个变量</strong>（本机 32.0.50 实测 <code>boundp</code> 返回 <code>nil</code>，本机整个 lisp 目录里也搜不到这个名字；我又查了上游 emacs-23.7 / 24.5 / 25.1 / 29.1 的 <code>dired.el</code>，同样一次都没出现过）。要临时改它的键，得自己重建这个匿名键位表。下面都是本机 Emacs 32.0.50 <code>lookup-key</code> 实测的结果：</p>
+
+  <div class="keys">
+    <h4>本节按键：星号前缀（<kbd>*</kbd> 匿名子映射）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>*</kbd> <kbd>m</kbd></td><td><code>dired-mark</code></td><td>标记当前项（<kbd>m</kbd> 的前缀版，加了负参数就是反方向）</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>u</kbd></td><td><code>dired-unmark</code></td><td>取消当前项的标记</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>s</kbd></td><td><code>dired-mark-subdir-files</code></td><td><strong>标记整个子目录里的所有文件</strong>（光标要在目录行上）</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>%</kbd></td><td><code>dired-mark-files-regexp</code></td><td>按<strong>正则表达式</strong>批量标记，弹窗问你匹配什么</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>t</kbd></td><td><code>dired-toggle-marks</code></td><td><strong>反转标记</strong>：原来有标记的变没标记，反之亦然</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>c</kbd></td><td><code>dired-change-marks</code></td><td><strong>换标记符号</strong>：把当前缓冲区里的某一种标记整体换成另一种（见下）</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>/</kbd></td><td><code>dired-mark-directories</code></td><td>标记所有目录</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>*</kbd></td><td><code>dired-mark-executables</code></td><td>标记所有<strong>可执行文件</strong>（权限串里有 <code>x</code> 的）</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>@</kbd></td><td><code>dired-mark-symlinks</code></td><td>标记所有<strong>符号链接</strong>（指向别处的文件）</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>C-n</kbd></td><td><code>dired-next-marked-file</code></td><td>跳到下一个被标记的文件</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>C-p</kbd></td><td><code>dired-prev-marked-file</code></td><td>跳到上一个被标记的文件</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>DEL</kbd></td><td><code>dired-unmark-backward</code></td><td>取消<strong>光标到行首之间所有内容</strong>的标记（连着 <kbd>C-u</kbd> 可以取消一个区块）</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>!</kbd></td><td><code>dired-unmark-all-marks</code></td><td>取消<strong>全部</strong>标记和旗标</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>?</kbd></td><td><code>dired-unmark-all-files</code></td><td>只取消标记，不动旗标</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>N</kbd></td><td><code>dired-number-of-marked-files</code></td><td>在回显区报告当前标记了多少项</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>原文推荐的 <strong>多重选区</strong>玩法：用 <kbd>*</kbd> <kbd>c</kbd> 把标记符号从 <code>*</code> 换成 <code>C</code>，就得到了一组「打算复制」的文件；再把另一组换成 <code>V</code>，就得到「打算删除」的文件。<strong>但要清楚两条删除命令是分家的</strong>：复制 / 重命名 / 改权限这类命令只作用于 <code>*</code> 标记，从不碰 <code>D</code> 旗标；而删除命令里，<kbd>x</kbd> 只删 <code>D</code> 旗标，<kbd>D</kbd> 只删 <code>*</code> 标记（并且会跳过已经打了 <code>D</code> 旗标的那些）。另外注意：标记类命令只认识 <code>*</code> 和 <code>D</code> 这两种符号，把文件标成 <code>C</code> 只是给人眼看的分组标签，Emacs 不会自动区分它们做不同操作。实际用的时候，「先标一批 → 立刻执行操作 → 再标下一批」通常比多重标记更省心。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原文列了 <kbd>*</kbd> <kbd>.</kbd>「按扩展名标记（<code>dired-mark-files-extension</code>）」。<strong>这条在今天的 Emacs 里已经不在核心 dired 上了</strong>：本机 Emacs 32.0.50 里 <code>dired-mark-files-extension</code> 这个函数根本不存在（<code>fboundp</code> 返回 <code>nil</code>）。现在要按扩展名标记，得装 <code>dired-x</code>——它提供的命令叫 <code>dired-mark-extension</code>（<em>extension</em>，不是 <em>files-extension</em>），本机装上之后 <kbd>*</kbd> <kbd>.</kbd> 确实绑到它（<strong>Emacs 32 需先 <code>(require 'dired-x)</code>；<code>dired-x</code> 不自动加载</strong>）。见第五节与第六节。</p>
+  </div>
+
+  <h3>四、批量操作：把 <code>mv</code> / <code>cp</code> / <code>chmod</code> 搬进缓冲区</h3>
+
+  <p>这是 Dired 的核心价值所在。所有<strong>大写字母</strong>的批量操作命令遵循同一条规则：<strong>如果缓冲区里有被标记（<code>*</code>）的文件，就作用于全部标记文件并弹出确认清单；否则只作用于光标所在的这一行</strong>。</p>
+
+  <div class="keys">
+    <h4>本节按键：批量文件操作（核心 dired，Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd></td><td><code>dired-do-copy</code></td><td><strong>复制</strong>到指定目录（等价于 <code>cp</code>）</td></tr>
+        <tr><td><kbd>R</kbd></td><td><code>dired-do-rename</code></td><td><strong>重命名 / 移动</strong>到指定目录（等价于 <code>mv</code>）。<strong>跨目录移动就靠它</strong></td></tr>
+        <tr><td><kbd>D</kbd></td><td><code>dired-do-delete</code></td><td><strong>删除被标记（<code>*</code>）的文件</strong>。注意：这是 D 里最危险的一条，因为它删的是「星号选中」的那批；而且它<strong>不删已经打了 <code>D</code> 旗标的那些</strong>（菜单里叫「Delete Marked (Not Flagged) Files」）</td></tr>
+        <tr><td><kbd>x</kbd></td><td><code>dired-do-flagged-delete</code></td><td><strong>删除被打 <code>D</code> 旗标的文件</strong>。这是更安全的那一条，因为它删的是你<strong>逐个用 <kbd>d</kbd> 打过旗标</strong>的</td></tr>
+        <tr><td><kbd>H</kbd></td><td><code>dired-do-hardlink</code></td><td>创建<strong>硬链接</strong>（多个名字指向同一份数据）</td></tr>
+        <tr><td><kbd>S</kbd></td><td><code>dired-do-symlink</code></td><td>创建<strong>符号链接</strong>（一个「快捷方式」，目标删了链接就断）</td></tr>
+        <tr><td><kbd>Y</kbd></td><td><code>dired-do-relsymlink</code></td><td>创建<strong>相对</strong>符号链接（链接里存相对路径，项目整体搬走后依然有效）</td></tr>
+        <tr><td><kbd>M</kbd></td><td><code>dired-do-chmod</code></td><td>修改<strong>权限</strong>（等价于 <code>chmod</code>，交互式输入如 <code>755</code>）</td></tr>
+        <tr><td><kbd>O</kbd></td><td><code>dired-do-chown</code></td><td>修改<strong>属主</strong>（等价于 <code>chown</code>，需要 root 权限）</td></tr>
+        <tr><td><kbd>G</kbd></td><td><code>dired-do-chgrp</code></td><td>修改<strong>属组</strong>（等价于 <code>chgrp</code>）</td></tr>
+        <tr><td><kbd>T</kbd></td><td><code>dired-do-touch</code></td><td>更新文件的<strong>时间戳</strong>（等价于 <code>touch</code>）</td></tr>
+        <tr><td><kbd>E</kbd></td><td><code>dired-do-open</code></td><td>用<strong>系统默认程序</strong>打开该文件（<strong>Emacs 30 新增</strong>，此前是 <code>dired-x</code> 的功能）</td></tr>
+        <tr><td><kbd>W</kbd></td><td><code>browse-url-of-dired-file</code></td><td>用 <code>web-browser</code> 打开该文件（适合看 HTML、图片）</td></tr>
+        <tr><td><kbd>N</kbd></td><td><code>dired-do-man</code></td><td>对文件跑 <code>man</code> 手册页</td></tr>
+        <tr><td><kbd>I</kbd></td><td><code>dired-do-info</code></td><td>对文件跑 <code>info</code> 文档</td></tr>
+        <tr><td><kbd>P</kbd></td><td><code>dired-do-print</code></td><td>用系统打印命令打印文件</td></tr>
+        <tr><td><kbd>L</kbd></td><td><code>dired-do-load</code></td><td>用 <code>load</code> 加载一个 <strong>Elisp 源文件</strong>（改完 <code>.el</code> 调试时很好用）</td></tr>
+        <tr><td><kbd>B</kbd></td><td><code>dired-do-byte-compile</code></td><td>对选中的 <code>.el</code> 文件做<strong>字节编译</strong>（等价于 <code>byte-compile-file</code>）</td></tr>
+        <tr><td><kbd>Z</kbd></td><td><code>dired-do-compress</code></td><td>把选中文件压成 <code>.gz</code></td></tr>
+        <tr><td><kbd>c</kbd></td><td><code>dired-do-compress-to</code></td><td>把选中文件压成<strong>你指定格式的压缩包</strong>（<code>tar</code> / <code>zip</code> / <code>gzip</code> 等）</td></tr>
+        <tr><td><kbd>=</kbd></td><td><code>dired-diff</code></td><td>比较两个文件（调起 <code>diff</code>）</td></tr>
+        <tr><td><kbd>A</kbd></td><td><code>dired-do-find-regexp</code></td><td>在选中文件里<strong>搜索</strong>正则。结果落在 <code>*grep*</code> 缓冲区，<strong>走的是 <code>grep</code> 后端，不是 xref</strong>——<strong>Emacs 32 的 <code>dired.el</code> 里 <code>xref</code> 这个词一次都没出现过</strong>（本书在第 9 章专门用一个易错框论证过这件事，本机 grep 该文件计数为 0）。命令行由 <code>dired-do-find-regexp</code> 自己拼好，你只管输正则。回到结果里按 <kbd>RET</kbd> 跳到对应行</td></tr>
+        <tr><td><kbd>Q</kbd></td><td><code>dired-do-find-regexp-and-replace</code></td><td>在选中文件里<strong>批量正则替换</strong>。它先搜一遍列出全部命中，再像 <code>query-replace</code> 一样<strong>逐条问你</strong>是否替换（<kbd>y</kbd> / <kbd>n</kbd> / <kbd>SPC</kbd> / <kbd>DEL</kbd>），确认完把改过的文件开成缓冲区。<strong>务必再按 <kbd>C-x</kbd> <kbd>s</kbd> 存盘</strong></td></tr>
+        <tr><td><kbd>!</kbd></td><td><code>dired-do-shell-command</code></td><td><strong>同步</strong>跑一条 shell 命令（阻塞 Emacs 直到结束）</td></tr>
+        <tr><td><kbd>&amp;</kbd></td><td><code>dired-do-async-shell-command</code></td><td><strong>异步</strong>跑一条 shell 命令（不阻塞，结果进 <code>*Async Shell Command*</code> 缓冲区）</td></tr>
+        <tr><td><kbd>X</kbd></td><td><code>dired-do-shell-command</code></td><td>与 <kbd>!</kbd> 相同的另一个绑定（在有选中标记时用这个更符合「作用于选中项」的习惯）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>标记一个目录 = 递归处理它整棵树。</strong>这是个很多人不知道的福利：<kbd>A</kbd>、<kbd>Q</kbd> 的文档里都写着「如果被标记的是<strong>目录</strong>，会递归处理其中所有文件」（被 <code>grep-find-ignored-files</code> 和 <code>grep-find-ignored-directories</code> 匹配掉的除外）。也就是说，<kbd>*</kbd> <kbd>/</kbd>（标记所有目录）之后直接 <kbd>Q</kbd>，就能对整棵目录树做一次跨文件正则替换——以前这活儿是 <code>grep -rl</code> 加 <code>xargs sed</code> 的组合。</p>
+  </div>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p><strong><kbd>D</kbd> 和 <kbd>x</kbd> 别搞混。</strong>原文专门提醒过：<kbd>D</kbd> 删的是<strong>打星号选中的</strong>文件，<kbd>x</kbd> 删的是<strong>打 <code>D</code> 旗标的</strong>文件。如果你在 <kbd>m</kbd> 标记了一批之后手滑按了 <kbd>D</kbd>，那一批就真的被删了。安全习惯：<strong>用 <kbd>d</kbd> 打旗标 → 检查一遍 → <kbd>x</kbd> 统一删除</strong>。<kbd>D</kbd> 还有个容易被忽略的细节：它删的是「被标记的、但<strong>没</strong>被旗标」的文件（菜单里那一条就叫「Delete Marked (Not Flagged) Files」）——所以已经打过 <code>D</code> 旗标的行再按 <kbd>D</kbd> 反而删不掉。删除前 Emacs 会弹出一个名为 <code>*Deletions*</code> 的窗口，把待删文件列成清单，再问一句 y/n；你按 <kbd>n</kbd> 取消的话回显区会显示 <code>(No deletions performed)</code>，只有真的失败的文件才会被列成报告（现代 Emacs <strong>不再有「Deleted N files」这句提示</strong>）。<strong>注意这个清单是只读的展示窗口，不是 Dired 缓冲区</strong>——你没法在里面改标记；而且待删文件只有一个时 Emacs 干脆不弹窗口，直接问 y/n。</p>
+  </div>
+
+  <h4>不作用于选中项的那几个键</h4>
+
+  <div class="keys">
+    <h4>本节按键：Dired 杂项</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>+</kbd></td><td><code>dired-create-directory</code></td><td><strong>新建子目录</strong></td></tr>
+        <tr><td><kbd>y</kbd></td><td><code>dired-show-file-type</code></td><td>显示文件类型（等价于 <code>file</code> 命令）</td></tr>
+        <tr><td><kbd>w</kbd></td><td><code>dired-copy-filename-as-kill</code></td><td>把文件名放进<strong>杀死环</strong>（<strong>Emacs 的剪贴板</strong>，用 <kbd>C-y</kbd> 粘贴）。在文件管理器之间搬路径的好办法</td></tr>
+        <tr><td><kbd>#</kbd></td><td><code>dired-flag-auto-save-files</code></td><td>给所有 <code>#</code> 自动保存文件打删除旗标</td></tr>
+        <tr><td><kbd>~</kbd></td><td><code>dired-flag-backup-files</code></td><td>给所有 <code>~</code> 结尾的备份文件打删除旗标</td></tr>
+        <tr><td><kbd>.</kbd></td><td><code>dired-clean-directory</code></td><td>「清理」当前目录：给自动保存文件和备份文件打上删除旗标（不真删，你确认后按 <kbd>x</kbd>）</td></tr>
+        <tr><td><kbd>k</kbd></td><td><code>dired-do-kill-lines</code></td><td>把光标所在的<strong>行从缓冲区里删掉</strong>（只是让列表变短，<strong>磁盘上的文件不受影响</strong>）</td></tr>
+        <tr><td><kbd>$</kbd></td><td><code>dired-hide-subdir</code></td><td><strong>折叠 / 展开</strong>光标所在的子目录（塞了子目录的缓冲区才有用）</td></tr>
+        <tr><td><kbd>M-$</kbd></td><td><code>dired-hide-all</code></td><td>折叠所有子目录；再按一次全部展开</td></tr>
+        <tr><td><kbd>(</kbd></td><td><code>dired-hide-details-mode</code></td><td>隐藏所有「权限 / 大小 / 日期」等细节列，只留文件名，列表一下清爽很多（再按一次恢复）</td></tr>
+        <tr><td><kbd>M-DEL</kbd></td><td><code>dired-unmark-all-files</code></td><td>清空所有标记（比 <kbd>*</kbd> <kbd>!</kbd> 更常用，因为它同时清了旗标）</td></tr>
+        <tr><td><kbd>M-s</kbd> <kbd>a</kbd> <kbd>C-s</kbd></td><td><code>dired-do-isearch</code></td><td>在<strong>文件名之间</strong>跳转式搜索（按一次跳到下一个匹配）</td></tr>
+        <tr><td><kbd>M-s</kbd> <kbd>f</kbd> <kbd>C-s</kbd></td><td><code>dired-isearch-filenames</code></td><td>同上，<strong>只看文件名</strong>（不受权限、日期列里的内容干扰）</td></tr>
+        <tr><td><kbd>C-M-d</kbd> / <kbd>C-M-u</kbd> / <kbd>C-M-n</kbd> / <kbd>C-M-p</kbd></td><td><code>dired-tree-down</code> 等</td><td>Tree Dired：向下建 / 向上建 / 跳到下 / 跳到上一个<strong>子目录节点</strong>。把一棵目录树塞进一个缓冲区后用</td></tr>
+        <tr><td><kbd>@</kbd></td><td><code>tramp-dired-find-file-with-sudo</code></td><td>用 <code>sudo</code> 打开该文件（需要装了 Tramp，见上一章）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <details class="deep"><summary>进阶：Dired 里两组冷门但很有用的键</summary>
+    <p><strong><code>%</code> 前缀（正则批量操作）。</strong>这是 <kbd>%</kbd> 加一个字母的子映射，<strong>早就内置在核心 dired 里</strong>（Emacs 25.1 的 <code>dired.el</code> 里就有了），不需要 <code>dired-x</code>：</p>
+    <ul>
+      <li><kbd>%</kbd> <kbd>d</kbd> —— <code>dired-flag-files-regexp</code>，按正则打<strong>删除旗标</strong></li>
+      <li><kbd>%</kbd> <kbd>r</kbd> —— <code>dired-do-rename-regexp</code>，<strong>按正则批量重命名</strong>（最实用的一条：输入替换前后两个正则即可全局改文件名）</li>
+      <li><kbd>%</kbd> <kbd>C</kbd> / <kbd>%</kbd> <kbd>H</kbd> / <kbd>%</kbd> <kbd>S</kbd> / <kbd>%</kbd> <kbd>Y</kbd> —— 同理，按正则复制 / 建硬链接 / 建符号链接 / 建相对链接</li>
+      <li><kbd>%</kbd> <kbd>u</kbd> / <kbd>%</kbd> <kbd>l</kbd> —— <code>dired-upcase</code> / <code>dired-downcase</code>，<strong>批量转换文件名大小写</strong></li>
+      <li><kbd>%</kbd> <kbd>g</kbd> —— <code>dired-mark-files-containing-regexp</code>，标记「<strong>内容里</strong>含某串文本」的文件，比只看文件名强</li>
+      <li><kbd>%</kbd> <kbd>&amp;</kbd> —— <code>dired-flag-garbage-files</code>，给「垃圾文件」打删除旗标</li>
+    </ul>
+    <p><strong>Tree Dired 与 <code>image-dired</code>。</strong>把多个目录用 <kbd>i</kbd> 插进同一个缓冲区之后，<kbd>C-M-d</kbd>（<code>dired-tree-down</code>）在光标处建一棵子树、<kbd>C-M-u</kbd>（<code>dired-tree-up</code>）把整棵子树删掉、<kbd>C-M-n</kbd> / <kbd>C-M-p</kbd>（<code>dired-next-subdir</code> / <code>dired-prev-subdir</code>）在子目录节点间跳、<kbd>M-G</kbd>（<code>dired-goto-subdir</code>）跳到指定子目录。核心 dired 还绑了一组 <code>image-dired</code>（<strong>Emacs 自带的图片浏览器</strong>）的键：<kbd>C-t</kbd> <kbd>d</kbd> 显示缩略图、<kbd>C-t</kbd> <kbd>t</kbd> 给选中图片打标记、<kbd>C-t</kbd> <kbd>j</kbd> 在缩略图缓冲区里跳转——只在你有一堆图片要过一遍时才有用。</p>
+  </details>
+
+  <h3>五、跨目录：Dired 还能把一棵树塞进一个缓冲区</h3>
+
+  <p>这是原文特别强调、但大多数人都没用过的能力。</p>
+
+  <p>按 <kbd>RET</kbd> 进入子目录会开一个<strong>新</strong>的 Dired 缓冲区；而把光标放在某个目录行上按 <kbd>i</kbd>，命令 <code>dired-maybe-insert-subdir</code> 会<strong>把这个子目录的内容直接插入到当前缓冲区里</strong>，成为一棵嵌套的目录树。反复这么干几次，你就能在一个缓冲区里同时看到五六个目录。</p>
+
+  <p>这么做的意义是：<strong>标记和操作命令会跨越所有出现在同一缓冲区里的目录</strong>。也就是说，你可以「顶层选 3 个文件 + <code>lib/</code> 里选 2 个 + <code>docs/</code> 里选 1 个」，然后按一次 <kbd>R</kbd> 把这 6 个文件一起改名/移动。命令会自动补全出它们的<strong>相对路径</strong>，你根本不需要管它们在不同目录。</p>
+
+  <p>配套的折叠键是 <kbd>$</kbd>（折叠/展开光标处的子目录）、<kbd>M-$</kbd>（全折叠/全展开）、<kbd>C-M-n</kbd> / <kbd>C-M-p</kbd>（在子目录节点之间跳转）、<kbd>M-G</kbd>（<code>dired-goto-subdir</code>，跳到指定子目录）。折叠起来的子目录里<strong>所有命令都不生效</strong>——所以删之前先按 <kbd>$</kbd> 折起来，等于给自己加了一道保险。</p>
+
+  <h4>递归：不用 <code>find</code> + <code>xargs</code></h4>
+
+  <p>手工按 <kbd>i</kbd> 插目录显然不递归。Emacs 为此准备了一组 <strong>find 包装命令</strong>：它们调用系统的 <code>find</code>，但把结果做成一个 Dired 缓冲区，<strong>所有 Dired 命令照常可用</strong>。</p>
+
+  <div class="keys">
+    <h4>本节按键：find 系列命令（用 <kbd>M-x</kbd> 调用）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M-x</kbd></td><td><code>find-dired</code></td><td>最通用的一条：先问目录，再让你写<strong>完整的 <code>find</code> 表达式</strong>（例如 <code>-name "*.py"</code>）。它实际执行的是 <code>find . \( ARGS \) -ls</code>（结尾的 <code>-ls</code> 由变量 <code>find-ls-option</code> 决定），结果进 <code>*Find*</code> 缓冲区；因为结尾是 <code>-ls</code>，输出的列才能对齐成 Dired 列表</td></tr>
+        <tr><td><kbd>M-x</kbd></td><td><code>find-name-dired</code></td><td>等价于 <code>find DIR -name PATTERN</code>，只要文件名的<strong>通配符</strong>。日常最常用</td></tr>
+        <tr><td><kbd>M-x</kbd></td><td><code>find-grep-dired</code></td><td>先 <code>find</code> 再 <code>grep</code>：匹配所有文件，但只<strong>显示</strong>内容里含有指定模式的那些</td></tr>
+        <tr><td><kbd>M-x</kbd></td><td><code>find-lisp-find-dired</code></td><td>用 <strong>Emacs 自己的 Lisp 写的 <code>find</code> 实现</strong>（<code>find-lisp.el</code>），<strong>不 fork 外部进程</strong>，在没有 <code>find</code> 的系统上（比如 Windows）可以顶上。代价是能力弱一些，而且用的是 Emacs <strong>正则</strong>而不是 shell 通配符</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>这四条命令的共同点是：<strong>Emacs 会聪明地识别出缓冲区里文件名部分的前缀结构</strong>，把 <code>/a/b/c.txt</code> 归到 <code>c</code> 目录下、把 <code>/a/b/d/e.txt</code> 归到 <code>e</code> 目录下，于是 <kbd>C</kbd>（复制）、<kbd>R</kbd>（移动）、<kbd>D</kbd>（删除）都能保持目录结构地批量工作。原文作者的原话是：「<code>find-dired</code> 加上 Dired，几乎能完全取代我直接用 <code>find</code> 和 <code>xargs</code> 的所有场景。」</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><code>M-x find-name-dired</code> 然后输入 <code>*.py</code>，接着 <kbd>m</kbd> <kbd>m</kbd> <kbd>m</kbd> 标记三个文件、<kbd>Q</kbd> 做一次跨文件正则替换（逐条确认 <kbd>y</kbd> / <kbd>n</kbd>）、再 <kbd>C-x</kbd> <kbd>s</kbd> 存盘——这一串动作在终端里对应的是 <code>find</code> + <code>sed</code> + 一堆管道，在 Emacs 里就是<strong>一串按键</strong>，而且每一步都看得见、可撤销。</p>
+  </div>
+
+  <h3>六、版本现状：<code>dired-x</code> 在 Emacs 32 里还剩什么</h3>
+
+  <p>原文写于 <code>dired-x</code> 尚不可替代的年代，只说了一句「Emacs 29 把 <code>dired-x</code> 的几个功能搬进了核心 dired，但装 <code>dired-x</code> 太省事了，建议直接加上 <code>(require 'dired-x)</code>」。<strong>这句话今天需要修订：回迁不是「几个功能」，而是早在 Emacs 25 就基本完成了。</strong></p>
+
+  <p>我把上游 Emacs 各分支的 <code>dired.el</code>（emacs-mirror 仓库的 <code>emacs-25.1</code> 到 <code>emacs-31.1</code> 标签）逐个抓下来对比过：本章第三节、第四节表格里的绝大多数命令——硬链接 <kbd>H</kbd>、符号链接 <kbd>S</kbd>、相对链接 <kbd>Y</kbd>、<kbd>T</kbd> touch、<kbd>L</kbd> load、<kbd>B</kbd> 字节编译、<kbd>I</kbd> info、<kbd>N</kbd> man、<kbd>P</kbd> print、<kbd>Z</kbd> 压缩、<kbd>W</kbd> 浏览器打开、<kbd>k</kbd> 删行、<kbd>o</kbd> 他窗打开、<kbd>v</kbd> 只读查看、<kbd>w</kbd> 复制文件名、<kbd>y</kbd> 文件类型、<kbd>=</kbd> 比较、<kbd>~</kbd> 备份文件旗标、<kbd>#</kbd> 自动保存文件旗标、<kbd>(</kbd> 隐藏细节模式，以及整个 <kbd>%</kbd> 正则子映射和 <code>dired-guess-shell-*</code> 规则表——<strong>在 Emacs 25.1 的核心 <code>dired.el</code> 里就已经全部存在</strong>，并不是「Emacs 29 才有」，更不是「Emacs 32 才回迁」。今天唯一的版本增量是 <kbd>E</kbd> → <code>dired-do-open</code>，那是 <strong>Emacs 30 新增</strong>的（<code>etc/NEWS.30</code>：「New command <code>dired-do-open</code>. This command is bound to <code>E</code>」），在此之前它属于 <code>dired-x</code>。</p>
+
+  <p>那 <code>dired-x</code> 今天还剩下什么？我在加载前后把 <code>dired-mode-map</code> 逐键 diff 了一遍：<strong>真正只属于 <code>dired-x</code> 的只有两个单字符键和三个子映射键</strong>——<kbd>F</kbd>（<code>dired-do-find-marked-files</code>，一次打开所有标记文件）、<kbd>V</kbd>（<code>dired-do-run-mail</code>，用 <code>mail</code> 打开标记文件）、以及 <kbd>*</kbd> <kbd>.</kbd>、<kbd>*</kbd> <kbd>O</kbd>、<kbd>*</kbd> <kbd>(</kbd>。此外 <code>dired-x</code> 还独有 <code>dired-virtual</code>（<strong>「虚拟 Dired」：把一条命令的 <code>ls -lR</code> 风格输出当成 Dired 缓冲区来操作</strong>——比如 <code>M-x dired-virtual</code> 然后运行 <code>ls -lR /usr/share/doc</code>，就能在结果上按 <kbd>R</kbd> 批量重命名）和 <code>dired-virtual-revert</code>（把虚拟 Dired 缓冲区重新抓一遍）。最后是一整套「<strong>隐藏垃圾文件</strong>」机制，由两个变量控制：<code>dired-omit-files</code>（<strong>文件名正则</strong>，默认值是 <code>"\`[.]?#\|\`[.][.]?\'"</code>，只藏 <code>.</code>、<code>..</code> 和 Emacs 的 <code>#自动保存#</code> 文件）和 <code>dired-omit-extensions</code>（<strong>扩展名与目录名列表</strong>，默认值已经把 <code>.pyc</code> <code>.pyo</code> <code>.elc</code> <code>.o</code> <code>.so</code> <code>.class</code> 以及 <code>.git/</code> <code>.svn/</code> <code>CVS/</code> 等包了个遍）。两者都只在 <code>dired-omit-mode</code> 打开时生效，<strong>而它们都定义在 <code>dired-x.el</code> 里</strong>——这就是本节开头那行 <code>(require 'dired-x)</code> 今天仍然值得写的原因。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>那还要不要 <code>(require 'dired-x)</code>？</strong>要，但理由和原文不同。Emacs 32 依然把 <code>dired-x.el</code> 随发行版一起安装（我在本机 <code>locate-library</code> 找到了它），只是<strong>不再自动加载</strong>，而 <kbd>F</kbd> 和 <code>dired-virtual</code> 依然只有它有。成本只是一行配置，收益是多两个命令 + 隐藏垃圾文件 + 虚拟 Dired，值得。</p>
+  </div>
+
+  <pre class="el"><code>;; 放进 init.el（Emacs 启动时自动读取的配置文件）。
+;; 如何重载：M-x eval-buffer RET，然后选 y；或者重启 Emacs。
+(require 'dired-x)</code></pre>
+
+  <details class="deep"><summary>进阶：猜命令规则表与 dired-jump 的版本细节</summary>
+    <p><strong>猜命令规则表换了文件。</strong>变量 <code>dired-guess-shell-alist-default</code> 及其配套的 <code>-optional</code>、<code>-user</code> 在 <strong>Emacs 32 里定义在 <code>dired-aux.el</code></strong>（早期版本在 <code>dired.el</code> 或 <code>dired-x.el</code>）。它定义的是「<kbd>!</kbd> 什么也没标记时，Emacs 根据文件名猜一条命令来问你要不要执行」的规则，本机 32.0.50 上这张表有 39 条，比如：碰到 <code>.zip</code> 问要不要 <code>unzip</code>；碰到 <code>.patch</code> 问要不要 <code>cat * | patch</code>（在 git 仓库里则是 <code>cat * | git apply</code>）；碰到 <code>.tar.gz</code> / <code>.tgz</code> 问要不要 <code>gunzip -qc * | tar xvf -</code>；碰到 <code>.tar.Z</code> 问要不要 <code>zcat * | tar xvf -</code>。想加自己的规则就往 <code>dired-guess-shell-alist-user</code> 里加。<strong>这个功能属于核心 dired，不需要 <code>dired-x</code></strong>（<code>dired-aux</code> 也会在运行 Dired 时自动加载，本机实测 <code>(dired DIR)</code> 之后 <code>(featurep 'dired-aux)</code> 已经是 <code>t</code>），只是那张表换了文件——原文说的「在变量 <code>dired-guess-shell-alist-default</code> 里」，名字今天仍然对，位置变了。另外 <code>dired-guess-shell-alist-optional</code>（播放器、阅读器这类「可选的」外部程序）是 <strong>Emacs 30 才拆出来</strong>的，早期和默认表混在一起。</p>
+    <p><strong><code>M-x dired-jump</code> 是核心命令。</strong>它在当前缓冲区所属的目录开一个 Dired 缓冲区。Emacs 32 里它的 <strong>repeat-mode</strong>（<strong>「按一次 <kbd>C-x</kbd> <kbd>C-j</kbd> 就能重复上一个命令」的键位映射表</strong>）从 <kbd>j</kbd> 改成了 <kbd>C-j</kbd>——我 dump 出来的 <code>dired-jump-map</code> 现在只有 <code>C-j</code> 一项，Emacs 的 <code>NEWS</code>（32.1 部分）里写着「<code>'repeat-mode'</code> 键 <kbd>j</kbd> 已从 <code>dired-jump-map</code> 移除」。</p>
+  </details>
+
+  <h3>七、通用的 shell 命令接口</h3>
+
+  <p>Dired 里的 <kbd>!</kbd> 和 <kbd>&amp;</kbd> 是「在文件列表上跑命令」。对于<strong>任何</strong>缓冲区，Emacs 还有一套更通用的接口。这四个键是全局绑定，记住它们能省掉大量 alt-tab：</p>
+
+  <div class="keys">
+    <h4>本节按键：通用 shell 命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>!</kbd></td><td><code>shell-command</code></td><td>执行一条 shell 命令。结果只有几行时显示在<strong>回显区</strong>（<strong>屏幕底部显示短消息的那一行</strong>），超过几行就自动进名为 <code>*Shell Command Output*</code> 的缓冲区</td></tr>
+        <tr><td><kbd>C-u</kbd> <kbd>M</kbd><kbd>!</kbd></td><td><code>shell-command</code>（带前缀参数）</td><td>同上，但<strong>把结果插入到当前缓冲区的光标处</strong>。查个版本号、写个 commit message 时很好用</td></tr>
+        <tr><td><kbd>M</kbd><kbd>&amp;</kbd></td><td><code>async-shell-command</code></td><td><strong>异步</strong>执行：Emacs 立刻返回，结果进 <code>*Async Shell Command*</code> 缓冲区，跑完自动弹出来</td></tr>
+        <tr><td><kbd>C-u</kbd> <kbd>M</kbd><kbd>&amp;</kbd></td><td><code>async-shell-command</code>（带前缀）</td><td>异步 + 把结果插入当前缓冲区</td></tr>
+        <tr><td><kbd>M</kbd><kbd>|</kbd></td><td><code>shell-command-on-region</code></td><td><strong>把选中的文本喂给一条命令的标准输入</strong>，返回输出。这是最实用的一条</td></tr>
+        <tr><td><kbd>C-u</kbd> <kbd>M</kbd><kbd>|</kbd></td><td><code>shell-command-on-region</code>（带前缀）</td><td>用命令的输出<strong>替换掉选中的区域</strong>。做 <code>uniq</code>、<code>sort -u</code>、<code>tr</code> 的即席改写神技</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>举三个能立刻用上的例子。选中一段文字，按 <kbd>M</kbd><kbd>|</kbd> 输入 <code>wc -w</code>，得到词数；选中一堆日志行，按 <kbd>C-u</kbd> <kbd>M</kbd><kbd>|</kbd> 输入 <code>sort | uniq -c | sort -rn</code>，得到「哪类错误最多」的排行；<strong>在 Dired 里</strong>标记三个文件，按 <kbd>!</kbd> 输入 <code>wc -l *</code>，逐个统计行数。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原文专门点出：<kbd>M</kbd><kbd>&amp;</kbd> 虽然「不阻塞」，但<strong>是个很差的长时间任务选择</strong>。异步命令跑到一半你想中途取消，或者想看它的实时输出，都很别扭。原文的建议是「长任务请用 <code>M-x compile</code>」——这个建议在今天依然正确，见下一节。</p>
+  </div>
+
+  <h3>八、编译与测试：<code>M-x compile</code> 才是长任务的正路</h3>
+
+  <p><strong>compile</strong>（编译）这个功能在 Emacs 里的范围比「编译」大得多：<strong>它就是「跑一条会输出很多行的命令，然后把输出里的错误变成可跳转的条目」的通用引擎</strong>。跑 <code>make</code>、跑单元测试、跑 <code>npm test</code>、跑 <code>cargo test</code>、跑 <code>eslint</code>，全都用同一套机制。</p>
+
+  <p>它背后有一个正则引擎：Emacs 内置了几十种工具的<strong>错误输出格式</strong>（<code>compilation-error-regexp-alist</code>，本机 Emacs 32.0.50 里有 72 条），从 gcc 到 cargo 到 pytest 到 ESLint 都能识别。识别出来之后，每条错误在 <code>*compilation*</code> 缓冲区里变成一个可以按 <kbd>RET</kbd> 跳到源文件对应行的链接。</p>
+
+  <div class="keys">
+    <h4>本节按键：compilation-mode（编译缓冲区）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>g</kbd></td><td><code>recompile</code></td><td><strong>重新跑上一次命令</strong>。这是编译模式里最重要的一个键，肌肉记忆形成后你不会再手动 <kbd>M-x</kbd> <code>compile</code></td></tr>
+        <tr><td><kbd>n</kbd></td><td><code>next-error-no-select</code></td><td>跳到下一个错误（<strong>不切换窗口</strong>，光标留在编译缓冲区）</td></tr>
+        <tr><td><kbd>p</kbd></td><td><code>previous-error-no-select</code></td><td>上一个错误（不切窗口）</td></tr>
+        <tr><td><kbd>RET</kbd> / <kbd>C-c C-c</kbd></td><td><code>compile-goto-error</code></td><td><strong>跳到光标这条错误对应的源码位置</strong>（编译缓冲区里最常用的一个键）</td></tr>
+        <tr><td><kbd>C-o</kbd></td><td><code>compilation-display-error</code></td><td><strong>显示</strong>这条错误的位置但不切换窗口（想一边看日志一边看报错时用）</td></tr>
+        <tr><td><kbd>C-c C-k</kbd></td><td><code>kill-compilation</code></td><td>杀掉正在跑的编译进程</td></tr>
+        <tr><td><kbd>TAB</kbd> / <kbd>M-n</kbd></td><td><code>compilation-next-error</code></td><td>跳到下一个错误并<strong>切换</strong>到源码窗口（与只移动光标的 <kbd>n</kbd> 不同）</td></tr>
+        <tr><td><kbd>M-{</kbd> / <kbd>M-}</kbd></td><td><code>compilation-previous-file</code> / <code>compilation-next-file</code></td><td>跳到上一个 / 下一个「出错的文件」（一个文件里有多条错误时很有用）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><kbd>M-g</kbd> <kbd>M-n</kbd> 和 <kbd>M-g</kbd> <kbd>M-p</kbd> 是<strong>全局</strong>键（本机实测绑定到 <code>next-error</code> 和 <code>previous-error</code>），在<strong>任何</strong>模式下都能用——也就是说，你正写着代码，编译报错了一条，按 <kbd>M-g</kbd> <kbd>M-n</kbd> 就能直接跳过去，不用切到编译缓冲区。这类「<strong>next-error 系列</strong>」命令统一服务于同一份错误列表，所以在 <code>*grep*</code>、<code>*compilation*</code>、<code>*occurrences*</code> 这些缓冲区之间跳转都是同一套按键。</p>
+
+  <p>发起编译：<kbd>M-x</kbd> <code>compile</code>。Emacs 会在 minibuffer 里预填变量 <code>compile-command</code> 的值——<strong>本机 Emacs 32.0.50 的默认值是字符串 <code>"make -k -j15 "</code></strong>（<code>-k</code> 是「继续编译其余目标」，<code>-j15</code> 是并行 15 路）。你完全可以把它改成 <code>cargo test</code>、<code>npm test</code>、<code>pytest</code>，Emacs 一样能解析输出。</p>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>原文在这一节提到 <kbd>C-x</kbd> <kbd>p</kbd> <kbd>c</kbd>「在当前项目里编译」。我逐版本查了：<strong>GNU Emacs 从 29 到 32 都不存在 <code>compile-project</code> 这个命令</strong>（本机 <code>fboundp</code> 返回 <code>nil</code>，<code>etc/NEWS</code> 里也从未提到过它——如果你在别处看到「Emacs 31 引入了 <code>compile-project</code>」的说法，那是错的）。<kbd>C-x</kbd> <kbd>p</kbd> <kbd>c</kbd> 在 Emacs 32 里真正绑定的是 <strong><code>project-compile</code></strong>，来自核心的 <code>project.el</code>（<strong>项目系统</strong>，Emacs 内置的「猜测你当前在哪个项目根目录」的机制）。它会先定位项目根目录，再在那里跑编译命令。你在 init.el 里设一次 <code>project-default-directory</code>，之后 <kbd>C-x</kbd> <kbd>p</kbd> <kbd>c</kbd> 就能在任何文件里一键编译正确目录。</p>
+  </div>
+
+  <p>同一套 <kbd>C-x</kbd> <kbd>p</kbd> 前缀下还有几个很实用的（全部实测确认）：<kbd>C-x</kbd> <kbd>p</kbd> <kbd>d</kbd>（<code>project-find-dir</code>，直接在项目根目录开 Dired）、<kbd>C-x</kbd> <kbd>p</kbd> <kbd>f</kbd>（在项目内找文件）、<kbd>C-x</kbd> <kbd>p</kbd> <kbd>e</kbd>（在项目根目录开一个 <code>eshell</code>）、<kbd>C-x</kbd> <kbd>p</kbd> <kbd>!</kbd>（<code>project-shell-command</code>，<strong>在项目根目录</strong>执行一条 shell 命令，输出插入缓冲区）。</p>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p>如果项目用 <strong>git</strong>，那编译这整节你可以只记一条：<strong><code>M-x magit</code></strong>。Magit（MELPA / NELPA 里的第三方包，Jonas Bernoulli 写的）把 git 的所有操作变成了 Emacs 缓冲区里的按键。按当前 <code>magit-mode-map</code>（我核对的版本）最常用的几条是：<kbd>g</kbd> 刷新状态缓冲区（<em>不是</em> <kbd>M</kbd>——<kbd>M</kbd> 是 <code>magit-remote</code>，管远程仓库的）、<kbd>s</kbd> 暂存改动、<kbd>c</kbd> 提交、<kbd>l</kbd> 看提交日志、<kbd>d</kbd> 看 diff、<kbd>F</kbd> 拉取（<kbd>f</kbd> 只是 fetch 到本地，<kbd>P</kbd> 推送；<kbd>p</kbd> 是「往前翻一屏」，不是拉取）、<kbd>!</kbd> 跑一条命令。改完代码顺手就能 <kbd>g</kbd> 刷新、<kbd>d</kbd> 确认 diff、<kbd>c</kbd> 提交。装了 Magit 之后，<code>M-x compile</code> 依然有用（跑测试很方便），但日常 git 流程完全不必碰命令行。</p>
+  </div>
+
+  <h3>九、Emacs 里的三种 Shell，以及第四种（vterm）</h3>
+
+  <p>与其再开一个终端模拟器，不如让 Emacs 兼任「终端多路复用器」。Emacs 内置了三种跑 shell 的方式，理解它们的取舍比记住按键更重要。</p>
+
+  <div class="keys">
+    <h4>本节按键：三种 shell 的启动命令</h4>
+    <table>
+      <thead><tr><th>命令</th><th>类型</th><th>一句话</th></tr></thead>
+      <tbody>
+        <tr><td><code>M-x shell</code></td><td>外部 shell 的包装（<strong>comint</strong> 模式）</td><td>跑真的 bash/zsh，但输出被 Emacs 当文本接管。适合绝大多数日常命令</td></tr>
+        <tr><td><code>M-x eshell</code></td><td><strong>纯 Elisp 写的 shell</strong></td><td>不 fork 外部进程，跨平台一致，命令直接落进 Emacs。但解析历史很脆弱</td></tr>
+        <tr><td><code>M-x term</code> / <code>M-x ansi-term</code></td><td>Elisp 写的<strong>终端模拟器</strong></td><td>真终端，<code>htop</code>、<code>vim</code> 都能跑。慢，且转义序列支持不全</td></tr>
+        <tr><td><code>M-x vterm</code></td><td>基于 libvterm（C 动态模块）的终端模拟器</td><td><strong>第三方包</strong>（MELPA），现代终端里应该选它——快、全平台兼容</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>9.1 <code>M-x shell</code>：Shell 模式（今天的默认选择）</h4>
+
+  <p><code>shell</code> 模式启动一个真正的外部 shell（Linux 上是 <code>bash</code>，Windows 上可能是 <code>cmd.exe</code>），通过一个<strong>伪终端</strong>（pseudo-terminal，操作系统提供的一个「看起来像终端但两端由程序接管」的管道）把它的输入输出接到 Emacs 缓冲区上。</p>
+
+  <p>因为 I/O 被 Emacs 接管了，shell 原生的那套交互能力就丢了，但换来的是：<strong>shell 缓冲区是纯文本</strong>。你能用 <kbd>M-f</kbd>、<kbd>M-b</kbd>、<kbd>C-a</kbd> 在长命令里自由移动，能选中一段报错文字直接 <kbd>M-w</kbd> 复制到邮件里，能用 Isearch 搜之前的输出。代价是 <kbd>top</kbd>、<kbd>man</kbd> 这类自己控制光标和屏幕重绘的<strong>全屏交互程序基本不能用</strong>。原文给了两个替代：<kbd>M-x</kbd> <code>proced</code>（把 <code>top</code> 的数据抓成文本表，挺好用）和 <kbd>M-x</kbd> <code>man</code>（Emacs 自带的 man 阅读器，<code>man.el</code>）。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>版本变化（重要）。</strong>原文列的那一串 shell 快捷键，今天在 <code>shell-mode-map</code> 里<strong>一个都没有</strong>——它们全部搬到了共用的 <code>comint-mode-map</code>（<strong>comint = 「与子进程交互」的通用模式层</strong>，<code>shell</code>、<code>eshell</code>、<code>sql</code>、<code>gdb</code> 都继承它）。<strong>你在 shell 缓冲区里按这些键仍然完全有效</strong>，只是要知道它们来自 comint 而不是 shell 本身，这样你用 <code>eshell</code> 时也能用同一套键。<strong>Emacs 32 的 <code>shell-mode-map</code> 现在只绑了六个自己的键：</strong><kbd>TAB</kbd>（<code>completion-at-point</code>，补全）、<kbd>C-c</kbd> <kbd>C-f</kbd> / <kbd>C-c</kbd> <kbd>C-b</kbd>（<code>shell-forward-command</code> / <code>shell-backward-command</code>，在已敲过的命令之间前后移动）、<kbd>M-RET</kbd>（<code>shell-resync-dirs</code>，告诉 Emacs「我的当前目录变了」）、<kbd>M</kbd><kbd>?</kbd>（<code>comint-dynamic-list-filename-completions</code>，列出可补全的文件名）、<kbd>C-x</kbd> <kbd>n</kbd> <kbd>d</kbd>（<code>shell-narrow-to-prompt</code>，<strong>把缓冲区窄化到当前提示符那一行</strong>，跑了一堆输出之后很好看）。</p>
+  </div>
+
+  <div class="keys">
+    <h4>本节按键：shell 模式（来自 comint-mode-map，Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M-p</kbd> / <kbd>C-↑</kbd></td><td><code>comint-previous-input</code></td><td>上一条历史命令（<kbd>M-p</kbd> 和 <kbd>C-↑</kbd> 等价，和终端里的上箭头一样）</td></tr>
+        <tr><td><kbd>M-n</kbd> / <kbd>C-↓</kbd></td><td><code>comint-next-input</code></td><td>下一条历史命令</td></tr>
+        <tr><td><kbd>M-r</kbd></td><td><code>comint-history-isearch-backward-regexp</code></td><td><strong>反向增量搜索历史</strong>（先按 <kbd>M-r</kbd>，再输入几个字符，<kbd>RET</kbd> 选中）。<strong>这是最值得学的一个键</strong>，学会了历史命令就不用翻 <kbd>C-p</kbd> 了</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>↑</kbd></td><td><code>comint-complete-input-ring</code></td><td>按历史内容<strong>补全</strong>（<strong>Emacs 31 新增</strong>）。注意是 <kbd>C-x</kbd> 后面跟<strong>不带 Ctrl 的上箭头</strong>，不是 <kbd>C-x</kbd> <kbd>C-↑</kbd>——<code>etc/NEWS.31</code> 原文写作 <code>C-x &lt;UP&gt;</code></td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-p</kbd> / <kbd>C-c</kbd> <kbd>C-n</kbd></td><td><code>comint-previous-prompt</code> / <code>comint-next-prompt</code></td><td>在<strong>提示符之间</strong>跳转（跳到上一条 / 下一条命令的起点，不是上一条历史）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-s</kbd></td><td><code>comint-write-output</code></td><td><strong>把上条命令的输出存成文件</strong></td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-o</kbd></td><td><code>comint-delete-output</code></td><td>删掉上条命令的输出（<strong>只删缓冲区里的显示，不影响磁盘</strong>）。<strong>加前缀 <kbd>C-u</kbd> 则把输出放进杀死环</strong>（<kbd>C-y</kbd> 就能粘出来）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-l</kbd></td><td><code>comint-dynamic-list-input-ring</code></td><td>列出全部命令历史供补全</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-u</kbd></td><td><code>comint-kill-input</code></td><td>删掉当前正在输入的这一行</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-w</kbd></td><td><code>backward-kill-word</code></td><td>向前删一个词</td></tr>
+        <tr><td><kbd>C-d</kbd></td><td><code>comint-delchar-or-maybe-eof</code></td><td>正常情况下<strong>跟全局的 <kbd>C-d</kbd> 一样</strong>（删掉光标处那一个字符）；<strong>只有当光标在缓冲区末尾、并且当前没有输入任何内容时</strong>，才改为给子进程发送 EOF（等同于在终端里按 <kbd>C-d</kbd>，用来退出卡住的程序）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-z</kbd></td><td><code>comint-stop-subjob</code></td><td>挂起前台程序（等价于 bash 里的 <kbd>C-z</kbd>）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-\</kbd></td><td><code>comint-quit-subjob</code></td><td>彻底干掉前台程序（发 <kbd>C-\</kbd>）</td></tr>
+        <tr><td><kbd>TAB</kbd></td><td><code>completion-at-point</code></td><td><strong>补全</strong>。走的是 Emacs 的补全系统，<strong>不只补文件名</strong>——<code>ssh</code> 的主机名、<code>chown</code> 的用户和组都能补（靠 <code>shell-completion-fignore</code> 等变量配置）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <details class="deep"><summary>进阶：shell 模式里另外两组值得知道的键</summary>
+    <p><kbd>C-c</kbd> <kbd>C-e</kbd> / <kbd>C-c</kbd> <kbd>C-r</kbd> 分别是 <code>comint-show-maximum-output</code>（把上条命令的输出<strong>折叠到一行</strong>）和 <code>comint-show-output</code>（展开）。跑了个输出几万行的命令之后按一下 <kbd>C-c</kbd> <kbd>C-e</kbd>，缓冲区立刻清爽，比 <kbd>C-c</kbd> <kbd>C-o</kbd> 直接删掉更安全，因为内容还在，随时能展开。<strong>这两条不是新键位</strong>：我拉了 emacs-24.5、25.1、26.1、27.1、28.1、29.1 六个分支的 <code>comint.el</code> 逐一比对，<code>C-c C-e</code> → <code>comint-show-maximum-output</code>、<code>C-c C-r</code> → <code>comint-show-output</code> 在 <strong>Emacs 24.5 就已经是这个绑定</strong>了（连命令本身都更早，Emacs 19 的 NEWS 里就提到过 <code>comint-show-maximum-output</code>）。</p>
+    <p><kbd>C-c</kbd> <kbd>M-r</kbd> / <kbd>C-c</kbd> <kbd>M-s</kbd> 是 <code>comint-previous-matching-input-from-input</code> / <code>comint-next-matching-input-from-input</code>：在历史里找和<strong>你当前正在输入的这行</strong>开头相同的上一条 / 下一条命令。比 <kbd>M-p</kbd> 一路往回翻快得多——先敲命令的前几个词，再按 <kbd>C-c</kbd> <kbd>M-r</kbd> 即可。</p>
+  </details>
+
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><kbd>M-p</kbd> / <kbd>M-n</kbd> 和 <kbd>C-↑</kbd> / <kbd>C-↓</kbd> 是<strong>真的在缓冲区里移动光标</strong>，不是在终端里「回显一条旧命令」。这个区别让不习惯 shell 模式的人很困惑：你按 <kbd>M-p</kbd> 之后看到光标跳到了缓冲区中间某一行，那行就是上一条命令。想立刻改这条命令？直接改就行，不用先按 <kbd>↑</kbd> 再乱按一通。</p>
+  </div>
+
+  <h4>9.2 <code>M-x eshell</code>：Emacs 自己的 shell</h4>
+
+  <p><strong>eshell</strong> 是一个完全用 Elisp 实现的 shell。它的实现方式是：<strong>你输入的每一个词，先过 Eshell 的命令层（匹配内建命令或外部程序），再过 Emacs 自己的交互命令层（比如把 <code>find-file todo.org</code> 直接解释成 Emacs 的 <code>find-file</code>），最后才考虑 <code>$PATH</code> 里的外部程序</strong>。所以在 eshell 里可以直接敲 <code>dired .</code> 打开当前目录的 Dired 缓冲区，或者 <code>find-file todo.org</code> 在 Emacs 里打开文件——这在真正的 bash 里当然是不行的。</p>
+
+  <p>它的强项很实在：<strong>跨平台一致</strong>（Windows 上也有同样的体验）、能配合 TrAMP 直接给远程命令开一个 eshell、以及 <strong>把命令输出重定向进 Emacs 缓冲区</strong>极其自然。它内置了一批 GNU coreutils 的 Elisp 实现（<code>ls</code>、<code>cp</code>、<code>mv</code>、<code>rm</code>、<code>find</code>、<code>grep</code> 等），所以就算系统上没有这些命令也能用。</p>
+
+  <p>它的弱项原文说得很准，而且今天依然成立：<strong>不支持全屏交互程序</strong>（<code>htop</code> 之类），而当你真的敲了这样一个命令，eshell 会很贴心地自动开一个 <code>ansi-term</code> 缓冲区给你跑它；<strong>命令历史解析非常脆弱</strong>——eshell 靠正则从缓冲区文本里「猜」历史命令，一旦你手改了那一行、或者命令里有引号和管道符，它经常认不出来，<kbd>C-p</kbd> 就开始乱跳。<strong>Emacs 32.1 的 <code>NEWS</code> 里给了 eshell 一个「Lisp 管道」</strong>：可以直接把命令管道进一个 Elisp 函数，比如 <code>echo hi | #'upcase</code>。<strong>但原文提到的 <code>eshell-clear</code> 命令在今天的 Emacs 32.0.50 里并不存在</strong>（<code>fboundp</code> 返回 <code>nil</code>，<code>eshell.el</code> 里也搜不到这个名字），别照着敲。</p>
+
+  <div class="callout note">
+    <b>要点</b>
+    <p><strong>原书作者的建议今天依然成立：日常用 <code>shell</code> 模式</strong>。原因很简单：<code>shell</code> 跑的是真的 bash，你的肌肉记忆（管道、`&&`、引号、`grep -r`）100% 有效；eshell 的收益（跨平台、命令落进 Emacs）只在特定场景才值它的解析脆弱性。</p>
+  </div>
+
+  <h4>9.3 <code>M-x ansi-term</code>：真终端</h4>
+
+  <p>如果你要跑 <code>htop</code>、<code>vim</code>、<code>emacs</code>（套娃）、<code>ssh</code> 进另一台机器跑 <code>tmux</code>，就需要真正的终端模拟器。Emacs 自带两个入口，而且<strong>它们都住在同一个文件 <code>term.el</code> 里——早就没有一个叫 <code>ansi-term.el</code> 的独立文件了</strong>（我查了 emacs-mirror 的 <code>emacs-24.5</code> 及其之后的每一个分支，<code>lisp/ansi-term.el</code> 一路都是 404，<code>ansi-term</code> 是 <code>term.el</code> 里的一个函数）：<code>M-x term</code>（复用同一个 <code>*terminal*</code> 缓冲区反复开 shell）和 <code>M-x ansi-term</code>（<strong>每次调用都开一个新缓冲区</strong>，缓冲区名默认 <code>*ansi-term*</code>，能同时开好几个；它还把 <kbd>C-x</kbd> 也设成了转义字符，方便把 <code>C-x</code> 组成的函数键发给远端）。原文只讲了 <code>ansi-term</code>，因为它更常用。</p>
+
+  <p>它有两种模式，<strong>这个切换是使用 <code>ansi-term</code> 最大的心智负担</strong>：</p>
+
+  <ul>
+    <li><strong>字符模式（character mode，默认）</strong>：像真正的终端一样，几乎所有按键——<strong>包括普通的字母和 Emacs 命令键</strong>——都绕过 Emacs 直接发给子进程。此时 Emacs 命令（<kbd>C-x</kbd> <kbd>C-f</kbd> 之类）全部失效。</li>
+    <li><strong>行模式（line mode）</strong>：像一个普通的 Emacs 缓冲区，可以移动、搜索、复制。</li>
+  </ul>
+
+  <p>切换靠 <kbd>C-c</kbd> 前缀。但 <kbd>C-c</kbd> 本身被 Emacs 拦下来当转义字符用，所以<strong>想给子进程发一个真正的 <kbd>C-c</kbd>，必须连按两次 <kbd>C-c</kbd> <kbd>C-c</kbd></strong>。这是新用户最常踩的坑——「我明明按了 <kbd>C-c</kbd> 为什么程序不停」。<strong>一个精确化的说明</strong>：第二次 <kbd>C-c</kbd> 触发的是命令 <code>term-interrupt-subjob</code>，它给前台进程组发 <code>SIGINT</code>；对绝大多数命令行程序来说效果跟在终端里按 <kbd>C-c</kbd> 一样，但它并不是「把 <kbd>C-c</kbd> 这个字节写进 pty」。</p>
+
+  <div class="keys">
+    <h4>本节按键：term / ansi-term（Emacs 32 实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C-c</kbd> <kbd>C-k</kbd></td><td><code>term-char-mode</code></td><td>切到<strong>字符模式</strong>（按键直发给子进程）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-j</kbd></td><td><code>term-line-mode</code></td><td>切到<strong>行模式</strong>（可以当普通 Emacs 缓冲区用）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-c</kbd></td><td><code>term-interrupt-subjob</code></td><td><strong>打断当前前台程序</strong>：给它的进程组发 <code>SIGINT</code>（效果等同于在终端里按 <kbd>C-c</kbd>，但走的是信号而不是往 pty 里塞控制字符）。<em>注意</em>：<code>term-send-raw</code>（把上一个键原样发给终端）在 Emacs 32 里<strong>不绑在 <kbd>C-c</kbd> <kbd>C-c</kbd> 上</strong>，它只在 <code>term-raw-map</code> 这一层用来把字符直送</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-q</kbd></td><td><code>term-pager-toggle</code></td><td>在分页器（<code>less</code> 之类）里切换。<strong>不是 Emacs 31 才有的</strong>——我查过 emacs-27.1 的 <code>term.el</code>，里面已经有 <code>term-pager-toggle</code> 和它的 <kbd>C-c C-q</kbd> 绑定</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-o</kbd></td><td><code>term-kill-output</code></td><td>删掉上条命令的输出</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-l</kbd></td><td><code>term-dynamic-list-input-ring</code></td><td>列出命令历史</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-z</kbd></td><td><code>term-stop-subjob</code></td><td>挂起子进程</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>原文对 <code>ansi-term</code> 的评价是「慢，而且有些终端特性不支持」。这句话今天更成立了：<strong>你如果只是想跑交互式程序，正确做法是开一个真正的系统终端</strong>，Emacs 里的终端模拟器是给「没有图形终端可用」的场景准备的。</p>
+
+  <h4>9.4 <code>M-x vterm</code>：今天在 Emacs 里跑真终端的更好选择</h4>
+
+  <p><code>vterm</code> 是第三方包（<strong>在 MELPA 里，仓库是 <code>akermu/emacs-libvterm</code></strong>）。它的关键差异是：<strong>核心不是 Elisp，而是一个 C 动态模块</strong>——它把 Neovim 用的终端模拟库 <code>libvterm</code> 编译成 Emacs 的动态模块加载进来。</p>
+
+  <p>所以它比 <code>term</code> / <code>ansi-term</code> 强在两点，而且都是压倒性的：<strong>速度</strong>（大段输出不会卡）和<strong>兼容性</strong>（几乎所有终端程序都能跑，因为底层就是标准的 VT100/xterm 模拟器）。代价有三条：</p>
+
+  <ol>
+    <li><strong>需要支持动态模块的 Emacs 构建</strong>。检查方法：<kbd>M-x</kbd> <code>eval-expression</code> 输入 <code>module-file-suffix</code>，返回值不是 <code>nil</code> 才行。从源码编译的 Emacs、多数 Linux 发行版的包、Homebrew 的版本都有；Windows 原生构建通常没有。</li>
+    <li><strong>需要 CMake、libtool 和 libvterm 库</strong>，首次运行时 vterm 会自动编译模块。</li>
+    <li><strong>和 Emacs 的整合没那么紧</strong>：按键直接发给子进程，<code>evil-mode</code> 这类改动按键方案的包用不了（项目 README 里直接点名了这个限制）。另外作者在 README 里自评当前处于 <strong>alpha 阶段</strong>，接口可能变。</li>
+  </ol>
+
+  <p>安装（MELPA 路线，README 里的推荐做法）：在 init.el 里加 <code>(use-package vterm :ensure t)</code>，然后 <kbd>M-x</kbd> <code>package-install</code> 输入 <code>vterm</code> 回车即可。</p>
+
+  <pre class="el"><code>;; init.el：装 vterm
+(use-package vterm
+  :ensure t)
+
+;; 顺手把两个最常用的命令绑上全局键。
+;; 注意 s- 在 kbd 里是 Super 修饰键，不是「shift」也不是什么前缀简写：
+;; (kbd "s-C-c t") 实测得到 [8388611 116]，也就是 Super-C-c 然后 t，
+;; 跟上面那行绑的 C-c t 完全是两回事（不会互相覆盖）——但这个序列
+;; 实际上没人敲得出来，等于白绑。所以这里换一个正常键。
+(global-set-key (kbd "C-c t") #'vterm)
+(global-set-key (kbd "C-c M-t") #'vterm-other-window)
+
+;; 在 vterm 终端缓冲区里按 C-c C-t 是 vterm-copy-mode：
+;; 打开后这个终端就变成一个只读文本缓冲区，可以搜索、可以正常复制，
+;; 这解决了「在终端里用鼠标精确选字」的老大难。</code></pre>
+
+  <p>另有两个相关包值得知道：<strong><code>vterm-toggle</code></strong>（MELPA）让你在「普通文件缓冲区」和「vterm 终端」之间反复切换，特别适合「在项目目录里 <code>npm start</code> 然后切回去改代码」这种循环；<strong><code>eedit</code></strong>（同一作者）是一个 eshell 与 comint 的混合体，介于 eshell 和 shell 模式之间。<strong>如果你今天就想用 Emacs 里的真终端，装 <code>vterm</code>；如果 Emacs 没有模块支持，就老实用 <code>shell</code> 模式跑命令、需要交互式程序时切到系统终端。</strong></p>
+
+  <h3>十、选型建议（这是本章最该记住的一段）</h3>
+
+  <p>把上面这些压成一张决策表：</p>
+
+  <div class="keys">
+    <h4>本节速查：Emacs 里跑命令的选型</h4>
+    <table>
+      <thead><tr><th>我想做的事</th><th>用这个</th><th>为什么</th></tr></thead>
+      <tbody>
+        <tr><td>跑一条非交互命令、看看结果</td><td><kbd>M</kbd><kbd>!</kbd></td><td>最短路径，短输出直接进回显区</td></tr>
+        <tr><td>把选中的文本丢给命令处理</td><td><kbd>M</kbd><kbd>|</kbd>（改写用 <kbd>C-u</kbd> <kbd>M</kbd><kbd>|</kbd>）</td><td>选区就是输入，不用先存成文件</td></tr>
+        <tr><td>反复跑 build / 测试，追错误</td><td><kbd>M-x</kbd> <code>compile</code> → 然后 <kbd>g</kbd> 和 <kbd>M-g</kbd> <kbd>M-n</kbd></td><td>唯一能把错误变成可跳转条目的方式</td></tr>
+        <tr><td>在正确的项目根目录编译</td><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>c</kbd>（<code>project-compile</code>）</td><td>不用自己找根目录</td></tr>
+        <tr><td>日常交互式命令行</td><td><kbd>M-x</kbd> <code>shell</code></td><td>真 bash，心智零成本；comint 键位全套可用</td></tr>
+        <tr><td>在项目根目录开个 shell</td><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>e</kbd>（<code>project-eshell</code>）</td><td>同上，只是目录自动对</td></tr>
+        <tr><td>批量处理文件 / 重命名 / 删文件</td><td><kbd>C-x</kbd> <kbd>d</kbd> + 标记 + 大写键</td><td>Dired 的标记模型，见第三、四节</td></tr>
+        <tr><td>跨目录 / 递归批量处理</td><td><code>M-x</code> <code>find-name-dired</code> 或 <kbd>i</kbd> 插入子目录</td><td>见第五节</td></tr>
+        <tr><td>跑 <code>htop</code> / <code>vim</code> / <code>tmux</code></td><td><kbd>M-x</kbd> <code>vterm</code>（装了的话），否则系统终端</td><td><code>ansi-term</code> 慢且兼容差</td></tr>
+        <tr><td>所有 git 操作</td><td><kbd>M-x</kbd> <code>magit</code></td><td>第三方包，但它是 git 的事实标准 GUI</td></tr>
+        <tr><td>Windows 上没有 <code>ls</code> / <code>find</code></td><td>什么都不用换</td><td>Dired 有 Elisp 模拟层，<code>find-lisp-find-dired</code> 也是纯 Elisp</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <b>技巧</b>
+    <p><strong>把这一章的东西收进 init.el。</strong>下面这段是我自己每天在用的最小配置。<strong>要重载它：在 Emacs 里 <kbd>M-x</kbd> <code>eval-buffer</code> <kbd>RET</kbd> 然后选 <code>y</code>；或者直接重启 Emacs。</strong></p>
+  </div>
+
+  <pre class="el"><code>;; 1) dired-x：Emacs 32 里它只剩 F / V / 虚拟 Dired / 隐藏垃圾文件这几个独有价值
+(require 'dired-x)
+
+;; 2) 「隐藏垃圾文件」有两个变量，别搞混：
+;;    dired-omit-files      —— 文件名正则，默认 "\`[.]?#\|\`[.][.]?\'"，
+;;                            只藏 . 、.. 和 Emacs 的 #自动保存# 文件
+;;    dired-omit-extensions —— 扩展名/目录名列表，默认值已经把 .pyc .pyo .elc
+;;                            .o .so .class 以及 .git/ .svn/ CVS/ 等全包了
+;;    所以绝大多数人什么都不用改；要更激进就往这个列表里 add-to-list
+;;    （add-to-list 一次只能加一个元素，加两个要写两行）
+(add-to-list 'dired-omit-extensions ".log")
+(add-to-list 'dired-omit-extensions ".tmp")
+
+;; 3) 跨 dired 窗口复制/重命名时，默认目标是「最近用过的那个 dired 窗口」。
+;;    这个函数（dired-dwim-target-recent）定义在 dired-aux.el 里，Emacs 32
+;;    运行 Dired 时会自动加载 dired-aux，所以这里写符号就行。
+;;    注意 dired-dwim-target 的默认值就是 nil，也就是「不猜」——这不是
+;;    Emacs 29.1 才改的，emacs-26.1 的 dired.el 里它已经是 nil 了。
+(setq dired-dwim-target 'dired-dwim-target-recent)
+
+;; 4) 备用终端。装了 vterm 的话把 #'ansi-term 换成 #'vterm
+(global-set-key (kbd "C-c t") #'ansi-term)
+
+;; 5) Dired 里的 a 键（dired-find-alternate-file，复用已打开的窗口）
+;;    是 Emacs 自带的，原书没提；这里只是确保没被别的配置覆盖
+(with-eval-after-load 'dired
+  (define-key dired-mode-map (kbd "a") #'dired-find-alternate-file))</code></pre>
+
+  <div class="callout warn">
+    <b>易错</b>
+    <p>两个变量都要<strong>在 <code>dired-x</code> 加载之后才有效</strong>（它们定义在 <code>dired-x.el</code> 里），这就是第 1 条必须放在最前面的原因。改完先在一个测试目录里 <kbd>C-x</kbd> <kbd>d</kbd> 看一眼结果再上生产——<code>dired-omit-files</code> 的正则一旦写宽了会连正常文件一起藏掉，排查起来很烦。第 3 条则相反：<code>dired-dwim-target</code> 打开后要格外小心，原书作者专门提醒过「<strong>别把文件误移到一个你忘了还开着的 dired 缓冲区里</strong>」，他本人栽过好几次。所以如果你经常同时开着两三个 Dired 缓冲区，把它设成 <code>nil</code>（默认值）反而更安全。</p>
+  </div>
+
+  <h3>十一、本章按键总表（速查）</h3>
+
+  <p>本章每个小节已经配了完整的按键表，这里再给一张<strong>一页纸速查</strong>，只列最高频的那些，方便打印贴在显示器边上。</p>
+
+  <div class="keys">
+    <h4>速查：文件与目录</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C-x</kbd> <kbd>d</kbd></td><td><code>dired</code></td><td>打开当前目录的 Dired 缓冲区</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>4</kbd> <kbd>d</kbd></td><td><code>dired-other-window</code></td><td>在另一个窗口打开</td></tr>
+        <tr><td><kbd>RET</kbd> / <kbd>o</kbd> / <kbd>v</kbd></td><td><code>dired-find-file</code> 等</td><td>打开 / 他窗打开 / 只读查看</td></tr>
+        <tr><td><kbd>^</kbd> / <kbd>q</kbd></td><td><code>dired-up-directory</code> / <code>quit-window</code></td><td>上一级目录 / 关闭缓冲区</td></tr>
+        <tr><td><kbd>g</kbd> / <kbd>s</kbd></td><td><code>revert-buffer</code> / <code>dired-sort-toggle-or-edit</code></td><td>刷新 / 切换排序</td></tr>
+        <tr><td><kbd>m</kbd> / <kbd>u</kbd> / <kbd>U</kbd> / <kbd>d</kbd></td><td><code>dired-mark</code> 等</td><td>标记 / 取消 / 全清 / 打删除旗标</td></tr>
+        <tr><td><kbd>*</kbd> <kbd>%</kbd> / <kbd>*</kbd> <kbd>t</kbd> / <kbd>*</kbd> <kbd>s</kbd></td><td><code>dired-mark-files-regexp</code> 等</td><td>正则标记 / 反转 / 整个子目录</td></tr>
+        <tr><td><kbd>C</kbd> / <kbd>R</kbd></td><td><code>dired-do-copy</code> / <code>dired-do-rename</code></td><td><strong>复制 / 重命名移动</strong>（批量）</td></tr>
+        <tr><td><kbd>D</kbd> / <kbd>x</kbd></td><td><code>dired-do-delete</code> / <code>dired-do-flagged-delete</code></td><td>删星号标记的 / 删 <code>D</code> 旗标的</td></tr>
+        <tr><td><kbd>M</kbd> / <kbd>O</kbd> / <kbd>G</kbd></td><td><code>dired-do-chmod</code> / <code>-chown</code> / <code>-chgrp</code></td><td>权限 / 属主 / 属组（批量）</td></tr>
+        <tr><td><kbd>i</kbd> / <kbd>$</kbd></td><td><code>dired-maybe-insert-subdir</code> / <code>dired-hide-subdir</code></td><td>插入子目录 / 折叠子目录</td></tr>
+        <tr><td><kbd>A</kbd> / <kbd>Q</kbd></td><td><code>dired-do-find-regexp</code> / <code>-and-replace</code></td><td>跨文件搜索 / 替换（<kbd>Q</kbd> 后要 <kbd>C-x</kbd> <kbd>s</kbd>）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="keys">
+    <h4>速查：命令、编译与终端</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>!</kbd></td><td><code>shell-command</code></td><td>跑一条 shell 命令，结果在回显区或 <code>*Shell Command Output*</code></td></tr>
+        <tr><td><kbd>M</kbd><kbd>|</kbd></td><td><code>shell-command-on-region</code></td><td>把选区喂给命令；<kbd>C-u</kbd> 前缀则用输出替换选区</td></tr>
+        <tr><td><kbd>M</kbd><kbd>&amp;</kbd></td><td><code>async-shell-command</code></td><td>异步跑命令（<strong>长时间任务别用它</strong>）</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>compile</code> → <kbd>g</kbd></td><td><code>compile</code> / <code>recompile</code></td><td>发起编译 / 重跑上一次</td></tr>
+        <tr><td><kbd>M-g</kbd> <kbd>M-n</kbd> / <kbd>M-g</kbd> <kbd>M-p</kbd></td><td><code>next-error</code> / <code>previous-error</code></td><td>全局跳转下一个 / 上一个错误</td></tr>
+        <tr><td><kbd>C-x</kbd> <kbd>p</kbd> <kbd>c</kbd></td><td><code>project-compile</code></td><td>在项目根目录编译（<strong>不是 <code>compile-project</code></strong>）</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>shell</code></td><td><code>shell</code></td><td>日常命令行首选</td></tr>
+        <tr><td><kbd>M-p</kbd> / <kbd>M-r</kbd></td><td><code>comint-previous-input</code> 等</td><td>上一条历史 / <strong>搜历史</strong></td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-o</kbd></td><td><code>comint-delete-output</code></td><td>删掉上条命令的输出（<kbd>C-u</kbd> 前缀则放进杀死环）</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-j</kbd> / <kbd>C-c</kbd> <kbd>C-k</kbd></td><td><code>term-line-mode</code> / <code>term-char-mode</code></td><td>term 切行模式 / 字符模式</td></tr>
+        <tr><td><kbd>C-c</kbd> <kbd>C-c</kbd></td><td><code>term-interrupt-subjob</code></td><td>打断终端里的前台程序（发 <code>SIGINT</code>）</td></tr>
+        <tr><td><kbd>M-x</kbd> <code>magit</code></td><td><code>magit</code></td><td>所有 git 操作的现代替代方案</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>十二、练习</h3>
+
+  <div class="drill" data-answer="C-x d">
+    <p class="drill-q"><b>练习 1</b>　你正在编辑 <code>~/project/src/main.py</code>，想看看 <code>src</code> 目录里还有哪些文件。最快的按键是什么？如果想在新窗口里看呢？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C-x</kbd> <kbd>d</kbd> 打开当前缓冲区所在目录的 Dired；<kbd>C-x</kbd> <kbd>4</kbd> <kbd>d</kbd> 在另一个窗口打开（命令 <code>dired-other-window</code>）。默认值来自变量 <code>default-directory</code>，所以不需要输入任何路径，直接 <kbd>RET</kbd> 就行。</p></div>
+  </div>
+
+  <div class="drill" data-answer="D 删标记 x 删旗标">
+    <p class="drill-q"><b>练习 2</b>　你在 Dired 里用 <kbd>m</kbd> 标记了三个文件，现在想删掉它们。用 <kbd>D</kbd> 和用 <kbd>x</kbd> 分别会删掉哪一批？哪一个更安全，为什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>D</kbd>（<code>dired-do-delete</code>）删掉<strong>打星号标记的</strong>那三个；<kbd>x</kbd>（<code>dired-do-flagged-delete</code>）删掉<strong>打了 <code>D</code> 旗标的</strong>文件。更安全的是 <kbd>x</kbd>，因为标记是快速连按出来的、容易多标，而旗标需要逐个用 <kbd>d</kbd> 确认，Emacs 也会在删除前列出完整清单让你核对。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-u M-| sort -u">
+    <p class="drill-q"><b>练习 3</b>　你选中了 200 行可能重复的配置项，想就地排序去重、并且让结果<strong>替换</strong>掉原来选中的内容。敲哪两个键、输入什么命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C-u</kbd> <kbd>M</kbd><kbd>|</kbd> 然后输入 <code>sort -u</code>。前缀 <kbd>C-u</kbd> 让 <code>shell-command-on-region</code> 用命令输出替换选区；不加 <kbd>C-u</kbd> 的话输出会另外显示，原始选区保持不变。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-g M-n">
+    <p class="drill-q"><b>练习 4</b>　你用 <kbd>M-x</kbd> <code>compile</code> 跑了构建，在 <code>*compilation*</code> 缓冲区里。现在回到源码文件想跳到第一条错误处。至少按哪一组键？<kbd>g</kbd> 必须先按吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>只要按 <kbd>M-g</kbd> <kbd>M-n</kbd></strong>（<code>next-error</code>）就够了——这两个是全局键，在源码缓冲区里也能直接用，会跳到最近一次编译输出的<strong>第一条</strong>错误；<kbd>M-g</kbd> <kbd>M-p</kbd> 跳回上一个。<kbd>g</kbd>（<code>recompile</code>）只在<strong>你想重新跑一遍编译</strong>时才需要——如果刚才那次编译已经跑完、结果还在，跳之前先按 <kbd>g</kbd> 反而会白等一次。所以「先 <kbd>g</kbd> 再 <kbd>M-g</kbd> <kbd>M-n</kbd>」只有在你刚才没看结果、想边看新结果边跳的时候才对。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-c C-c">
+    <p class="drill-q"><b>练习 5</b>　在 <code>M-x ansi-term</code> 开的终端里，你按了一次 <kbd>C-c</kbd> 但里面跑的 <code>tail -f</code> 停不下来。应该怎么把真正的 <kbd>C-c</kbd> 发过去？Emacs 32 里这组键实际绑的是哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>连按两次：<kbd>C-c</kbd> <kbd>C-c</kbd>。Emacs 截获第一个 <kbd>C-c</kbd> 当作自己的转义前缀，第二个才触发命令。注意 Emacs 32 里 <kbd>C-c</kbd> <kbd>C-c</kbd> 绑的是 <code>term-interrupt-subjob</code>，它给前台进程组发 <code>SIGINT</code>；对 <code>tail -f</code> 这类程序效果和真按 <kbd>C-c</kbd> 一样，但它不是「把 <kbd>C-c</kbd> 这个字节写进 pty」。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x shell">
+    <p class="drill-q"><b>练习 6</b>　今天要在 Emacs 里跑日常命令行命令，候选是 <code>M-x shell</code>、<code>M-x eshell</code>、<code>M-x vterm</code>。给出你的选择和一句话理由。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>选 <code>M-x shell</code>。它跑的是真的 bash，你的管道、引号、<code>grep -r</code> 全部照常工作，心智成本为零；同时因为输出是 Emacs 文本，你还能自由移动、搜索、复制。eshell 的历史解析脆弱、vterm 需要模块支持和编译、而且按键直接发给子进程导致 Emacs 命令用不了。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-SPC 设标记，移到第 8 行，然后按 * m（即 dired-mark），区域内都会被标记；取消用 * u">
+    <p class="drill-q"><b>练习 7</b>　你想一次性标记 Dired 列表里从第 3 行到第 8 行的所有项。怎么做？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>三步，全程都在 Dired 缓冲区里做：</strong>① 把光标放到第 3 行的行首，按 <kbd>C</kbd><kbd>SPC</kbd>（<code>set-mark-command</code>，<strong>就是这一个键，Emacs 没有「<kbd>C</kbd><kbd>-</kbd> 配合 <kbd>SPC</kbd>」这种两键写法</strong>）；② 移动到第 8 行的行尾，此时这一段是激活选区；③ 按 <kbd>*</kbd> 然后 <kbd>m</kbd>（<code>dired-mark</code>），<strong>区域内的每一项都会被标记</strong>。</p>
+    <p><strong>为什么第 ③ 步会作用于整个区域？</strong><code>dired-mark</code> 的文档字符串写着 “Mark the file at point… only in the region if ‘dired-mark-region’ is non-nil.”——也就是<strong>它平时只标记光标那一项，只有在有激活选区、而且变量 <code>dired-mark-region</code> 不是 <code>nil</code> 时才扩展到整个区域</strong>。<strong>这个变量的默认值本书作者在 Emacs 32.0.50 上实测是 <code>file</code>（不是 <code>nil</code>），所以区域标记默认是开着的</strong>，你不用配任何东西。</p>
+    <p>反过来取消标记按 <kbd>*</kbd> <kbd>u</kbd>（<code>dired-unmark</code>）。另外记两个同一族里常用的：<kbd>*</kbd> <kbd>%</kbd>（<code>dired-mark-files-regexp</code>）按正则批量标记，比如 <kbd>*</kbd> <kbd>%</kbd> 输 <code>\.py$</code> 选中所有 Python 文件；<kbd>*</kbd> <kbd>*</kbd> 切换「标记显示模式」。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x find-name-dired">
+    <p class="drill-q"><b>练习 8</b>　你想在一个大仓库里找出所有 <code>*.org</code> 文件并按大小排序后再批量处理。用哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M-x</kbd> <code>find-name-dired</code>，输入 <code>*.org</code>。它生成的缓冲区是完整的 Dired 缓冲区，所以 <kbd>s</kbd>（切换排序）、<kbd>m</kbd>（标记）、<kbd>R</kbd>（批量移动）全部可用。Windows 上没有 <code>find</code> 的话改用 <code>find-lisp-find-dired</code>（纯 Elisp，但用 Emacs 正则而非 shell 通配符）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="dired-maybe-insert-subdir">
+    <p class="drill-q"><b>练习 9</b>　Dired 缓冲区里已经有一个子目录展开了（用 <kbd>i</kbd> 插进来的）。现在要在另一个目录里再放一个子目录，敲哪个键？插进来的子目录内容会被 <kbd>C</kbd> 和 <kbd>R</kbd> 影响吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>敲 <kbd>i</kbd>（命令 <code>dired-maybe-insert-subdir</code>），光标要放在目录行上。会——同一个缓冲区里的所有行（包括插进来的子目录）都在标记和操作的作用范围内，<kbd>C</kbd> / <kbd>R</kbd> 一样生效，Emacs 会自动加上正确的相对路径。用 <kbd>$</kbd> 可以把子目录折叠起来暂时排除在外。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-p 上一条 M-r 搜历史">
+    <p class="drill-q"><b>练习 10</b>　在 <code>M-x shell</code> 的缓冲区里，<kbd>M-p</kbd> 和 <kbd>M-r</kbd> 有什么区别？哪个更适合「找三个月前敲过的那条很长的命令」？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M-p</kbd>（<code>comint-previous-input</code>，等价于 <kbd>C-↑</kbd>）是在历史里<strong>逐条</strong>往回翻，得按很多次。<kbd>M-r</kbd>（<code>comint-history-isearch-backward-regexp</code>）是<strong>反向增量搜索</strong>：按 <kbd>M-r</kbd> 后输入几个字符片段，Emacs 实时匹配历史里含该片段的命令，<kbd>RET</kbd> 选中。找特定长命令应该用 <kbd>M-r</kbd>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="n 取消 回到 Dired 去掉标记 重来">
+    <p class="drill-q"><b>练习 11</b>　你误按了 <kbd>D</kbd>，Emacs 弹出一个列出待删文件的窗口问你「是否删除这 N 个文件」。你发现清单里混进了一个不该删的文件。接下来该怎么做才能既安全又不用全部重来？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>在提示处按 <kbd>n</kbd> 取消，然后回到 Dired 缓冲区把那一项的标记去掉，再重新按 <kbd>D</kbd>。</strong><kbd>n</kbd> 是完全可逆的——这个确认由 <code>dired-deletion-confirmer</code>（默认就是 <code>yes-or-no-p</code>）负责，回显区会告诉你 <code>(No deletions performed)</code>，一个文件都没动。<strong>要注意那个列出待删文件的 <code>*Deletions*</code> 窗口只是给你看的，不能在里面编辑</strong>：它由 <code>dired-mark-pop-up</code> 用 <code>completion--insert-strings</code> 生成，里面<strong>不是 <code>dired-mode</code></strong>，所以你按不了 <kbd>d</kbd>、也按不了 <kbd>*</kbd> <kbd>!</kbd> 去改标记（那两条只在真正的 Dired 缓冲区里有效）；而且待删文件只有一个时 Emacs 干脆不弹窗口，直接问 y/n。<strong>不要因为看到确认弹窗就条件反射按 <kbd>y</kbd></strong>——这个弹窗的用处正是让你检查清单，看完按 <kbd>n</kbd> 也不丢东西。</p></div>
+  </div>
+
+  <div class="drill" data-answer="dired-listing-switches">
+    <p class="drill-q"><b>练习 12</b>　你嫌 Dired 列表太长，想去掉「属主 / 属组」那几列。改哪个变量、改成什么？改完怎么让它生效？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>改 <code>dired-listing-switches</code>，把 <code>-al</code> 里的 <code>l</code> 去掉即可，比如 <code>(setq dired-listing-switches "-a")</code>（<code>-a</code> = 全部条目含隐藏文件，<code>-l</code> = 长格式即那些列）。改完按 <kbd>g</kbd>（<code>revert-buffer</code>）刷新现有 Dired 缓冲区，或者在 init.el 里改完用 <kbd>M-x</kbd> <code>eval-buffer</code> <kbd>RET</kbd> 选 <code>y</code> 重载。</p></div>
+  </div>
+
+  <div class="drill" data-answer="dired-do-open 系统默认程序">
+    <p class="drill-q"><b>练习 13</b>　在 Dired 里想用系统的默认程序打开一个 PDF（不是用 Emacs 内置的 PDF 查看器）。按哪个键？这个键是哪个 Emacs 版本新增的？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>E</kbd>，命令 <code>dired-do-open</code>，<strong>Emacs 30 新增</strong>（此前要 <code>dired-x</code>）。<strong>Emacs 32 把它内置进了核心 dired</strong>，本机实测不需要 <code>dired-x</code> 就能用。</p></div>
+  </div>
+
+  <div class="drill" data-answer="Q 跨文件替换 C-x s 保存">
+    <p class="drill-q"><b>练习 14</b>　你在 Dired 里标记了 10 个 <code>.py</code> 文件，想把里面所有的 <code>foo</code> 批量替换成 <code>bar</code>。按键序列是什么？<kbd>Q</kbd> 执行的过程中你还会看到什么交互？<strong>做完之后还必须做哪一步？</strong></p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>标记这 10 个文件（<kbd>m</kbd> 连按或 <kbd>*</kbd> <kbd>%</kbd>），然后按 <kbd>Q</kbd>（<code>dired-do-find-regexp-and-replace</code>），输入 <code>foo</code> 和 <code>bar</code>。它会先把这些文件交给 <code>grep</code> 搜出全部命中，再像 <code>query-replace</code> 一样<strong>逐条问你要不要替换</strong>（<kbd>y</kbd> 换 / <kbd>n</kbd> 跳过 / <kbd>SPC</kbd> 也换 / <kbd>DEL</kbd> 也跳），改完的文件被开成缓冲区。<strong>必须再按 <kbd>C-x</kbd> <kbd>s</kbd></strong>（<code>save-some-buffers</code>，本机实测 <kbd>C-x</kbd> <kbd>s</kbd> 绑的就是它）存盘——<kbd>Q</kbd> 改的是 Emacs 缓冲区，磁盘上的文件还是旧的。这一步漏了是最常见的翻车点。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-c C-t vterm-copy-mode">
+    <p class="drill-q"><b>练习 15</b>　在 vterm 终端里想用鼠标精确选中一段输出复制，但 vterm 默认把鼠标事件发给远端程序。有什么办法？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>C-c</kbd> <kbd>C-t</kbd> 进入 <code>vterm-copy-mode</code>。这个模式下终端缓冲区变成一个普通的只读文本缓冲区，可以用全部 Emacs 移动命令、Isearch、<kbd>M-w</kbd> 复制；选中一段后按 <kbd>RET</kbd> 复制并退出该模式（没选中则复制当前整行，变量 <code>vterm-copy-exclude-prompt</code> 控制是否带上提示符）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="compile-project 不存在 project-compile">
+    <p class="drill-q"><b>练习 16</b>　某篇文章说「Emacs 31 引入了 <code>compile-project</code> 命令，按 <kbd>C-x</kbd> <kbd>p</kbd> <kbd>c</kbd> 就能在项目根目录编译」。这句话哪里对、哪里错？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按键和用途是对的，命令名是错的。我在 Emacs 32.0.50 上实测：<code>compile-project</code> 的 <code>fboundp</code> 返回 <code>nil</code>；我又拉了上游 emacs-29.1 / 30.1 / 31.1 的 <code>lisp/progmodes/compile.el</code> 逐个搜，<code>defun compile-project</code> 一次都没出现过；全部 <code>etc/NEWS*</code> 里也从来没有提到过这个名字。<kbd>C-x</kbd> <kbd>p</kbd> <kbd>c</kbd> 真正绑定的是核心 <code>project.el</code> 提供的 <strong><code>project-compile</code></strong>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="模块支持 vterm 慢 ansi-term 兼容性差">
+    <p class="drill-q"><b>练习 17</b>　你的 Emacs 里 <code>term</code> 和 <code>ansi-term</code> 跑 <code>htop</code> 时画面对不齐、输出量大就卡。给出两个改进方向，并说明怎么判断你的 Emacs 能不能用第一个方案。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>第一，装 <code>vterm</code>（MELPA，<code>akermu/emacs-libvterm</code>），它基于 C 的 libvterm，速度和兼容性都远超 Elisp 写的 <code>term</code>。<strong>前提是 Emacs 支持动态模块</strong>：<kbd>M-x</kbd> <code>eval-expression</code> 输入 <code>module-file-suffix</code>，返回值不是 <code>nil</code> 才行；还要有 CMake / libtool / libvterm。第二，Windows 或无模块支持时，只能改用系统自带的真终端，Emacs 里的 <code>ansi-term</code> 兼容性不足是已知短板，不建议硬扛。</p></div>
+  </div>
+
+  <div class="drill" data-answer="dired-guess-shell-alist dired-aux.el">
+    <p class="drill-q"><b>练习 18</b>　你在 Dired 里光标停在一个 <code>foo.patch</code> 上按了 <kbd>!</kbd>，Emacs 提示你「是否对 foo.patch 执行 patch」。这个「猜命令」的规则表在 Emacs 32 里放在哪个文件？需要装 <code>dired-x</code> 吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>规则表是 <code>dired-guess-shell-alist-default</code>（及相关 <code>-optional</code>、<code>-user</code> 两个变量），<strong>Emacs 32 里它们搬到了 <code>dired-aux.el</code></strong>（早期版本在 <code>dired.el</code> / <code>dired-x.el</code>）。<strong>不需要 <code>dired-x</code></strong>，猜命令的逻辑已经属于核心 dired。</p></div>
+  </div>
+</section>

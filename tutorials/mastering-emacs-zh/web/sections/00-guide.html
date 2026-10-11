@@ -1,0 +1,478 @@
+<section class="ch" id="ch-00-guide" data-stage="入门" data-min="45">
+  <h2 class="ch-title">导读：怎样用这本书</h2>
+  <p class="ch-lead">这一章不教你按键，它教你两件事：Emacs 究竟是个什么东西、它要你付出什么；以及这本书该怎么读。读完你会有一个 2026 年的版本坐标、一张「内置还是第三方」的分界表、一份可以直接抄进 <code>init.el</code> 跑起来的最小配置、三种安装路线各自的代价、十八章的顺序与依赖、四个学习阶段的时间投入、一张章节导读表，外加十条常见误区。你不需要任何 Emacs 基础。</p>
+
+  <h3>0.1 Emacs 到底是什么：一个用 Lisp 写出来的编辑器</h3>
+
+  <p>先说一个能让你省下三个月的事实：<strong>Emacs 不是一个编辑器加上一堆插件</strong>。Emacs 本身就是<strong>一段运行在编辑器里的 Lisp 程序</strong>。你启动 Emacs，启动的其实是它的 Lisp 解释器；屏幕上那块文本区域，是这个解释器的输出。你的每一次击键，都是在调用一个用 Lisp 定义的函数。</p>
+
+  <p>这决定了 Emacs 和其他工具的根本区别。VS Code 的界面逻辑写在 TypeScript 里，你只能通过它公开的 API 之一部分去改动；Neovim 的界面逻辑是 C 写的，配置只能填参数。而 Emacs 的界面逻辑就是 Lisp 本身，<strong>没有「内部」和「扩展点」之分</strong>。所谓「可编程」，在这个语境下不是修辞，是字面意思。</p>
+
+  <p>要理解后面十六章的全部内容，你必须先装下四个词。它们是 Emacs 的基本词汇表，本书从第一章到最后一章都在用：</p>
+
+  <ul>
+    <li><strong>buffer</strong>（缓冲区）：你正在编辑的那份文本。注意不是「文件」——文件在磁盘上，buffer 在内存里。同一个文件可以同时有两个 buffer，一个在左边一个在右边，两边的光标各自独立。「这个文件没保存」这句话在 Emacs 里其实是「这个 buffer 被改过」。</li>
+    <li><strong>window</strong>（窗口）：屏幕上的一块矩形区域，显示一个 buffer。注意不是「窗口」那种系统窗口——Emacs 里窗口可以任意切分，一个 frame（帧，也就是操作系统意义上的窗口）里可以有十几个 window。</li>
+    <li><strong>frame</strong>（帧）：操作系统意义上的一个窗口。Emacs 是多帧程序，你可以开两个独立的 Emacs 窗口，它们共享同一套配置。</li>
+    <li><strong>mode</strong>（模式）：一段绑定好的行为约定。<strong>major mode</strong>（主模式）决定「这份文本是什么类型、编辑时用哪套按键」，比如写 Python 时是 <code>python-mode</code>，写 C 时是 <code>c-ts-mode</code>。<strong>minor mode</strong>（辅模式）是可叠加的小开关，随时能开能关，比如显示行号的 <code>display-line-numbers-mode</code>。一个 buffer 同一时刻只有一个主模式，可以有任意多个辅模式。</li>
+  </ul>
+
+  <p>还有一件事必须现在讲清楚，否则你后面会一直困惑：<strong>Emacs 自带一本完整的说明书，而且它就在编辑器里</strong>。它的入口是 <kbd>M</kbd><kbd>x</kbd>（按名字调用任何命令）和 <kbd>C</kbd><kbd>h</kbd> 这一族查询键——后面跟 <kbd>f</kbd>（function）、<kbd>v</kbd>（variable）、<kbd>k</kbd>（key）、<kbd>m</kbd>（mode）分别是查函数、查变量、查按键、查当前模式。这套命名是 1980 年代的遗产，但你要记的不是这四个字母，而是这句：<strong>Emacs 里任何东西都能查，而且查的方式是统一的</strong>。</p>
+
+  <div class="keys">
+    <h4>本章按键</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd></td><td><code>execute-extended-command</code></td><td>按名字调用任何命令。不知道按键就敲这个，输命令名</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd></td><td><code>describe-function</code></td><td>查某个函数怎么用</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd></td><td><code>describe-variable</code></td><td>查某个变量当前是什么值</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd></td><td><code>describe-key</code></td><td>查某个按键绑了什么命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd></td><td><code>describe-mode</code></td><td>查当前 buffer 的主模式是哪个、绑了哪些键</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>b</kbd></td><td><code>describe-bindings</code></td><td>列出当前 buffer 的全部按键绑定</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd></td><td><code>info</code></td><td>打开 Info 手册阅读器，查官方文档</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>?</kbd></td><td><code>help-for-help</code></td><td>Emacs 帮助系统自身的说明</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd></td><td><code>find-file</code></td><td>打开一个文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer</code></td><td>切换到已有 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd></td><td><code>other-window</code></td><td>跳到另一个窗口</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd></td><td><code>save-buffer</code></td><td>保存当前 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>q</kbd></td><td><code>read-only-mode</code></td><td>把当前 buffer 切成只读</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p>上表里 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>q</kbd> 是「只读模式」，不是很多人在网上看到的「保存全部」。<strong>「保存全部」是 <kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd>，命令名 <code>save-some-buffers</code></strong>（Emacs 30 起就是这个绑定，本书作者在 30.2、31.0.91、32.0.50 上都实测过）。至于网上流传的 <kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd> <kbd>a</kbd> 和命令名 <code>save-all</code>——那是更老版本 Emacs 的写法，<strong>Emacs 30 之后已经不存在</strong>，敲 <kbd>M</kbd><kbd>x</kbd> <code>save-all</code> 只会得到「没有这个命令」。</p></div>
+
+  <div class="callout note"><b>要点</b><p>按键记号现在就记住：<kbd>C</kbd> 是 <strong>Ctrl</strong>，<kbd>M</kbd> 是 <strong>Alt</strong>（Mac 上是 Option），<kbd>S</kbd> 是 <strong>Shift</strong>。写成一个键序列时中间用空格分开表示先后，比如 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 就是先按住 Ctrl 按 X 松开，再按住 Ctrl 按 F。</p></div>
+
+  <p>那它值得学吗？回报集中在一句话上：<strong>你学会的那一套按键、编辑思路、配置手段，在所有场景里都通用，而且都能被你改造</strong>。一旦你用 Emacs 写代码，你会发现读邮件、跑 shell、编译、查手册、记笔记、写文档，用的都是同一套肌肉记忆、同一个快捷键体系、同一个配置入口。这在别的编辑器身上做不到——它们各自是一个独立应用。</p>
+
+  <p>代价同样是真的。这一章先把账摊开，后面就不含糊了：</p>
+
+  <ul>
+    <li><strong>配置门槛高。</strong>一个「什么都不改」的 Emacs 用起来相当难受。键位自成一套，很多日常功能默认没有，开箱体验远不如 VS Code。这是 Emacs 用户配置量大、人均会写 Elisp 的根本原因。</li>
+    <li><strong>离 Vim 的肌肉记忆很远。</strong>Vim 的 <code>hjkl</code> 加计数前缀这套东西，在 Emacs 里默认完全没有。想要得自己装 <code>evil</code>（Vim 模拟层），但装了等于放弃了一部分 Emacs 自己的设计。</li>
+    <li><strong>包的来源质量参差不齐。</strong>Emacs 允许任何人发布包，好处是选择多，坏处是你得自己判断：这个包还在维护吗？它和你已有的包冲突吗？本书凡是引入第三方包都会写明来源和仓库，不让你猜。</li>
+    <li><strong>启动要调优。</strong>配置臃肿的 Emacs 启动几秒钟很常见，而且不调会越来越慢。第十三章整章讲这件事。</li>
+    <li><strong>Lisp 解释器是单线程的。</strong>一个跑很久的 Elisp 任务会把界面卡住。Emacs 靠<strong>原生编译</strong>（native compilation，把 Elisp 编译成机器码）缓解了一部分，但没有完全解决。</li>
+  </ul>
+
+  <div class="callout warn"><b>易错</b><p>不要指望「装完 Emacs 就有现代编辑器体验」。如果你要的是一个开箱即用、不折腾就够用的工具，Emacs 不是它。如果你要的是一个能被改造成你自己形状的工具，并且愿意为此花两三个月，那么你读完了这本书大概还想要更多。</p></div>
+
+  <h3>0.2 2026 年的版本坐标：31.1 是当前稳定版</h3>
+
+  <p>Emacs 大约一年半到两年发一个大版本。你在教程、博客、配置文件里会看到五花八门的版本号，先把坐标定下来。</p>
+
+  <p>下面这张表的数据来自 GNU Emacs 源码仓库里的 <code>etc/HISTORY</code> 文件（Emacs 官方用它记录各版本发布日期）。截至本书写作时的 <strong>2026 年 10 月</strong>，事实是：<strong>最新的稳定版是 31.1，发布于 2026-08-24；32 正在开发中</strong>。本节表格之外的所有版本号，都是过去版本。</p>
+
+  <div class="keys">
+    <h4>GNU Emacs 主要版本与发布日期</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>27.1</td><td>2020-08-10</td><td>新增 <code>flex</code> 补全风格</td></tr>
+        <tr><td>28.1</td><td>2022-04-04</td><td>内置 Modus 系列主题（明暗各一套）；原生编译可用，编译时加 <code>--with-native-compilation</code></td></tr>
+        <tr><td>29.1</td><td>2023-07-30</td><td><strong>Eglot</strong> 与 <strong>use-package</strong> 随 Emacs 一起发布</td></tr>
+        <tr><td>30.1</td><td>2025-02-23</td><td><strong>which-key</strong>、EditorConfig、tree-sitter 模式等进入 Emacs；引入 <code>completion-preview-mode</code>、Compat 兼容层</td></tr>
+        <tr><td>30.2</td><td>2025-08-14</td><td>30 系列维护版本</td></tr>
+        <tr><td>31.1</td><td>2026-08-24</td><td><strong>当前稳定版</strong>。<code>lua-mode</code> 进入 Emacs；新增 <code>timeout</code> 库、<code>system-sleep</code> 包</td></tr>
+        <tr><td>32.x</td><td>—</td><td>开发中，尚未发布。本书写的是 31.1 的行为</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>（这张表沿用了本书统一的按键速查表格式（三列固定表头），但填的是「版本 / 发布日期 / 这一版带来了什么」——按行读即可。发布日期取自 Emacs 源码树里的 <code>etc/HISTORY</code>。）</p>
+
+  <p>这张表里有两个版本特别值得记住，因为「哪些功能要装包、哪些是自带的」这条线正好卡在这两个版本上：<strong>Emacs 29（2023-07）之后</strong>，<code>eglot</code>（语言服务器客户端）和 <code>use-package</code>（声明式配置宏）<strong>已经是内置的</strong>——官方在 Emacs 29.1 的 NEWS 里明确写了「Emacs now comes with the Eglot package」和「use-package is now shipped with Emacs」，并各自带了 Info 手册。<strong>Emacs 30（2025-02）之后</strong>，<code>which-key</code>、EditorConfig 支持、<code>completion-preview-mode</code>、Modus 的色觉友好变体都内置了；<strong>Emacs 31（2026-08）之后</strong>，<code>lua-mode</code> 也内置了（原本在 NonGNU ELPA 上）。</p>
+
+  <div class="callout note"><b>要点</b><p>本书写配置时会用 <code>if (fboundp '某函数)</code> 这种写法把版本差异吸收掉，这样你在 29、30、31 上读到的同一段代码行为一致，不需要自己判断版本。第十三章会详细讲这个技巧。</p></div>
+
+  <p>顺便纠正一个在中文 Emacs 圈流传很广的说法：有人告诉你「Emacs 29 引入了 <code>use-completion</code> 新式补全开关」。<strong>这个说法是错的。</strong>本书作者在本机实测过：<code>use-completion</code> 这个变量在 Emacs 30.2、31.1、32.0.50 上<strong>都不存在</strong>，Emacs 29 到 32 的官方 NEWS 里也从来没有出现过这个名字，源码树里同样搜不到。想要现代补全体验，走的是另一条路（<code>vertico</code> + <code>orderless</code> 那套，见 0.5 节），本书第十四章会讲。</p>
+
+  <h3>0.3 内置与第三方的分界线</h3>
+
+  <p>零基础读者最大的困惑是：「我看到的这个功能，到底是 Emacs 自带的还是要装包？」下面这张对照表是在本地 Emacs 32.0.50 上用 <code>M-x locate-library RET</code> 逐个核实过的——凡是在 Emacs 自己的 Lisp 目录里能找到 <code>.el</code> 源码的，才算内置。有一个例外要特别说明，见下面的 <code>compat</code> 一行。</p>
+
+  <div class="keys">
+    <h4>常用功能：内置还是第三方</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>内置</td><td><code>eglot</code></td><td>语言服务器（LSP）客户端。Emacs 29 起自带</td></tr>
+        <tr><td>内置</td><td><code>use-package</code></td><td>声明式配置宏。Emacs 29 起自带</td></tr>
+        <tr><td>内置</td><td><code>project</code></td><td>项目管理库。Emacs 25 起自带，第九章讲</td></tr>
+        <tr><td>内置（仅空壳）</td><td><code>compat</code></td><td>兼容层，让老包在新 Emacs 上也能跑。<strong>Emacs 30 起只内置了一个 90 行的 stub（空壳，功能上是空转）</strong>，真正能用的 <code>compat</code> 仍要从 GNU ELPA 装。实测 Emacs 30.2 与 31.1 自带的 <code>compat.el</code> 文件头就写着 “Stub of the Compatibility Library”</td></tr>
+        <tr><td>内置</td><td><code>which-key</code></td><td>按下前缀键后弹出后续按键表。Emacs 30 起自带</td></tr>
+        <tr><td>内置</td><td><code>lua-mode</code></td><td>Lua 主模式。Emacs 31 起自带</td></tr>
+        <tr><td>内置</td><td>Modus 主题</td><td>官方配色主题，含明暗与色觉友好变体。Emacs 28 起自带</td></tr>
+        <tr><td>内置</td><td><code>dired</code> / <code>eww</code> / <code>vc-git</code></td><td>目录编辑器、网页浏览器、Git。第十、十一、九章讲</td></tr>
+        <tr><td>第三方</td><td><code>vertico</code> / <code>consult</code></td><td>竖向补全面板与整套选择交互。仓库 <code>github.com/minad/*</code>，GNU ELPA 与 MELPA 都有</td></tr>
+        <tr><td>第三方</td><td><code>orderless</code> / <code>cape</code></td><td>乱序补全风格与补全增强。仓库 <code>github.com/oantolin/orderless</code>、<code>github.com/minad/cape</code>，GNU ELPA 与 MELPA 都有</td></tr>
+        <tr><td>第三方</td><td><code>magit</code></td><td>Git 的图形界面。仓库 <code>github.com/magit/magit</code>，NonGNU ELPA 与 MELPA 都有</td></tr>
+        <tr><td>第三方</td><td><code>evil</code></td><td>Vim 模拟层。仓库 <code>github.com/emacs-evil/evil</code>，NonGNU ELPA 与 MELPA 都有</td></tr>
+        <tr><td>第三方</td><td><code>tree-sitter</code></td><td>语法树解析引擎。包名是 <code>tree-sitter</code>（不是 <code>elisp-tree-sitter</code>，后者是仓库名），仓库 <code>github.com/emacs-tree-sitter/elisp-tree-sitter</code>，在 MELPA 与 stable.melpa</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>上表沿用了本书统一的按键速查表格式（三列固定表头），但填的不是按键而是「类别 / 名称 / 说明」——按行读即可。</p>
+
+  <h4>三个包仓库分别是什么</h4>
+
+  <p>Emacs 内置一个叫 <code>package</code> 的包管理器（Emacs 25 起）。你在 Emacs 里按 <kbd>M</kbd><kbd>x</kbd> 输入 <code>package-install</code> 回车，它会去网上下载并安装第三方包。下载的来源叫 <strong>包仓库</strong>（package archive）。Emacs 自带两个：</p>
+
+  <ul>
+    <li><strong>GNU ELPA</strong>，地址 <code>https://elpa.gnu.org/packages/</code>。FSF 审核过的包，质量有底线。截至 2026 年 10 月有 508 个包。</li>
+    <li><strong>NonGNU ELPA</strong>，地址 <code>https://elpa.nongnu.org/nongnu/</code>。审核标准宽松一些的官方仓库，290 个包。<code>magit</code>、<code>evil</code>、<code>flycheck</code>、<code>slime</code>、<code>lua-mode</code> 都在这里。</li>
+  </ul>
+
+  <p>这两个地址是 Emacs 的默认值，本书作者在本机 Emacs 32.0.50 上实测确认过（注意仓库名是<em>字符串</em>，所以打印出来带引号）：</p>
+
+  <pre class="term"><code>$ emacs --batch -Q --eval '(progn (require (quote package))
+                                       (prin1 package-archives))'
+(("gnu" . "https://elpa.gnu.org/packages/") ("nongnu" . "https://elpa.nongnu.org/nongnu/"))</code></pre>
+
+  <p>注意 <strong>MELPA 不在默认值里</strong>。MELPA（<code>https://melpa.org/packages/</code>）是社区包仓库，不做审核，任何人都能发。它有 6324 个包，特点是<strong>滚动发布</strong>：包名后面跟日期戳（比如 <code>vertico-20260913</code>），几乎每天都有新版本。好处是最新，坏处是<strong>没有稳定承诺</strong>——作者某天推送一个坏版本，你的 Emacs 第二天就起不来了。</p>
+
+  <div class="callout warn"><b>易错</b><p>如果你要用 MELPA 又不想追新，就把它换成稳定镜像 <code>https://stable.melpa.org/packages/</code>：它有 3482 个包，用语义化版本号而不是日期戳（Emacs 的 <code>package</code> 两种都认——MELPA 上 <code>vertico</code> 是 <code>20260913</code>，stable.melpa 上同一个包是 <code>2.15</code>），只在版本变化时通知你。代价是稳定镜像里的包会比 MELPA 主线旧几个月。本书默认不引入 MELPA，因为上表里那些你真正需要的包现在都在官方仓库里。</p></div>
+
+  <p>最后说一个安全默认值。变量 <code>package-check-signature</code>（包签名检查）控制 Emacs 怎么对待下载下来的包：它本身在 Emacs 24 就有了，而 <strong><code>allow-unsigned</code> 这个取值、以及把它设成默认值的做法，是 Emacs 27.1 引入的</strong>——含义是「如果包有签名就验签名，没有签名也放行」。想要严格模式，把它设成 <code>t</code>，这样只接受至少有一个已验证签名的包。代价是很多第三方包没签名，你会装不上。（本机 32.0.50 实测：<code>(default-value 'package-check-signature)</code> 的值是 <code>allow-unsigned</code>。）</p>
+
+  <h3>0.4 三种安装路线：发行版包、官方预编译、源码与容器</h3>
+
+  <p>装 Emacs 有三条路。它们没有优劣之分，只有「谁在什么场景下更省事」的区别。这一节把每条路的<strong>真实代价</strong>和<strong>什么时候不该用</strong>都写出来。</p>
+
+  <h4>路线 A：用发行版的包管理器装</h4>
+
+  <p>最省事的一条。包管理器替你解决依赖、编译、打包。</p>
+
+  <pre class="term"><code># Debian / Ubuntu
+$ sudo apt install emacs            # 装 GTK 版（有图形界面）
+$ sudo apt install emacs-nox        # 装终端版（无图形界面，启动快）
+
+# Fedora / RHEL
+$ sudo dnf install emacs
+
+# Arch
+$ sudo pacman -S emacs
+
+# 先查清楚它到底会给哪个版本
+$ apt policy emacs
+$ dnf info emacs</code></pre>
+
+  <p><strong>代价是版本滞后。</strong>这不是猜测，是可以查到的实情。下表是本书写作时（2026-10）几个发行版的实际情况，数据来自 Debian 包追踪站与各发行版软件仓库页面：</p>
+
+  <ul>
+    <li><strong>Debian 13（trixie，正式版）：Emacs 30.1</strong>；Debian 12（bookworm）：28.2；Debian 11（bullseye）：27.1</li>
+    <li><strong>Arch Linux 官方仓库：Emacs 31.1</strong>（滚动发行，跟得紧）；<strong>Guix：Emacs 31.1</strong></li>
+  </ul>
+
+  <p>滞后一两个大版本意味着什么？意味着 0.3 节表里那些「Emacs 30 起内置」「Emacs 31 起内置」的东西你可能没有：<code>which-key</code>、EditorConfig 支持、<code>compat</code> 在 28.2 上都没有；<code>lua-mode</code> 在 30.2 上还得自己装。本书的配置片段都用 <code>if (fboundp '……)</code> 做了保护，在老版本上会<strong>跳过</strong>而不是报错，所以照抄仍然安全。</p>
+
+  <p>滞后还有一个更实际的问题：<strong>安全补丁。</strong>Debian 追踪站上就明确列着 trixie（30.1）有未修安全问题，例如 CVE-2026-77219（PBM/PPM/PGM 图像加载器的整数溢出，攻击者可以用构造的图片越界读出堆内存里的像素值；官方说明写的是「Emacs 31.0.91 之前受影响」）。发行版通常会<em>反向移植</em>补丁而不改版本号，做得好的话你不用管；但如果你用的是无人维护的旧版，那就等于在跑有已知漏洞的代码。</p>
+
+  <div class="callout note"><b>要点</b><p><strong>路线 A 适合：</strong>公司发的开发机、离线环境、你不想折腾系统的人。<strong>路线 A 不适合：</strong>需要用到 30/31 新特性的人；以及打算长期用 Emacs 的人——因为你会需要换版本，而系统包一旦装上就很难干净地换掉。</p></div>
+
+  <h4>路线 B：用官方发布的预编译版本</h4>
+
+  <p>这条路的意思是：不经过发行版，直接从 GNU 官方拿已经编译好的二进制。</p>
+
+  <p><strong>Windows 上这条路是通畅的。</strong>GNU FTP 站 <code>gnu/emacs/windows/emacs-31/</code> 目录下有官方安装程序：<code>emacs-31.1-installer.exe</code>（标准版，自带依赖，官方 README 说「Mostly, this is the best one to install」）、<code>emacs-31.1-installer-UCRT64.exe</code>（用 Windows 的 UCRT 运行库，在较新的 Windows 10/11 上兼容性更好），以及免安装的 <code>emacs-31.1-nodeps.zip</code> 和 <code>emacs-31.1.zip</code>（前者不带依赖，后者自带依赖）。每个文件旁边都有一个 <code>.sig</code> 签名文件，用来验证下载没被篡改。<em>这个目录里还有一组文件名带 <code>31.1_1</code> 的更新构建，下载前先看清你要的是哪一组。</em></p>
+
+  <p><strong>Linux 上这条路基本不通。</strong>本书作者检查了 GNU FTP 的 <code>gnu/emacs/</code> 目录，里面<strong>只有源码包</strong>（<code>emacs-31.1.tar.xz</code>、<code>emacs-31.1.tar.gz</code>），没有任何 Linux 预编译二进制。GNU 已经停止发布 Linux 预编译包，官方下载页现在只提供源码包和 Windows 安装程序。如果你看到某个教程说「去 GNU 官网下 Linux 预编译包」，那个链接多半已经失效了。</p>
+
+  <p>Android 上官方倒是提供了 APK，在 <code>gnu/emacs/android/</code> 目录下，形如 <code>emacs-31.1-35-arm64-v8a.apk</code>（<code>arm64-v8a</code> 是绝大多数现代安卓手机）。这个 APK 是给 Termux 用的，见第十五章。</p>
+
+  <div class="callout warn"><b>易错</b><p>Windows 上还有一个常见的陷阱：装完 Emacs，<kbd>C</kbd><kbd>-</kbd> 键位和 <kbd>M</kbd>（Alt）跟别的程序冲突，或者字体渲染发虚。Emacs 官方文档里有一节专门讲 Windows 的特殊情况，你装好之后应该去读一遍。</p></div>
+
+  <h4>路线 C：从源码编译，或用 Nix / Guix / 容器</h4>
+
+  <p><strong>C1：从源码编译。</strong>步骤是下载 <code>emacs-31.1.tar.xz</code>，解包，<code>./configure --with-x</code>，<code>make</code>，<code>make install</code>。得到的版本一定是 31.1，还能自己加编译选项。代价你要知道：从 tar 包到能跑，中位数是二十到四十分钟，依赖 GTK 开发库、字体库、图像库，缺一个就 configure 失败。调试 configure 失败会占掉你整个下午。</p>
+
+  <p><strong>C2：用 Nix 或 Guix。</strong>这条路解决了编译问题，同时给你「可重现」和「随时切换版本」两件事。比如在 Guix 上，本书写作时的 <code>emacs</code> 包是 31.1，可以用一次性的方式跑起来，不污染系统：</p>
+
+  <pre class="term"><code>$ guix shell emacs@31.1 -- emacs --version
+GNU Emacs 31.1</code></pre>
+
+  <p>Nix 的对应写法是 <code>nix run nixpkgs#emacs</code>。这两条路的前提是你已经装好了 Nix 或 Guix，并且习惯用声明式的方式管理工具。如果你从没碰过它们，<strong>为了装一个编辑器先学一套包管理工具，是本末倒置</strong>——先走路线 A。</p>
+
+  <p><strong>C3：容器。</strong>适合两类人：一是需要在一台机器上同时跑多个 Emacs 版本做兼容性测试的；二是团队里想把 Emacs 环境固化成镜像、新人拉下来就能用的。代价是容器里配 X11 转发、中文字体、以及编辑宿主机上的文件都要额外折腾。日常用 Emacs 的人几乎从不需要容器。</p>
+
+  <div class="callout note"><b>要点</b><p><strong>怎么选：</strong>先用路线 A 装一个能用起来的版本（十分钟），照着本书学。<strong>当你第一次因为版本太老而缺功能时</strong>（比如发现 <code>lua-mode</code> 要自己装、或者 <code>which-key</code> 没自带），那时候再换路线 B/C。用「换版本」当理由，比用「听说编译版更快」当理由靠谱得多。</p></div>
+
+  <h3>0.5 第一次打开 Emacs：先验证它能用</h3>
+
+  <p>装完之后，Emacs 会问你要不要把默认配置写进配置文件。选 yes。<strong>它到底写哪个文件，因机器而异，所以第一件事是查出来，不要凭猜。</strong>按 <kbd>M</kbd><kbd>x</kbd> 输入 <code>user-init-file</code> 回车，Emacs 会在回显区显示这一台机器真正使用的配置文件路径——那就是要粘配置的那个文件。</p>
+
+  <p>查出来的结果通常是下面两种之一，取决于你的机器上已经存在什么目录：</p>
+
+  <div class="keys">
+    <h4>Emacs 会用哪个配置文件</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>~/.emacs.d/</code> 里没有任何东西</td><td>全新机器上最常见的情况</td><td>Emacs 用 <code>~/.emacs.d/init.el</code></td></tr>
+        <tr><td><code>~/.config/emacs/</code> 已经存在</td><td>装过别的 Emacs 发行版、或者你手动建过这个目录</td><td>Emacs 用 <code>~/.config/emacs/init.el</code></td></tr>
+        <tr><td><code>~/.emacs</code> 这个旧文件存在</td><td>很老的安装留下的</td><td>Emacs <strong>不读它</strong>，但会因为它存在而改用 <code>~/.emacs.d/</code>，并把那个目录建出来</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre class="term"><code>$ emacs --batch -Q --eval '(prin1 user-emacs-directory)'
+"~/.emacs.d/"</code></pre>
+
+  <p>这一条本书作者在本机实测过两次，结论是<strong>「全新机器上得到 <code>~/.emacs.d/</code>」</strong>：在 <code>HOME</code> 下没有任何 Emacs 目录时，它就是 <code>~/.emacs.d/</code>；把 <code>~/.config/emacs/</code> 预先建出来，它才变成 <code>~/.config/emacs/</code>。<strong>所以别照抄别的教程里的路径，用上面那个 <kbd>M</kbd><kbd>x</kbd> 查询的结果。</strong></p>
+
+  <div class="callout warn"><b>易错</b><p><strong>贴错文件是最容易犯、也最难自查的错误</strong>：你把七行配置粘进 A 文件，Emacs 重启后读的是 B 文件，于是配置<strong>一条都不生效</strong>，而屏幕上没有任何报错。如果贴完发现「什么都没变」，第一件事不是检查配置内容对不对，而是回到 <code>user-init-file</code> 确认你粘的是不是它指的那个文件。</p></div>
+
+  <p>这个文件叫 <strong>init 文件</strong>（初始化文件）。你的所有配置都写在这里，每次启动 Emacs 时它会被读一遍。<strong>这一章能让你把这段代码原样贴进去，然后重启 Emacs 看到效果。</strong>去掉注释，它只有七行，做三件事，每件都能在本书后面找到对应的章节。</p>
+
+  <pre class="el"><code>;;; init.el —— 这本书的起点配置
+;;;  -*- lexical-binding: t; -*-
+
+;; ① 装包并声明式配置 --------------------------------------------
+;; use-package 是 Emacs 29 起自带的宏，不用另外装。
+;; :ensure t 表示「这个包没装就自动装」。
+(require 'use-package)
+(setq use-package-always-ensure t)
+
+(use-package vertico
+  :init (vertico-mode))
+
+;; ② 官方配色主题（Emacs 28 起自带 Modus）---------------------
+;; modus-operandi = 浅色，modus-vivendi = 深色，
+;; 加 -tinted 后缀是「同色系加一点区分度」的变体。
+(load-theme 'modus-operandi-tinted t)
+
+;; ③ 几个「人人都想要」的设置 ---------------------------------
+;; 用空格缩进而不是制表符
+(setq-default indent-tabs-mode nil)
+;; 显示行号（buffer-local，只在当前 buffer 生效）
+(add-hook 'emacs-startup-hook #'display-line-numbers-mode)
+;; 输入 ( 会自动补出 )。注意没有 global-electric-pair-mode
+;; 这个命令——30.2 / 31.1 / 32.0.50 上实测都没有，正确的是挂在 prog-mode-hook 上
+(add-hook 'prog-mode-hook #'electric-pair-mode)
+</code></pre>
+
+  <p>把上面这段贴进 <code>init.el</code>，重启 Emacs。第一次启动时它会去 <code>elpa.gnu.org</code> 下载 <code>vertico</code>，屏幕底部 <strong>echo area</strong>（回显区，最下面那一行）会显示进度。<strong>这是正常的，等它跑完。</strong></p>
+
+  <p>下面这段命令本书作者在本机 Emacs 32.0.50 上实际跑过。它把上面那份配置原样执行了一遍（<code>vertico</code> 那一段单独省掉了，因为它要联网下载包），然后把四项结果打出来：</p>
+
+  <pre class="term"><code>$ emacs --batch -Q --eval "(progn (require 'use-package)
+  (setq use-package-always-ensure t) (load-theme 'modus-operandi-tinted t)
+  (setq-default indent-tabs-mode nil)
+  (add-hook 'emacs-startup-hook #'display-line-numbers-mode)
+  (add-hook 'prog-mode-hook #'electric-pair-mode)
+  (python-mode) (display-line-numbers-mode 1)
+  (princ (format \"RESULT tabs=%S line-numbers=%S pair=%S theme=%S\"
+    (default-value 'indent-tabs-mode) display-line-numbers-mode
+    electric-pair-mode (car custom-enabled-themes))))"
+RESULT tabs=nil line-numbers=t pair=t theme=modus-operandi-tinted</code></pre>
+
+  <p>四个值分别是：<code>indent-tabs-mode</code> 的默认值被设成了 <code>nil</code>（即用空格缩进）、行号已打开、<code>electric-pair-mode</code> 已开启、Modus 主题的名字进了 <code>custom-enabled-themes</code>。<code>(load-theme 'modus-operandi-tinted t)</code> 里那个 <code>t</code> 是「不要弹确认提示」，不是「不要启用」——主题照样会被启用，上面最后一项就是证据。</p>
+
+  <p>最后验证一下这台 Emacs 是活的。在回显区输入 <kbd>M</kbd><kbd>x</kbd>，然后键入 <code>version</code> 回车，你会看到一行：</p>
+
+  <pre class="term"><code>GNU Emacs 31.1</code></pre>
+
+  <p>看到版本号，就说明 Emacs 能跑、Info 系统能读手册、你的键盘输入没问题。这一章的动手部分到此结束。</p>
+
+  <div class="callout tip"><b>技巧</b><p><strong>改了 init.el 怎么让它生效？</strong>不用重启 Emacs。打开 <code>init.el</code>，<kbd>M</kbd><kbd>x</kbd> 输入 <code>eval-buffer</code> 回车，作用是「把当前 buffer 当 Lisp 代码执行一遍」。<code>eval-buffer</code> 是个老命令（Emacs 24 系列就有了，本书作者在 31.0.91 和 32.0.50 上实测过）。它跟 <code>M-x load-file</code> 的区别在于<strong>不走 <code>load</code> 那条路</strong>：不会触发 <code>after-load</code>、<code>after-load-functions</code> 这类加载钩子，也不会去读文件头部的「局部变量」声明。</p></div>
+
+  <div class="callout warn"><b>易错</b><p>配置写错了不会毁掉 Emacs。启动时若弹出报错，Emacs 会在警告里直接告诉你这句话：「Start Emacs with the <code>--debug-init</code> option to view a complete error backtrace.」——照做，退出当前 Emacs，用 <code>emacs --debug-init</code> 重新启动，它会停在出错的那一行并进入调试器，你可以逐条展开看是谁出的问题。<strong>注意别去敲 <kbd>M</kbd><kbd>x</kbd> <code>debug-init</code>：Emacs 30 之后已经没有这个命令了</strong>，那条路只在很老的教程里才出现。实在不想重启用命令行，就先把 <code>init.el</code> 改名（比如 <code>init.el.bak</code>）再启动，Emacs 会回到出厂状态。</p></div>
+
+  <div class="callout warn"><b>易错</b><p><strong>不要在 init.el 里写 <code>(load-file "…/other-config.el")</code> 去加载网上抄来的配置。</strong>网上配置默认是给你的 Vim/Emacs <em>换个键</em>，不是教你怎么用。你的肌肉记忆会变成两套按键的混合体，这比不配置更糟。0.10 节会展开讲这个误区。</p></div>
+
+  <h3>0.6 这本书的十八章在做什么</h3>
+
+  <p>本书改编自 Eli Spare 的 <em>Mastering Emacs</em>（第 5 版，英文原书 326 页）。原书的内核讲的是「按键、移动、编辑的肌肉记忆」，这些到今天没过时；但周边生态变了很多（<code>consult</code>、<code>eglot</code> 这些原书成书时都还没有）。所以这本书 = <strong>原书的内核 + 当代 Emacs 的正确做法</strong>。</p>
+
+  <p>十八章的顺序是刻意排的。关键在于中间三章<strong>移动理论</strong>的排法：Emacs 的移动命令看似杂乱，其实是分层的——先有「光标放到哪」的通用动作，再在通用动作上叠加「寄存器 / 书签 / 标记」这类跳转原语，最后才是搜索与索引。三章连起来读，才不会觉得命令表是一盘散沙。同理，<strong>三章编辑理论</strong>从「杀死与粘贴」这个最核心的模型出发，一步步加到键盘宏；<strong>三章实用篇</strong>按「自己找信息 → 操作外部世界 → 管理文件和进程」排列。</p>
+
+  <p>按主题分组，这十八章是这样摆的：</p>
+
+  <ul>
+    <li><strong>入门（第 0–2 章）</strong>：第 0 章是这章导读。第 1 章讲五个核心概念和 Emacs 心智模型与 Vim 的根本差异。第 2 章带你走完「安装 → 界面 → 按键 → 配置」这条链。</li>
+    <li><strong>基础（第 3–5 章）</strong>：三章移动理论。第 3 章讲基础动作、窗口与标签页；第 4 章讲基本移动、书签、寄存器、选区；第 5 章讲搜索与索引。这三章是全书的地基。</li>
+    <li><strong>进阶（第 6–7、9、11 章）</strong>：第 6、7 章是编辑理论（一）（二），讲清 Emacs 最有特色的编辑模型和计数前缀；第 9、11 章是实用篇（一）（三），讲自助探索、项目管理、交叉引用、Dired、编译与 Shell。</li>
+    <li><strong>精通（第 8、10、12–17 章）</strong>：第 8 章编辑理论（三）进入自动化；第 10 章实用篇（二）是 Tramp 远程编辑与 EWW 浏览器；第 12 章 Emacs Lisp；第 13 章安装与配置工程；第 14 章现代工作流实战；第 15 章移动端与特殊场景；第 16 章结语与延伸资源；第 17 章速查表与排障手册（查阅用，不是顺序读的）。</li>
+  </ul>
+
+  <div class="callout note"><b>要点</b><p>如果你的时间非常紧，<strong>最小可用路径是：第 2 章 → 第 4 章 → 第 6 章 → 第 13 章</strong>。这四章给你「装好、能动、能改、能装包」四件事。其余章节是把这四件事打磨成肌肉记忆和完整工作流。</p></div>
+
+  <h3>0.7 四阶段路线与时间投入</h3>
+
+  <p>本书每章都标了所属阶段，一共四档。下面是每档的<strong>目标</strong>和<strong>时间投入估算</strong>。估算基于「每天 30–60 分钟、有编程经验、不是每天都用」这个量级。<strong>如果你的实际情况不同，请按比例缩放</strong>——唯一不能压缩的是「每天真的动手敲」这件事。</p>
+
+  <div class="keys">
+    <h4>四阶段路线与时间投入</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>入门</td><td>第 0–2 章</td><td><strong>约 2–3 小时</strong>。目标：把 Emacs 装上、跑起来、配到能写代码。产出：一个你自己的 <code>init.el</code>，知道 <kbd>M</kbd><kbd>x</kbd> 和 <kbd>C</kbd><kbd>h</kbd> 怎么用，知道 buffer 和 window 不是一回事</td></tr>
+        <tr><td>基础</td><td>第 3–5 章</td><td><strong>约 3–4 小时</strong>。目标：手不离键盘地在文件间移动、搜索、跳转。这一阶段的验收标准是「想到一个跳转，用 <kbd>M</kbd><kbd>x</kbd> 能立刻找到命令名」</td></tr>
+        <tr><td>进阶</td><td>第 6–7、9、11 章</td><td><strong>约 4–5 小时</strong>。目标：编辑效率上一个台阶，能用寄存器和标记做结构化改动。这一阶段结束时你应该在 Emacs 里比在别的编辑器里更快</td></tr>
+        <tr><td>精通</td><td>第 8、10、12–15 章（第 16、17 章是查阅型，不计入时间）</td><td><strong>约 8–12 小时</strong>，建议分三次以上完成。目标：自动化（键盘宏）、远程与浏览器工具、LSP 补全、配置工程化。这一阶段的投入最大，回报也最大</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>如果按日历算，整本书走完一遍大约是<strong>每天一小时、六到八周</strong>。这个估计偏保守，但误差主要来自一件事：<strong>你是不是每天都真的动手敲</strong>。只读不敲的人读完能记住命令名，用起来还是得翻书；每天敲十分钟的人三周就能形成肌肉记忆。</p>
+
+  <h4>三条「抄近道」的路线</h4>
+
+  <p>如果你不是从零开始，下面三条路线可能更适合你。<strong>但每条都有它跳过的东西，请读清楚代价。</strong></p>
+
+  <ul>
+    <li><strong>我是 Vim 用户</strong>：直接读第 2 章（配置）和第 6、7 章（编辑模型），第 3–5 章可以先跳过（Emacs 的移动体系和 Vim 差别太大，硬套会形成错误的肌肉记忆）。<strong>但第 4 章的寄存器和标记仍然要读</strong>——这是 Emacs 的独门技术，Vim 里没有对应物。<strong>代价：</strong>你放弃了 Emacs 最强的部分——那套「把光标放到任意位置」的原语系统。</li>
+    <li><strong>我用过 Emacs 但好久没碰</strong>：直接读第 13 章（配置工程）和第 17 章（附录速查表），然后挑第 8、14 章补新东西。<strong>代价：</strong>你可能会重新掉进「配置一套花哨的东西但说不出为什么」的坑。</li>
+    <li><strong>我只想装一个能用的 Emacs，不想学</strong>：那这本书可能不适合你，去用 VS Code 的 Emacs 键位扩展吧。<strong>本书不是给你写的。</strong></li>
+  </ul>
+
+  <div class="callout warn"><b>易错</b><p><strong>不要按「一章一章读完再动手」的顺序学 Emacs。</strong>书可以顺序读，练习必须同时做。每一节后面的练习题不是装饰，是这一节真正要你记住的东西。通勤路上读，进了电脑前先做上一节留下的练习，做不动了再回去读一遍解释。</p></div>
+
+  <h3>0.8 章节导读表：读它你会得到什么</h3>
+
+  <p>这张表回答两个问题：每一章读完你能干什么，以及<strong>读它之前必须先会什么</strong>。第二列「需要先会什么」是这份导读最实用的部分——它告诉你哪些章可以跳、哪些章跳了会读不懂。</p>
+
+  <div class="keys">
+    <h4>章节导读表</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>第 1 章 导论与 Emacs 之道</td><td>能用六个核心概念（buffer / window 与 frame / point、mark、region / kill ring / 模式 / 配置位置）解释 Emacs 的任何行为；知道自己适合不适合</td><td>无。这是全书唯一一章没有前置知识的</td></tr>
+        <tr><td>第 2 章 上手</td><td>装好 Emacs、配出一份自己的 <code>init.el</code>、会用 <kbd>M</kbd><kbd>x</kbd> 和 <kbd>C</kbd><kbd>h</kbd> 查东西</td><td>会读一点点 Elisp（不用会写）；知道 init 文件在哪儿</td></tr>
+        <tr><td>第 3 章 移动（一）</td><td>会切窗口、切 buffer、管理标签页，知道窗口布局怎么保存和恢复</td><td>第 2 章；知道 buffer 和 window 的区别</td></tr>
+        <tr><td>第 4 章 移动（二）</td><td>手不离键盘地到达任意位置；会用寄存器和标记做跳转和选区</td><td>第 3 章；能在多个 buffer 之间跳</td></tr>
+        <tr><td>第 5 章 移动（三）</td><td>会用增量搜索、<code>occur</code>、<code>grep</code> 在文件与项目里快速定位</td><td>第 4 章；<strong>不懂标记和选区，<code>occur</code> 那一节会看不懂</strong></td></tr>
+        <tr><td>第 6 章 编辑（一）</td><td>掌握杀死与粘贴模型：知道为什么 Emacs 里「删掉的东西」还能拿回来</td><td>第 4 章；会选区</td></tr>
+        <tr><td>第 7 章 编辑（二）</td><td>会用计数前缀做批量替换；转置、大小写、矩形编辑</td><td>第 6 章；<strong>杀死粘贴模型是理解计数的前提</strong></td></tr>
+        <tr><td>第 8 章 编辑（三）</td><td>会录键盘宏把重复操作一键完成；会配缩进和文本展开</td><td>第 6、7 章；<strong>不会计数的话宏录出来也没用</strong></td></tr>
+        <tr><td>第 9 章 实用（一）</td><td>知道每个按键背后还有哪些命令可挖；会用 <code>project</code> 管理项目；会用交叉引用跳转定义</td><td>第 2–5 章</td></tr>
+        <tr><td>第 10 章 实用（二）</td><td>能在 Emacs 里直接编辑远程机器上的文件；会用内置浏览器 EWW</td><td>第 2 章。会一点 shell 和 SSH 会更顺</td></tr>
+        <tr><td>第 11 章 实用（三）</td><td>会用 Dired 管理文件、从编译错误跳到源码、用 <code>comint</code> 跑交互式命令</td><td>第 2–5 章。会一点 shell 会更顺</td></tr>
+        <tr><td>第 12 章 Emacs Lisp</td><td>能读懂并修改自己的 <code>init.el</code>；知道 hook、变量绑定、函数的分工</td><td>第 2 章。完全不需要编程基础，但需要耐心</td></tr>
+        <tr><td>第 13 章 安装与配置工程</td><td>会用 <code>use-package</code> 声明式管理包；会排查启动慢；写法能跨版本兼容</td><td>第 12 章。<strong>没有 Elisp 基础这章会变成抄写</strong></td></tr>
+        <tr><td>第 14 章 现代工作流实战</td><td>把补全、LSP、Git、项目管理串成一套日常能用的工作流</td><td>第 9、13 章</td></tr>
+        <tr><td>第 15 章 移动端与特殊场景</td><td>知道手机上怎么用 Emacs；能处理无图形界面和超大文件场景</td><td>无。这一章是独立可选的</td></tr>
+        <tr><td>第 16 章 结语与资源</td><td>知道接下来去哪找答案：官方手册、Wiki、邮件列表、社区</td><td>前 15 章任意</td></tr>
+        <tr><td>第 17 章 附录</td><td>有一份可随手翻的命令速查表和排障手册</td><td>前 16 章任意。这章是查阅用的，不是顺序读的</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>表里那四处加粗的「跳了会看不懂」，是本书唯一必须遵守的顺序约束。除此之外的章节，除了第 12 章之前需要过第 2 章、第 13 章之前需要过第 12 章，其余都可以按你当下的问题挑着读。</p>
+
+  <div class="callout tip"><b>技巧</b><p><strong>遇到问题时的正确查证顺序</strong>（本书从第 9 章开始反复用到）：<strong>① 按 <kbd>C</kbd><kbd>h</kbd> 在 Emacs 里查</strong>（<kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> / <kbd>v</kbd> / <kbd>k</kbd> / <kbd>m</kbd>，这是最快的，因为它查的就是你这台 Emacs 的真实行为）→ <strong>② 用 <kbd>M</kbd><kbd>x</kbd> info-apropos 搜官方手册</strong> → ③ 查 EmacsWiki → ④ 才去搜索引擎。跳过 ① 直接搜网页，是新手最常见的效率损失：网上九成的 Emacs 教程写的是三年前的版本。</p></div>
+
+  <h3>0.9 手机上怎么读，怎么边读边练</h3>
+
+  <p>本书的主要阅读场景是<strong>手机上通勤时读</strong>，电脑上精读为辅。这个场景有两个后果，你从现在起就要适应：<strong>① 手机上看书时不要指望立刻验证</strong>——把「这一节要我做什么操作」记住，看到电脑前再敲；硬要在手机上想清楚「<kbd>C</kbd><kbd>M</kbd> <kbd>f</kbd> 到底怎么按」，只会让你读不下去。<strong>② 本章及各章的按键表在手机上会换行</strong>——这是排版问题，不是你看错了。按键那一列永远最短，命令名第二列，作用描述第三列；你只要读懂第三列在说什么就行。</p>
+
+  <h4>通勤路上具体怎么用</h4>
+
+  <ol>
+    <li><strong>读（地铁上）。</strong>按目录顺序读一到两节。手机读不动 <kbd>C</kbd><kbd>c</kbd> 这类「按住再按另一个键」的时候，记住记号就够了：<kbd>C</kbd> 是 Ctrl、<kbd>M</kbd> 是 Alt、<kbd>S</kbd> 是 Shift、<kbd>C</kbd><kbd>M</kbd> 是 Ctrl 加 Alt（Emacs 里这个组合在终端上通常等同于 Meta）。</li>
+    <li><strong>标记（随时）。</strong>读完一节，把「我想试的三件事」在手机备忘录里敲一行。不用写详细，写「练 4-2」就行。</li>
+    <li><strong>敲（到电脑前）。</strong>打开 Emacs，按顺序把标记过的东西做一遍。<strong>做完才算读完，没做完就是没读。</strong></li>
+    <li><strong>答（当天睡前或第二天早上）。</strong>把那一节的练习题做完，不看答案先做，做完再点开对答案。答错的那几题，把答案里的<em>为什么</em>读一遍——本书的答案通常不只给命令，还解释为什么是这条命令。</li>
+  </ol>
+
+  <p>电脑上练的时候，本书每一节后面都有一个「按键速查表」和至少两道练习。建议你<strong>用一本真的、项目里的文件来练</strong>，不要新建一个空的 buffer 敲 <code>foo bar</code>——练习的目的是建立「看到真实代码 → 想到按键」的条件反射，用空 buffer 练出来的反应迁不到真实场景。还要准备一份<strong>乱糟糟的练习材料</strong>：一个几百行、行宽乱七八糟、有中文注释的旧文件。<kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd>、缩进、批量替换这类操作在整齐的代码上练不出真本事，因为整齐的代码没有「需要收拾的烂摊子」。</p>
+
+  <div class="callout tip"><b>技巧</b><p><strong>判断一章有没有真学会的标准只有一条：合上书，能不能说出「遇到 X 情况我会用 Y」。</strong>如果只能说得出「这一章讲了 Y，但我说不清 Y 用来干什么」，那就是没学会。重读那一节，直到能举出三个具体的 X。</p></div>
+
+  <h3>0.10 十个最常见的误区</h3>
+
+<p>这一节是全章最实用的部分。每条后面写清了<strong>为什么错</strong>和<strong>该怎么办</strong>。</p>
+
+  <h4>误区 1：把 Emacs 当 Vim 背键位</h4>
+
+  <p><strong>错在哪：</strong>Emacs 的键位是分层设计的。同一前缀下的一堆命令共享语义——<kbd>C</kbd><kbd>x</kbd> 后面跟字母 <strong>b</strong>（<em>b</em>uffer）是切换 buffer、<strong>f</strong>（<em>f</em>ile）是打开文件、<strong>s</strong>（<em>s</em>ave）是保存。记住「前缀代表操作类别、字母是那个动作的首字母」，二十组键你都能自己推出来；当成背单词表，二十组只能二十组地记。<strong>怎么办：</strong>读第 4 章时不要只记「<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 是打开文件」，要问「<kbd>C</kbd><kbd>x</kbd> 是什么类别、<kbd>f</kbd> 为什么选 f」。</p>
+
+  <h4>误区 2：照抄巨型配置而不懂原理</h4>
+
+  <p><strong>错在哪：</strong>网上那些三百行起步的配置，99% 是作者的<em>偏好</em>而不是<em>最佳实践</em>。照抄之后一旦某个包更新导致报错，你完全不知道该动哪一行。更糟的是你会形成「我的 Emacs 能用是因为我抄了个好东西」的错觉。<strong>怎么办：</strong>本书 0.5 节那份配置去掉注释只有七行，就是刻意的。读完整本书之后你自己加的每一行，都应该能用一句白话说清楚「这行在干什么、为什么需要它」，做不到就别加。</p>
+
+  <h4>误区 3：装五十个包，却没有一个用熟</h4>
+
+  <p><strong>错在哪：</strong>这是最常见也最隐蔽的坑。Emacs 的包生态奖励「装得多」——别人的 dotfiles 看起来都很长，你很容易觉得「我配置得不够厚」。但边际收益递减极快：第一个补全包给你效率提升，第五个补全包给你的是排查它们谁在抢 <code>completion-at-point-functions</code> 的痛苦。<strong>怎么办：</strong>一条硬规则——<strong>一次只加一个包，用满一周再加下一个</strong>。用满一周的意思是「你已经不自觉地用上了它，而且知道它叫什么名字」。第 13 章整章讲怎么有纪律地加包。</p>
+
+  <h4>误区 4：只会复制粘贴配置，不会写</h4>
+
+  <p><strong>错在哪：</strong>Elisp 是 Lisp。你不会写不代表学不会——它比 Python 简单得多。但只复制粘贴会让你卡在一个非常具体的位置：<strong>某个教程让你改一个变量，你不知道该改成什么类型、要不要加引号</strong>。<strong>怎么办：</strong>第 12 章是本书唯一从零教语法的一章，学完你就能读懂 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 看到的默认值「为什么长那样」。任何时候卡住了，都可以先跳到第 12 章。</p>
+
+  <h4>误区 5：用 <kbd>M</kbd><kbd>x</kbd> 代替形成肌肉记忆</h4>
+
+  <p><strong>错在哪：</strong>新手用 <kbd>M</kbd><kbd>x</kbd> 是<strong>对的</strong>——它让你在不背按键的前提下开始干活。但一直用它，你就永远不会「想到按键」，宏回放之类场合更是完全想不起来。<strong>怎么办：</strong>分层。<strong>刚学一个命令时用 <kbd>M</kbd><kbd>x</kbd> 确认它存在；练熟后有意识地改成按键。</strong>本书每节的练习题就是逼你做这件事。</p>
+
+  <h4>误区 6：一上手就调启动速度</h4>
+
+  <p><strong>错在哪：</strong>启动慢的头号原因是包太多和配置里塞了同步网络调用。把注意力放在 <code>gc-cons-threshold</code>（垃圾回收阈值）、dumper 之类的调优上是本末倒置。<strong>怎么办：</strong>先把包数量降到你觉得「确实都需要」，再看还慢不慢。第 13 章给出测量启动耗时的命令和排查方法，但那应该是你把配置整理干净之后的事。</p>
+
+  <h4>误区 7：照着网上的 Emacs 教程敲</h4>
+
+  <p><strong>错在哪：</strong>Emacs 的默认行为在 26 到 31 之间改过好几次，网上随便一篇 2020 年的文章，它说的「默认行为」对你这版可能根本不成立。<strong>怎么办：</strong>任何一条「默认是 X」的断言，你都可以花十秒钟验证：<kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输入那个变量名。如果实测值和文章说的不一样，<strong>以你机器上的为准</strong>。</p>
+
+  <h4>误区 8：在 MELPA 主线上追新版本</h4>
+
+  <p><strong>错在哪：</strong>0.3 节说过，MELPA 用日期戳滚动发布。一个包的作者某天推了个有 bug 的 commit，你的 Emacs 当晚就起不来，而你会以为是 Emacs 本身崩了。<strong>怎么办：</strong>把 MELPA 换成 <code>https://stable.melpa.org/packages/</code>。如果你完全不需要 MELPA（本书的配置默认就不需要），更好：干脆别加它。</p>
+
+  <h4>误区 9：把 Emacs 当 IDE 用</h4>
+
+  <p><strong>错在哪：</strong>Emacs 有 LSP、有项目管理、有搜索替换，但它<strong>没有一个统一的「项目面板」</strong>。很多人装一堆包试图造出一个 VS Code 的资源管理器，然后抱怨「为什么 Emacs 这么难用」。<strong>怎么办：</strong>接受 Emacs 的工作方式是<strong>以「项目 + 当前文件」为中心</strong>，不是以「文件树」为中心。项目根目录用 <code>project</code> 管理，文件树用 Dired 临时看一眼就行，第 9、11 章讲这套。</p>
+
+  <h4>误区 10：把 Emacs 和 Vim 当敌人</h4>
+
+  <p><strong>错在哪：</strong>两者源自同一个技术路线：把编辑器做成可编程的。Emacs 用 Lisp，Vim 用 VimScript，Neovim 用 Lua。共同点是「你可以把编辑器改成任何样子」，不是某一边特有的优点。而且两边都能接过来对方的用户。<strong>怎么办：</strong>如果实在放不下 <code>hjkl</code>，装 <code>evil</code>（仓库 <code>github.com/emacs-evil/evil</code>，NonGNU ELPA 与 MELPA 都有，NonGNU ELPA 里是 1.15.0）。<strong>但请给它两周</strong>——很多人装完就再也回不去了，原因不是 <code>evil</code> 不好，而是 Emacs 自己的按键体系其实更整齐。</p>
+
+  <h3>0.11 你现在应该做的事</h3>
+
+  <p>这一章的信息量不小，下面是压缩成六条的行动清单。读完请照着做，别只是读完。</p>
+
+  <ol>
+    <li><strong>装一个 Emacs。</strong>用发行版包管理器就行，十分钟。装完先按 <kbd>M</kbd><kbd>x</kbd> <code>version</code> 确认它能跑。</li>
+    <li><strong>把 0.5 节那七行配置贴进 <code>init.el</code>，重启。</strong>等 <code>vertico</code> 装完。这是本书唯一要求你现在动手做的事。</li>
+    <li><strong>记住五个按键：</strong><kbd>M</kbd><kbd>x</kbd>（按名字找命令）、<kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>、<kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd>、<kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd>、<kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd>。这五个是你永远不会忘的，因为它们是 Emacs 教你怎么用自己。</li>
+    <li><strong>装一个练手的文件。</strong>一个几百行、格式混乱的旧文件。它比任何教程都重要。</li>
+    <li><strong>读第 1 章和第 2 章。</strong>这两章是全书门槛最低的（只有第 2 章要求你能读得懂一点点 Elisp），读完你就能开始用 Emacs 干活了。</li>
+    <li><strong>记住一句话：</strong>Emacs 里任何东西都能查，而且查的方式是统一的。<kbd>C</kbd><kbd>h</kbd> 就是那个统一的方式。你不需要记住命令名，你只需要记住怎么找命令名。</li>
+  </ol>
+
+  <div class="callout note"><b>要点</b><p>最后一条不是安慰话。这是 Emacs 和其他编辑器最大的结构差异：别的编辑器你要「记住功能在哪」，Emacs 你只要「记住怎么问」。第 9 章专门讲怎么把「问」这件事挖到极致。</p></div>
+
+  <h3>0.12 练习</h3>
+
+  <p>建议<strong>在 Emacs 真的开着的时候</strong>做这些题。答之前先动手试一次——这章考的都是「你知不知道有这个东西」，不是「你能不能背出来」。</p>
+
+  <div class="drill" data-answer="M-x version">
+    <p class="drill-q"><b>练习 1</b>　你刚装好 Emacs，想确认它能跑、安装的是哪个版本。应该敲什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>M-x version</code> 回车。回显区会显示 <code>GNU Emacs 31.1</code> 这样一行。记住这个命令——本书后面每次要确认「我这台 Emacs 到底有什么功能」都用它。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-h v 然后输入变量名回车">
+    <p class="drill-q"><b>练习 2</b>　网上文章说「<code>indent-tabs-mode</code> 默认是 <code>nil</code>」。你不信，要在你这台 Emacs 上核实默认值。敲什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd>，输入 <code>indent-tabs-mode</code> 回车。屏幕上会出现这个变量的当前值、说明文档，以及「这个变量在哪个版本引入的」。<strong>注意以你机器上的实测值为准</strong>——本书作者在 Emacs 32.0.50 上实测的结果是：它的<em>默认值</em>是 <code>t</code>（用制表符），而 <code>python-mode</code> 之类的编程主模式会在进入时把它<em>局部</em>设成 <code>nil</code>。同一个变量在不同 buffer 里可能是不同的值，<code>C-h v</code> 显示的只是当前 buffer 的。</p></div>
+  </div>
+
+  <div class="drill" data-answer="elpaca 不在任何一个包仓库里，只能 git clone">
+    <p class="drill-q"><b>练习 3</b>　你看到有人说 Emacs 的包管理器叫 <code>elpaca</code>。按 <kbd>M</kbd><kbd>x</kbd> 输入 <code>package-install RET elpaca RET</code>，能装上吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>不能。</strong>本书作者核对过三大仓库的包清单：<code>elpaca</code> 在 GNU ELPA、MELPA、NonGNU ELPA 里<strong>都不存在</strong>，它只能通过别的方式获取。<strong>这道题考的是 0.3 节那条规则：装不上包时，先确认这个包到底在哪个仓库里，别在一个仓库里反复重试。</strong></p></div>
+  </div>
+
+  <div class="drill" data-answer="add-hook 'prog-mode-hook #'electric-pair-mode">
+    <p class="drill-q"><b>练习 4</b>　你想让输入 <code>(</code> 时自动补出配对的 <code>)</code>。查一下 Emacs 有没有 <code>global-electric-pair-mode</code> 这个命令。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><strong>没有。</strong>本书作者在本机可实测的 Emacs 30.2、31.1、32.0.50 三个版本上逐一查过，这个命令都不存在（Emacs 18 到 32 的官方 NEWS 里也从未出现过这个名字）。正确写法是 <code>(add-hook 'prog-mode-hook #'electric-pair-mode)</code>。<strong>这道题考的是 0.10 节误区 7：网上（含 AI 生成的博客）经常编造看似合理的 Emacs 命令名，而 <kbd>C</kbd><kbd>h</kbd> 查不到的东西就是不存在。</strong></p></div>
+  </div>
+
+  <div class="drill" data-answer="第 5 章依赖第 4 章，第 7 章依赖第 6 章，第 13 章依赖第 12 章">
+    <p class="drill-q"><b>练习 5</b>　你只有两周时间，想跳着读。按 0.8 节的「需要先会什么」列判断：哪三章跳了会直接读不懂？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>三处硬约束：<strong>第 5 章依赖第 4 章</strong>（没有寄存器和标记的基础就讲不懂交叉引用）、<strong>第 7 章依赖第 6 章</strong>（不先理解杀死与粘贴模型，计数前缀用不起来）、<strong>第 13 章依赖第 12 章</strong>（没有 Elisp 基础，第 13 章会退化成抄写）。其他章节可以按当下的问题挑读。</p></div>
+  </div>
+
+  <div class="callout note"><b>要点</b><p>五道题做完，这一章就结束了。去读第 1 章吧——它不需要任何前置知识。</p></div></section>

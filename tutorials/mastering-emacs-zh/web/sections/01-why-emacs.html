@@ -1,0 +1,567 @@
+<section class="ch" id="ch-01-why-emacs" data-stage="入门" data-min="40">
+  <h2 class="ch-title">一、导论与 Emacs 之道</h2>
+  <p class="ch-lead">这一章不讲怎么打字，只讲一件事：Emacs 到底是个什么东西。在读后面的章节之前，你要先在心里装下六个概念——<strong>buffer</strong>（1.4）、<strong>window</strong> 与 <strong>frame</strong>（1.5）、<strong>point / mark / region</strong>（1.6）、<strong>kill ring</strong>（1.7）、<strong>模式</strong>（1.8）、以及「配置放哪」（1.9）。后面十六章全部建立在这六个概念上。同时这一章也会诚实地告诉你：为了换来这些，你准备付出什么。</p>
+
+  <p>还有两个词你会在这本书里反复看到，但<strong>本章不讲</strong>，它们的正式登场在后面：<strong>增量编辑</strong>（不重新排版整篇文本、只改动你要改的那几个字符；第 6、7 章从 kill ring 和计数前缀两头把它讲透）和 <strong>可编程性</strong>（Emacs 的按键、菜单、行为全部是 Lisp 函数，改 Emacs 就是改代码；第 12 章给你读它的能力，第 13 章给你改它的能力）。<strong>这一章不要求你懂任何一个按键。</strong></p>
+
+  <h3>1.1 先谈代价：为什么很多人劝你别用 Emacs</h3>
+
+  <p>原书作者 Eli Spare 的入门方式很特别：大学计算机社里全是 Vim 用户，社员告诉他「你用 Vim，就这个」，他偏不，于是选了 Emacs 的反面。这是一个真实的态度问题——Emacs 圈和 Vim 圈长期互相看不顺眼。所谓「编辑器大战」（Editor Wars）其实早就没有胜负了，今天两个编辑器都能把对方的用户拉过来，关键只在于你愿不愿意为切换成本买单。</p>
+
+  <p>Emacs 圈最爱讲「Emacs 是一个可扩展、可定制、自文档化的编辑器」——这是它官方自带的宣传语（原书引用的官方 tagline）。但这句话对新手是空话。把它翻译成能被验证的话，Emacs 的特点是：<strong>你可以把它的任何一部分改掉，包括全部按键、全部行为、全部界面</strong>。这不是比喻，是字面意思：Emacs 的界面没有私有 API 在挡着你，你能从配置里改的东西比多数编辑器的主界面菜单还多。</p>
+
+  <p>代价同样是真的，而且必须先说清楚：</p>
+
+  <ul>
+    <li><strong>配置门槛高。</strong>一个「什么都不改」的 Emacs 用起来相当难受：没有语法高亮主题的默认搭配、键位自成一套、很多日常功能要自己装包才有。指望它开箱即用的人会失望。</li>
+    <li><strong>离 Vim 的肌肉记忆很远。</strong>Vim 的 <code>hjkl</code> 加计数前缀这套东西，在 Emacs 里默认完全没有。想要的话得装 Evil（Vim 模拟层，第三方包）。装了就等于放弃了一部分 Emacs 自己的设计，换来熟悉的按键。</li>
+    <li><strong>包的质量参差不齐。</strong>Emacs 的包管理体系允许任何人发布包。好处是选择多，坏处是你必须自己判断：这个包还在维护吗？它和你装的另一个包冲突吗？它装上要花 2 秒还是 20 秒？</li>
+    <li><strong>启动要调优。</strong>一个配置臃肿的 Emacs 启动几秒钟是很常见的事，而且不调就会越来越慢。</li>
+    <li><strong>单线程。</strong>Emacs 的 Lisp 解释器是单线程的，一个跑很久的 Elisp 任务会把界面卡住。Emacs 靠原生编译（native compilation，把 Elisp 编译成机器码）缓解了一部分，但没有完全解决。</li>
+  </ul>
+
+  <div class="callout note"><b>要点</b><p>Emacs 不适合的场景也存在。如果你主要做微软技术栈、以 Visual Studio 为中心，Emacs 大概率是「两步前进、一步后退」：你得到了无可匹敌的文本编辑和工具整合，失去了统一 IDE 的一些便利。这不是 Emacs 的缺点，是取舍。</p></div>
+
+  <p>说了代价，再说收益。Emacs 的回报集中在一句话上：<strong>你学会的那一套按键、编辑思路、配置手段，在所有场景里都通用，而且都能被你改造。</strong>一旦你用 Emacs 写代码，你会发现在 Emacs 里读邮件、跑 shell、编译、查手册、记笔记、写文档，都是同一套肌肉记忆、同一个快捷键体系、同一个配置入口。这在别的编辑器身上做不到——它们各自是一个独立应用。</p>
+
+  <div class="callout tip"><b>技巧</b><p>判断自己适不适合 Emacs 的一个实用标准：如果你过去两年在 VS Code 上装过 5 个以上扩展，或者曾经写过 <code>.vimrc</code>、<code>settings.json</code>，你大概会喜欢 Emacs。反过来，如果你三年里没改过任何编辑器设置，那 Emacs 很可能让你痛苦。</p></div>
+
+  <h4>这本书教你什么</h4>
+
+  <p>原书把全书分成六条主线，这本书沿用同样的划分，但每一章都会补上当代 Emacs 的做法：</p>
+
+  <ol>
+    <li><strong>Emacs 是什么</strong>——术语、约定、哲学，以及为什么一个文本编辑器也需要哲学。</li>
+    <li><strong>开始用</strong>——安装、运行、确保版本够新、改配置并让改动持久化、主题、界面自救。</li>
+    <li><strong>自我发现</strong>——Emacs 是自文档化的，怎么用它自己回答自己的问题。</li>
+    <li><strong>移动</strong>——怎么用最少的按键从 A 走到 B。这是本书分量最重的一块。</li>
+    <li><strong>编辑</strong>——按括号对、按词、按行、按段落编辑；键盘宏；查找替换；寄存器；缩写；多文件编辑。</li>
+    <li><strong>生产力</strong>——Emacs 和外部工具的整合。</li>
+  </ol>
+
+  <h3>1.2 Emacs 是什么：一个用 Lisp 写成的大机器</h3>
+
+  <p>先把历史讲清楚，因为 Emacs 的很多怪名字都从历史里来。</p>
+
+  <p>Emacs 诞生于 1976 年，Richard Stallman（自由软件运动奠基人）当时是在一个叫 TECO 的编辑器上写宏实现的。今天你如果搜「TECO 最著名的用途」，答案里一定有 Emacs。此后出现过很多 Emacs 实现，但今天你实际会碰到的只有两个：<strong>GNU Emacs</strong> 和 <strong>XEmacs</strong>。XEmacs 一度比 GNU Emacs 更强、特性更多，但 GNU Emacs 在 90 年代末到 2000 年代初一度放缓，后来重新发力，如今在绝大多数场景下都更主流；XEmacs 则早早进入了低维护状态，正式发行版停在 21.5 之后多年没有再更新。原文只讲 GNU Emacs，本书也一样——除非特别说明，「Emacs」指的都是 GNU Emacs。（XEmacs 的确切停更时间以它自己的项目公告为准，这里只强调一件事：<strong>现在装 Emacs，默认拿到的就是 GNU Emacs</strong>，没有选择余地。）</p>
+
+  <p>Emacs 的关键事实是：<strong>「Emacs 里绝大部分编辑命令都是用 Lisp 写的；少数例外本来也可以用 Lisp 写，只是为了效率才用了 C」</strong>——这是 Emacs 官方手册 <em>Introduction</em> 节点的原话。C 代码负责真正必须快的事：读写文件、连接网络、往屏幕上画字、字体排版。而 Emacs 的绝大部分——按键绑定、编辑命令、界面、模式、补全、窗口管理——全都是 Lisp 写的，可以在运行时被读取、求值、修改。</p>
+
+  <p>这里顺带纠正一个流传很广的数字。网上常有人说「Emacs 有 95% 是 Lisp，只有 5% 是 C」。这个说法出自很早的年代，<strong>在今天的 Emacs 上已经不准了</strong>：C 那部分现在是个庞大的内核（终端模拟器、各种系统调用、字体与图形界面后端、垃圾回收、JSON 与正则引擎……），实际按代码行数统计，C 和 Elisp 大致各占一半。别被「几乎全屏都是 Lisp」骗了——真正决定 Emacs 使用体验的东西，绝大部分确实是 Elisp，这一点没变。</p>
+
+  <p>这条事实带来三个直接后果，是你必须提前知道的：</p>
+
+  <ul>
+    <li><strong>Emacs 的状态是一个巨大的、可变的、可查询的活体。</strong>你改任何一个变量，Emacs 当场就变了；你改错了，重启就回去了。Emacs 有一个运行时长计数器 <code>M-x emacs-uptime</code>，几个月不重启是常见的事——因为它真的很难崩。</li>
+    <li><strong>Emacs 会把它的内部状态直接展示给你。</strong>这是「自文档化」的真正含义：<code>C-h f</code> 查一个函数，Emacs 把这个函数的定义、文档字符串、当前键位全部打印给你；<code>C-h v</code> 查一个变量，把它的当前值和值的含义打印给你。它不需要联网查文档，因为它自己就是文档。</li>
+    <li><strong>你必须学一点 Elisp。</strong>想改一个键位，就得写一行 Lisp。这是绕不过去的。</li>
+  </ul>
+
+  <div class="callout note"><b>要点</b><p>Emacs 用 Lisp 而不是 Python/Ruby 这类「更现代」的语言，是有道理的：Lisp 里<strong>代码和数据是同一种东西</strong>。你读到的源码文本，几乎就是 Lisp 解释器在内部操作的数据结构本身。所以宏、生成代码、运行时改写已有函数这些在别的语言里很别扭的事，在 Emacs 里是自然的。这就是所谓「 advice」（给别人的函数挂钩子，在不改动原函数源码的前提下改变它的行为）。</p></div>
+
+  <p>Emacs 自带一本 Elisp 入门手册，随 Emacs 一起安装，命令是 <code>C-h r</code>（等价于 <code>M-x info-emacs-manual</code>，已在本机 Emacs 32.0.50 上验证）。原书说「别让括号吓退你，括号其实是 Lisp 最大的优点」——这句话今天依然成立：Lisp 的括号让结构一目了然，也让你可以放心地用编辑命令去操作代码。本书第十二章会自己教 Elisp，不需要你现在就啃手册。</p>
+
+  <h3>1.3 Emacs 作为操作系统：喜鹊窝里的一堆闪亮东西</h3>
+
+  <p>原书有一句很形象的比喻：Emacs 像一座喜鹊窝，堆满了闪亮的宝贝。名副其实。它自带屏保、俄罗斯方块、文字冒险游戏、计算器、月相查询、心理医生、邮件客户端、网页浏览器、目录管理器、多种 Shell、版本控制前端……下面这张表里，「内置」列写的是它在今天的 Emacs 里<b>开箱可用</b>，凡是第三方包都会写明包名。</p>
+
+  <table>
+    <thead><tr><th>功能</th><th>命令</th><th>来源</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>屏保（Zone）</td><td><code>M-x zone</code></td><td>内置</td><td>著名的「弹球」屏保。它在菜单 <strong>工具 → 游戏 → Zone Out</strong> 里（菜单项的全名就叫 Zone Out），也可以用 <code>M-x zone</code> 调用（注意历史上流传的 <kbd>C</kbd><kbd>t</kbd> <kbd>C</kbd><kbd>t</kbd> 快捷键在今天的 Emacs 里已经没有绑定了）。</td></tr>
+      <tr><td>文字冒险</td><td><code>M-x dunnet</code></td><td>内置</td><td>一个完整的冒险游戏，纯文本。</td></tr>
+      <tr><td>俄罗斯方块</td><td><code>M-x tetris</code></td><td>内置</td><td>纯文本俄罗斯方块。</td></tr>
+      <tr><td>月相查询</td><td><code>M-x lunar-phases</code></td><td>内置</td><td>算并显示上个月、本月、下月的月相；带前缀参数 <kbd>C</kbd><kbd>u</kbd> 可以指定年月。</td></tr>
+      <tr><td>计算器</td><td><code>M-x calc</code></td><td>内置</td><td>逆波兰记法计算器，支持符号代数、任意精度、单位与矩阵。</td></tr>
+      <tr><td>「看医生」</td><td><code>M-x doctor</code></td><td>内置</td><td>体检系统、编码、启动过程。你配 Emacs 配崩了，先跑这个。</td></tr>
+      <tr><td>网页浏览器 EWW</td><td><code>M-x eww</code></td><td>内置</td><td>极简浏览器，直接在 buffer 里渲染 HTML，配合 Emacs 的超链接和自动模式很好用。</td></tr>
+      <tr><td>网页请求</td><td><code>M-x url-retrieve-synchronously</code></td><td>内置</td><td>把 URL 的内容抓进 buffer，Elisp 编程的常用起手式。</td></tr>
+      <tr><td>目录管理 Dired</td><td><code>M-x dired</code></td><td>内置</td><td>在 Emacs 里浏览文件系统、批量重命名、跑版本控制命令。</td></tr>
+      <tr><td>Shell 三选一</td><td><code>M-x eshell</code> / <code>M-x shell</code> / <code>M-x term</code></td><td>内置</td><td>Eshell 用 Elisp 写的（可被脚本化），<code>shell</code> 跑 bash 等真实 shell，<code>term</code> 是完整终端模拟器。</td></tr>
+      <tr><td>REPL</td><td><code>M-x ielm</code>（Emacs Lisp）、<code>M-x run-lisp</code>、<code>M-x run-scheme</code>、<code>M-x run-python</code></td><td>内置</td><td>把语言的交互式解释器接进 Emacs。对应的 <code>xxx-mode</code>（比如 <code>python-mode</code>）通常会自带一个 <code>run-xxx</code> 命令，Emacs 也会为很多语言内置。</td></tr>
+      <tr><td>邮件</td><td><code>M-x erc</code> / <code>M-x gnus</code></td><td>内置</td><td>两个邮件/新闻组客户端，功能一直很足。</td></tr>
+      <tr><td>项目管理</td><td><code>M-x project-switch-project</code></td><td>内置</td><td><code>project.el</code> 已经进入核心，识别项目根目录。</td></tr>
+      <tr><td>包管理</td><td><code>M-x package-install</code></td><td>内置</td><td>ELPA 包管理体系。</td></tr>
+      <tr><td>文档查看</td><td><code>C-h i</code>（Info）、<code>M-x man</code>、<code>M-x woman</code></td><td>内置</td><td>Info 是 Emacs 自己的文档格式，本书全文的原始格式也是 Info。</td></tr>
+      <tr><td>笔记与规划</td><td><code>M-x org-mode</code></td><td>内置</td><td>Org mode：待办、日程、项目计划、 literate programming。本书第十四章会专门讲。</td></tr>
+      <tr><td>语言服务器（LSP）</td><td><code>M-x eglot</code></td><td>内置（29.1 起）</td><td>Eglot（Emacs Polyglot）。装上对应语言的 language server 之后，补全、跳转、重构、诊断全都有。</td></tr>
+      <tr><td>结构化语法解析</td><td><code>M-x c-ts-mode</code>、<code>M-x python-ts-mode</code>、<code>M-x rust-ts-mode</code>、<code>M-x go-ts-mode</code>、<code>M-x toml-ts-mode</code>、<code>M-x yaml-ts-mode</code>、<code>M-x markdown-ts-mode</code></td><td>内置（29 起）</td><td>基于 tree-sitter 的语法树模式。加载了之后会取代对应的传统模式。</td></tr>
+      <tr><td>远程文件编辑</td><td><code>C-x C-f</code> 加远程路径</td><td>内置</td><td>TRAMP（Transparent Remote Access to Multiple Protocols，多协议透明远程访问），支持 SSH、rsync、docker、rclone、ftp 等。</td></tr>
+      <tr><td>正则表达式构造器</td><td><code>M-x re-builder</code></td><td>内置</td><td>边打边看正则结果，调试神器。</td></tr>
+      <tr><td>运行时长</td><td><code>M-x emacs-uptime</code></td><td>内置</td><td>看 Emacs 已经连续运行多久了。</td></tr>
+      <tr><td>版本新闻</td><td><code>M-x view-emacs-news</code></td><td>内置</td><td>带前缀参数 <kbd>C</kbd><kbd>u</kbd> 可以只看某个版本的新特性。</td></tr>
+      <tr><td>无障碍语音</td><td>Emacspeak</td><td>第三方</td><td>为视障用户提供屏幕语音接口，已经二十多年。</td></tr>
+      <tr><td>Vim 模拟</td><td>Evil</td><td>第三方</td><td>把 <code>hjkl</code>、计数前缀、<code>d</code><code>y</code><code>p</code> 这些搬进 Emacs。本书第十五章会讲怎么选。</td></tr>
+      <tr><td>超级静态大纲</td><td>GNU Hyperbole</td><td>第三方</td><td>把几乎任何东西做成可点击的按钮（button），互链成超文本。</td></tr>
+      <tr><td>音乐播放器</td><td>EMMS</td><td>第三方</td><td>Emacs Multimedia System，交互式媒体库与播放器。</td></tr>
+      <tr><td>EPUB 阅读</td><td>nov</td><td>第三方</td><td>可以在 Emacs 里读电子书——包括这一本。</td></tr>
+      <tr><td>Git 界面</td><td>Magit</td><td>第三方</td><td>目前事实上的标准 Git 前端。第十一章会讲。</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn"><b>易错</b><p>网上（包括很多过时的博客和本书的英文原书）会写 <code>M-x lunar</code> 和 <code>M-x eww-open</code>。这两个命令名在今天的 Emacs 里已经不存在了：月相查询叫 <code>M-x lunar-phases</code>，浏览器叫 <code>M-x eww</code>（<code>M-x browse-web</code> 仍然可用，是同一个命令的别名）。另外 <code>M-x customize-theme</code> 也不存在，换主题要用 <code>M-x load-theme</code>（要浏览全部主题，用它的复数版 <code>M-x customize-themes</code>）。按命令名去搜索文档时，先用 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 确认一下命令名，能省掉很多困惑。</p></div>
+
+  <div class="callout note"><b>要点</b><p>关于 Eglot 的现状，几本常被引用的资料已经过时。Eglot 是 <strong>Emacs 29.1 起内置</strong>的，到 <strong>Emacs 31.1</strong>（eglot 1.24.31）和 <strong>Emacs 32.0.50</strong>（eglot 1.24）它仍然是内置的核心包，<strong>没有被弃用</strong>，也没有被 <code>lsp-mode</code> 取代。社区里确实长期存在「以后用 lsp-mode 取代 eglot」的讨论，但截至本书写作时（2026 年 10 月）这件事没有发生。想用 LSP，<code>M-x eglot</code> 就够了；<code>lsp-mode</code> 是另一条更重、功能更多的第三方路线，第十一章再讲怎么选。</p></div>
+
+  <h4>关于 Eglot 与 tree-sitter：原书写于 Emacs 29，这里补齐到 32</h4>
+
+  <p>原书用了一整段讲 Emacs 29 新增的两件事，它们代表 Emacs 这三十多年一直在改进：</p>
+
+  <ul>
+    <li><strong>Tree-sitter</strong>（一个精确的增量解析器）。在此之前，Emacs 的语法高亮（Emacs 里叫 <strong>font locking</strong>，字体锁定）几乎全靠正则表达式；正则没法「理解上下文」——同样一串字符 <code>count</code>，在一个地方是变量、在另一个地方是函数调用，正则分不出来。tree-sitter 会把源码解析成一棵具体的语法树（CST），于是「这是一次函数调用」变成了可以查询的事实。Emacs 29 只是提供了<em>可选支持</em>（需要编译 Emacs 时带 tree-sitter）；到今天，<code>*-ts-mode</code> 系列已经全部进入核心，<strong>但默认并没有启用</strong>——变量 <code>treesit-enabled-modes</code> 的默认值是 <code>nil</code>，所以开箱即用的 Emacs 打开 <code>.c</code> 文件仍然进 <code>c-mode</code>，不是 <code>c-ts-mode</code>。要用得自己打开这个选项，或者在加载 tree-sitter 模式之后让 Emacs 自动重映射，细节见 1.8 节的折叠框。</li>
+    <li><strong>Eglot</strong>：装好对应语言的 language server 之后，在源码 buffer 里敲 <code>M-x eglot</code>，就能获得补全、跳转、重构、诊断这些 IDE 级能力。不需要任何第三方包。</li>
+  </ul>
+
+  <p>另一条对性能至关重要的时间线是<strong>原生编译</strong>（native compilation，把 Elisp 提前编译成机器码）：<strong>Emacs 28</strong> 起可用，<strong>Emacs 30.1 起默认开启</strong>（前提是编译 Emacs 的机器上有 <code>libgccjit</code>）。这解释了一个常见现象：现在新建的 Emacs 配置文件里，通常看不到 <code>comp.el</code> 那一堆样板代码了。</p>
+
+  <div class="callout tip"><b>技巧</b><p>想知道你手上的 Emacs 是哪个版本，最直接的是 <kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>a</kbd>（<code>about-emacs</code>，会打开「Emacs 快速上手」面板，版本号就写在标题里），或者 <code>M-x emacs-version</code>。顺带纠正一个流传很广的说法：<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>g</kbd> <em>现在没有任何绑定</em>，按下去什么都不会发生（本书在 Emacs 32.0.50 上实测确认）。用之前先按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 查一遍，永远比相信任何一篇文章可靠。截至 2026 年 10 月，<strong>最新稳定版是 Emacs 31.1（2026 年 8 月 24 日发布）</strong>，30.2 是上一个稳定分支（2025 年 8 月 14 日），32.1 还在开发序列里。发行历史可以随时用 <code>M-x view-emacs-news</code> 配合前缀参数查看。</p></div>
+
+  <h3>1.4 buffer：Emacs 里的「数据」不是文件</h3>
+
+  <p>现在进入本章的核心。第一个、也是最重要的概念是 <strong>buffer</strong>。</p>
+
+  <p><strong>Buffer</strong>（缓冲区）：Emacs 里编辑的基本单位。你可以把它理解成「一块有名有姓的文本，外加一整套编辑状态（光标在哪、怎么缩进、什么模式、能不能撤销）」。这一整套东西在 Emacs 里是<strong>数据</strong>，不是文件。</p>
+
+  <p>别的编辑器和 IDE 是「以文件为中心」的：它们显示一个文件的内容，把改动存回这个文件。就这些。Emacs 不一样：</p>
+
+  <div class="callout note"><b>要点</b><p><strong>所有文件都是 buffer，但不是所有 buffer 都是文件。</strong></p></div>
+
+  <p>这个区别不是文字游戏，它有非常实际的后果：</p>
+
+  <ul>
+    <li>你可以随手造一个不存在的 buffer（<code>C-x b</code> 然后输入一个没人用过的名字，回车确认创建）。它存在 Emacs 内部，只存在于 Emacs 内部。你必须显式地把它存成文件，它才会落盘。</li>
+    <li>Emacs 自己就在用大量非文件 buffer：<code>*scratch*</code>（启动时那个空白的临时 buffer）、<code>*Messages*</code>（各种回显和日志）、shell 的输出、补全候选列表、编译输出、目录列表面板……</li>
+    <li>Emacs 还能把 buffer 当成 I/O 设备，直接和另一个进程对话。跑 shell 之后，shell 的输出就是一个 buffer，你可以像编辑普通文件一样编辑它：直接在 buffer 里打字、按回车，这一行就会作为输入发给那个进程（命令是 <code>comint-send-input</code>）。老资料里常见的「先按 <code>M-o</code> 跳到命令行」是旧版做法，今天的 <code>M-o</code> 在 shell buffer 里没有任何绑定。</li>
+  </ul>
+
+  <p>为什么这件事很重要？因为 <strong>Emacs 几乎所有命令都作用在 buffer 上</strong>。你让 Emacs「查找替换」，它查找替换的是 buffer 里的文本（当前 buffer，或者你指定的那个），不是某个不透明的内部数据结构。这带来一个非常强的性质：<strong>你手动敲的命令，和 Emacs 内部跑的 Elisp 调的是同一批函数。</strong>你把 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd>（<code>save-buffer</code>）记住了，你的 Elisp 代码里就能直接调 <code>save-buffer</code>；你学会了 <code>forward-word</code>，脚本里也能直接调它。Emacs 的用户命令和它的内部 API 是同一层东西。这是 Emacs 之所以能被你彻底改造的技术前提。</p>
+
+  <h4>现在可以动手了</h4>
+
+  <p>如果你的 Emacs 正在运行（后面第二章会讲怎么装）：</p>
+
+  <ol>
+    <li>按 <kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd>，在 minibuffer（迷你缓冲区，Emacs 和你对话的一行提示区）里输入 <code>*scratch*</code>，回车。你会看到启动时那个空白 buffer 的内容。输入几行字，它不会被保存到任何文件。</li>
+    <li>按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 打开 buffer 列表。你会看到 Emacs 启动时创建的所有 buffer：<code>*scratch*</code>、<code>*Messages*</code>，如果你装过什么东西还会有别的。</li>
+    <li>注意 buffer 列表里每个 buffer 左边的 <code>*</code>——那表示这个 buffer 的内容被改动过、还没存盘。这和「文件」无关。</li>
+  </ol>
+
+  <div class="keys">
+    <h4>本节按键：缓冲区</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer</code></td><td>切换到某个 buffer；名字不存在就问你要不要新建</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd></td><td><code>list-buffers</code></td><td>列出全部 buffer 的交互式列表</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>b</kbd></td><td><code>switch-to-buffer-other-window</code></td><td>在其他窗口打开该 buffer</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>ibuffer</code></td><td><code>ibuffer</code></td><td>功能更强的 buffer 管理器（内置包）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>k</kbd></td><td><code>kill-buffer</code></td><td>关闭（杀掉）当前 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd></td><td><code>save-buffer</code></td><td>把当前 buffer 存成文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>s</kbd></td><td><code>save-some-buffers</code></td><td>挨个询问并保存所有改过的 buffer</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>q</kbd></td><td><code>read-only-mode</code></td><td>把当前 buffer 切成只读</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.5 window 与 frame：Emacs 把这两个词说反了</h3>
+
+  <p>第二个概念是 Emacs 里最容易把人绕晕的地方，因为它的术语和操作系统、几乎所有现代软件的习惯是<strong>相反</strong>的。</p>
+
+  <p>在 Windows、macOS、VS Code 里，「窗口」是屏幕上的那个矩形应用容器。在 Emacs 里：</p>
+
+  <ul>
+    <li><strong>frame</strong>（框架）= 操作系统眼里的「窗口」。你的 Emacs 程序打开的那个矩形就是它。注意日常口语里大家会把 frame 也叫「窗口」，Emacs 文档里也常这么用，但正式术语是 frame。</li>
+    <li><strong>window</strong>（窗口）= frame 里面的一块平铺区域。Emacs 把一个 frame 切成若干 window，每个 window 显示一个 buffer。</li>
+  </ul>
+
+  <p>层级关系是这样的：</p>
+
+  <table>
+    <thead><tr><th>层级</th><th>数量关系</th><th>日常类比</th><th>你能对它做什么</th></tr></thead>
+    <tbody>
+      <tr><td><strong>frame</strong></td><td>可以有任意多个 frame；每个 frame 里至少有一个 window</td><td>一个 Emacs 窗口 / 一个终端标签页</td><td>新建（<kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> 前缀 + 命令）、关闭、全屏</td></tr>
+      <tr><td><strong>window</strong></td><td>一个 frame 可以切成任意多个 window；<strong>每个 window 恰好显示一个 buffer</strong></td><td>IDE 里的分屏格</td><td>切分、删除、在窗口之间循环移动</td></tr>
+      <tr><td><strong>buffer</strong></td><td>可以有任意多个 buffer；<strong>一个 buffer 同一时刻只能显示在一个 window 里</strong></td><td>一个文件（但也可以不是文件）</td><td>编辑、保存、创建、关闭</td></tr>
+    </tbody>
+  </table>
+
+  <p>记忆口诀（也是本章最该带走的一句话）：<strong>一个 frame 装若干 window，一个 window 装一个 buffer。</strong>想看到 buffer，必须把它放进某个 window；想看到 window，它必须在某个 frame 里。</p>
+
+  <div class="callout warn"><b>易错</b><p>Emacs 内部为了跟操作系统的窗口概念对接，运行时会把 frame 和操作系统的「窗口」区分开，这就是为什么同一个概念在手册和日常对话里会混用。你只要记住：<strong>操作系统层面叫 window 的那个东西，在 Emacs 术语里叫 frame</strong>。日常说话时说「窗口」通常不会出问题，因为大多数时候大家指的也就是屏幕上那一块。</p></div>
+
+  <div class="keys">
+    <h4>本节按键：窗口与框架</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd></td><td><code>split-window-below</code></td><td>把当前 window 上下二分，在下面开一个新 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd></td><td><code>split-window-right</code></td><td>把当前 window 左右二分，在右边开一个新 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>1</kbd></td><td><code>delete-other-windows</code></td><td>关掉其他所有 window，只留当前这个</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>o</kbd></td><td><code>other-window</code></td><td>跳到同一个 frame 里的另一个 window（循环）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>f</kbd></td><td><code>find-file-other-window</code></td><td>在另一个 window 打开文件，原 window 不动</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>f</kbd></td><td><code>find-file-other-frame</code></td><td>在另一个 frame（新窗口）打开文件</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>C</kbd><kbd>o</kbd></td><td><code>display-buffer</code></td><td>换一个 window 显示某个 buffer，而不是替换当前 window</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>+</kbd></td><td><code>balance-windows</code></td><td>把同一 frame 里的 window 调整成等大</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>toggle-frame-fullscreen</code></td><td><code>toggle-frame-fullscreen</code></td><td>图形界面下全屏切换</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.6 point、mark 与 region：光标只有一个，选区有两个端点</h3>
+
+  <p>第三个概念组是你每天都会碰的。</p>
+
+  <ul>
+    <li><strong>point</strong>（点）：就是光标、插入点。Emacs 文档里有时叫 point、有时叫 cursor，本书统一用 point。它表示<strong>你在当前 buffer 里的位置</strong>。</li>
+    <li><strong>mark</strong>（标记）：另一个位置标记，通常不可见。Emacs 的每个 buffer 都有自己独立的 mark 和 point 位置记录——你在 A 文件和 B 文件之间来回切换，回来时各自的 point 都还在原处。</li>
+    <li><strong>region</strong>（区域）：point 和 mark 之间的那一段连续文本。在别的编辑器里这叫「选区」或「高亮」。</li>
+  </ul>
+
+  <p>和多数编辑器不同，Emacs 明确地区分 region 的<strong>起点和终点</strong>：mark 是固定的一端，point 是活动的一端。用键盘选区时通常是「先设 mark（<kbd>C</kbd> <kbd>SPC</kbd>），再移动 point」；用鼠标拖选时则是 Emacs 自动帮你设 mark。</p>
+
+  <div class="callout warn"><b>易错</b><p>这里有两个键位特别容易记反，本书实测过：设 mark 的是 <strong><kbd>C</kbd> <kbd>SPC</kbd></strong>（命令 <code>set-mark-command</code>），<strong>不是</strong> <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>SPC</kbd>。<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>SPC</kbd> 绑的是<strong>另一个</strong>命令 <code>pop-global-mark</code>，它负责「跳回上一个 mark 位置」——和 <kbd>M</kbd><kbd>y</kbd> 在 mark ring 里往回转是同一类操作，不是在设 mark。另外注意 <kbd>C</kbd> <kbd>SPC</kbd> 在 ASCII 里没有对应字符，终端通常会把它发成 <kbd>C</kbd><kbd>@</kbd>；Emacs 把这两个键绑到同一个命令，所以你在终端和图形界面下都能设 mark，官方手册明确建议「可以就把 <kbd>C</kbd><kbd>@</kbd> 当成 <kbd>C</kbd> <kbd>SPC</kbd>」。</p></div>
+
+  <div class="callout note"><b>要点</b><p>Emacs 里「当前 buffer」（current buffer）这个词有两种含义，一种无关紧要：<strong>持有 point 的那个 buffer</strong>就是当前 buffer，也就是你在里面打字和移动的那一个。同一时刻只能有一个当前 buffer。（另一种含义是在 Elisp 里用 <code>set-buffer</code> 临时切换，之后再说。）</p></div>
+
+  <h4>Transient Mark Mode：为什么你拖完鼠标选区会亮起来</h4>
+
+  <p><strong>Transient Mark Mode</strong>（瞬时标记模式，缩写 TMM）：打开时，只要 mark 是「激活」的，region 就会用 <code>region</code> face 高亮显示。本机 Emacs 32.0.50 实测，这个模式<strong>默认就是开启的</strong>。历史上 Emacs 并不给 region 画高亮，你得自己在脑子里「看见」选区；那个时代已经过去了。</p>
+
+  <p>Transient Mark Mode 还有一层含义：<em>点一下这个模式</em>，Emacs 会「临时」打开标记模式，让你在下一次会取消 mark 的操作（移动 point、修改文本）之后自动恢复原状。这是给已经习惯「选区自动消失」的用户的兼容层。</p>
+
+  <div class="keys">
+    <h4>本节按键：point、mark、region</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd> <kbd>SPC</kbd></td><td><code>set-mark-command</code></td><td>在当前 point 位置设置 mark，从此 point 和 mark 之间就是 region（<kbd>C</kbd><kbd>@</kbd> 绑的是同一个命令，终端里发过来的通常就是它）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>SPC</kbd></td><td><code>pop-global-mark</code></td><td>跳到全局 mark ring 里最近设过的那个 mark 位置（注意它<em>不是</em>设 mark）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd></td><td><code>exchange-point-and-mark</code></td><td>交换 point 和 mark 的位置（快速来回编辑选区两端）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd></td><td><code>mark-whole-buffer</code></td><td>把 mark 设在 buffer 开头，整个 buffer 成为 region（<em>不是</em> <kbd>C</kbd><kbd>h</kbd>，那个键绑的是 <code>view-hello-file</code>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>@</kbd></td><td><code>mark-word</code></td><td>把 mark 设在当前单词末尾，point 到 mark 就是一个词</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd> <kbd>@</kbd></td><td><code>mark-sexp</code></td><td>把 mark 设在当前 S 表达式（括号对）末尾</td></tr>
+        <tr><td><kbd>M</kbd><kbd>h</kbd></td><td><code>mark-paragraph</code></td><td>把 mark 设在当前段落末尾</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd> <kbd>h</kbd></td><td><code>mark-defun</code></td><td>把 mark 设在当前函数定义末尾</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>m</kbd></td><td><code>bookmark-set</code></td><td>记一个书签，可以在任何时候跳回来</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>b</kbd></td><td><code>bookmark-jump</code></td><td>跳回最近设置的书签</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.7 kill ring：Emacs 为什么不把它叫「剪贴板」</h3>
+
+  <p>第四个概念，也是新手第一天最常撞墙的地方——Emacs 的剪切板系统。</p>
+
+  <p>全世界都知道的快捷键是：剪切 <kbd>Ctrl</kbd>+<kbd>X</kbd>，复制 <kbd>Ctrl</kbd>+<kbd>C</kbd>，粘贴 <kbd>Ctrl</kbd>+<kbd>V</kbd>。Emacs 全都不用：</p>
+
+  <table>
+    <thead><tr><th>你在别处叫它</th><th>Emacs 的叫法</th><th>Emacs 的按键</th><th>实际发生了什么</th></tr></thead>
+    <tbody>
+      <tr><td>剪切</td><td><strong>kill</strong>（杀死）</td><td><kbd>C</kbd><kbd>w</kbd></td><td>把 region 里的文本从 buffer 中删除，同时放进 <strong>kill ring</strong></td></tr>
+      <tr><td>复制</td><td><strong>kill-ring-save</strong>（口语上就叫 copy）</td><td><kbd>M</kbd><kbd>w</kbd></td><td>把 region 里的文本复制进 kill ring，buffer 内容不变</td></tr>
+      <tr><td>粘贴</td><td><strong>yank</strong>（撕扯）</td><td><kbd>C</kbd><kbd>y</kbd></td><td>把 kill ring 顶部的文本插进 buffer</td></tr>
+      <tr><td>「粘贴并替换上一次粘贴的东西」</td><td><strong>yank-pop</strong></td><td><kbd>M</kbd><kbd>y</kbd></td><td>往回转一格，取 kill ring 里的上一条</td></tr>
+    </tbody>
+  </table>
+
+  <p>核心数据结构叫 <strong>kill ring</strong>（剪切环）：一个<strong>环形缓冲区</strong>。容量由 <code>kill-ring-max</code> 控制，<strong>从 Emacs 29 起默认是 120 条</strong>（官方手册也是这么写的；老资料里常见的「15 条」是 Emacs 28 及更早的默认值，Emacs 29 的 NEWS 专门记了这次改动）。你每次 kill 或 copy 就往里塞一条新记录，yank 取的是最新那条。这解释了两件初学者觉得莫名其妙的事：</p>
+
+  <ol>
+    <li><kbd>M</kbd><kbd>w</kbd>「复制」之后什么也没发生，是因为它本来就不该有可见效果——它只是往 ring 里塞了一条。</li>
+    <li><kbd>C</kbd><kbd>y</kbd> 之后再按 <kbd>M</kbd><kbd>y</kbd>，会依次把更早复制过的东西贴进来。别的编辑器里这需要翻剪贴板历史，Emacs 里是原生的。</li>
+  </ol>
+
+  <div class="callout tip"><b>技巧</b><p>连着 kill 两次（两次 kill 之间不做别的事），Emacs 会把它们<strong>合并成一条</strong>记录。如果你删了三行、马上又删了两行，一次 <kbd>C</kbd><kbd>y</kbd> 就能全部贴回来。中间插入一个光标移动就能让它们分成两条。这个「连续 kill 自动合并」的规则在第六章会详细展开。</p></div>
+
+  <p><strong>为什么术语这么怪？</strong>原书给了答案，而且这个答案挺有意思：这些叫法和大部分键位来自 IBM 的 CUA（Common User Access，通用用户访问规范）和 Apple 的约定，但 <strong>CUA 是 1987 年才出现的</strong>，而 Emacs 早在二十多年前就把自己的术语和标准定死了。所以 CUA 定了一个世界通用的「Ctrl+X 剪切、Ctrl+C 复制、Ctrl+V 粘贴」，Emacs 那边已经是既成事实了。</p>
+
+  <div class="callout note"><b>要点</b><p>Emacs 的 kill ring <strong>和操作系统的剪贴板不是一回事</strong>，但 Emacs 会尽力把两者打通。图形界面下 Emacs 通常会同时维护两个 kill ring（Emacs 自己用的 + 系统剪贴板），并且在合适的时候互相同步。<strong>Emacs 31 起有一个新默认值要注意</strong>：在支持鼠标和剪贴板事件的终端里，<code>xterm-mouse-mode</code> 默认开启了。这时你必须用 Emacs 自己的键位来做复制（也就是 <kbd>M</kbd><kbd>w</kbd>）才能把内容送到系统剪贴板，终端模拟器自己的 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> 反而不行。想要旧行为，把 <code>xterm-mouse-mode</code> 定制成 <code>nil</code> 即可。</p></div>
+
+  <details class="deep">
+    <summary>进阶：kill ring 的历史包袱，以及真的想用 Ctrl+X/C/V 该怎么办</summary>
+    <p>你可以把 kill ring 理解成 Emacs 早于图形界面时代的产物。那时候没有系统剪贴板，Emacs 需要自己保存「你最近剪过的东西」，环形缓冲区是最省事的方案。这个设计在别的编辑器身上没有对应物，纯粹是历史沉淀。</p>
+    <p>有些用户（尤其是从 Windows 过来的人）确实想把 <kbd>Ctrl</kbd>+<kbd>X</kbd>/<kbd>Ctrl</kbd>+<kbd>V</kbd> 绑成剪切粘贴。技术上只需两行配置（<code>global-set-key</code> 重新绑定）。原书的态度是别这么做，理由也成立：<kbd>Ctrl</kbd>+<kbd>X</kbd> 在 Emacs 里有前缀键的语义（<code>C-x C-f</code>、<code>C-x C-s</code>、<code>C-x C-k</code> 全都以它开头），把它改成剪切会让一大片常用命令变得难以按；而 kill ring 的 <kbd>M</kbd><kbd>y</kbd> 轮转能力是<strong>白拿的</strong>，换成系统剪贴板就没有了。</p>
+    <p>如果你确实需要频繁和外部程序交换文本，正确做法是：继续用 <kbd>M</kbd><kbd>w</kbd> / <kbd>C</kbd><kbd>y</kbd>，同时确保 Emacs 的剪贴板集成开着（图形界面下默认就是开的），这样 ring 顶部的条目会同步到系统剪贴板。本书第十五章讨论 Vim 模拟层时，会再回到这个话题。</p>
+  </details>
+
+  <div class="keys">
+    <h4>本节按键：kill ring</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>w</kbd></td><td><code>kill-region</code></td><td>删除 region 并放进 kill ring（Emacs 的「剪切」）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>w</kbd></td><td><code>kill-ring-save</code></td><td>复制 region 到 kill ring（Emacs 的「复制」）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>y</kbd></td><td><code>yank</code></td><td>从 kill ring 顶部取出并插入（Emacs 的「粘贴」）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>y</kbd></td><td><code>yank-pop</code></td><td>把刚刚 yank 进来的文本换成 kill ring 里的上一条</td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd> <kbd>w</kbd></td><td><code>append-next-kill</code></td><td>告诉 Emacs「把下一次 kill 追加到上一次的记录里」，两个删除变成一条</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.8 major mode 与 minor mode：Emacs 的行为开关系统</h3>
+
+  <p>第五个核心概念。Emacs 把「针对不同类型内容的不同行为」打包成两种东西：<strong>major mode</strong>（主模式）和 <strong>minor mode</strong>（次模式）。</p>
+
+  <h4>major mode：决定这个 buffer 怎么干活</h4>
+
+  <p><strong>major mode</strong>（主模式）控制一个 buffer 的整体行为。Emacs 通过一张中央注册表把文件扩展名映射到主模式：看到 <code>helloworld.py</code>，它知道该用 Python 主模式。规则很简单：</p>
+
+  <div class="callout note"><b>要点</b><p><strong>每个 buffer 有且只有一个 major mode。</strong>而且你随时可以手动换——换掉之后 Emacs 不会把它改回去（除非你重新打开文件）。</p></div>
+
+  <p>主模式可以非常朴素（比如 <code>fundamental-mode</code>，什么高亮都不做），也可以非常重（比如带语法高亮、复杂的缩进引擎、成百上千条专用命令）。</p>
+
+  <p>Emacs 判断用哪个主模式的机制有两层：</p>
+
+  <ol>
+    <li><strong>看文件扩展名。</strong>由变量 <code>auto-mode-alist</code> 完成映射，它是一张「文件名正则 → 主模式」的大表。在本机 Emacs 32.0.50 上，正则 <code>\.c\'</code> 映射到 <code>c-mode</code>，<code>\.ya?ml\'</code> 映射到 <code>yaml-ts-mode-maybe</code>，<code>\.md\'</code> 映射到 <code>markdown-ts-mode-maybe</code>（后两条都以 <code>-maybe</code> 结尾，说明 tree-sitter 模式已经渗进了日常的默认映射，见 1.8 节的折叠框）。<code>.py</code> 同样映射到 <code>python-mode</code>，只是它的正则和 <code>.pyi</code>、<code>.pyw</code> 合并写在同一条里，查不到单独的 <code>\.py\'</code>。这是 99% 的情况。</li>
+    <li><strong>看文件开头。</strong>扩展名不认识或者压根没有扩展名时，Emacs 会读文件的第一行找「模式提示」。有两种写法：shebang 行（<code>#!/usr/bin/env python</code>），或者 Emacs 专用的注释行（<code># -*- mode: python -*-</code>）。偶尔会猜错，这时你就得手动改。</li>
+  </ol>
+
+  <p><strong>怎么手动换？</strong>用 <code>M-x</code> 加上目标模式的名字执行它就行。模式名通常以 <code>-mode</code> 结尾：</p>
+
+  <pre class="term"><code>M-x text-mode RET          把当前 buffer 当成纯文本
+M-x fundamental-mode RET   只剩最基础的编辑功能
+M-x lisp-interaction-mode RET   变成一个可以求值 Elisp 的地方</code></pre>
+
+  <p>原书提到「你可以随时输入另一个模式的命令来改变 buffer 的 major mode」——这句今天依然成立，而且这是新手自救的第一手段：<code>C-h f</code> 查不到某个命令，多半是因为当前模式不对。</p>
+
+  <h4>关于「语法高亮」的术语</h4>
+
+  <p>Emacs 里语法高亮不叫 syntax highlighting，叫 <strong>font locking</strong>（字体锁定）。它的工作方式是给文本区间套上不同的 <strong>face</strong>（外观）：一个 face 是一组「颜色、字体、字号」属性的集合。Emacs 文档里 face 出现的频率很高，后面章节提到「改颜色」时，说的都是改某个 face。</p>
+
+  <p>Emacs 的 <code>font-lock</code> 和 <code>face</code> 这两个词都比「语法高亮」和「样式」出现得早，也因此和其他软件的用词对不上。这属于「术语比时代早」的典型例子。</p>
+
+  <h4>minor mode：可选的加料</h4>
+
+  <p><strong>minor mode</strong>（次模式）通常是可以选开的增强功能，可以对部分 buffer 开启，也可以对所有 buffer 全局开启。典型的例子是 <code>flyspell-mode</code>（实时拼写检查）、<code>auto-fill-mode</code>（自动折行）、<code>overwrite-mode</code>（覆盖模式）、<code>fill-paragraph</code> 相关行为等等。一个 buffer 可以同时开着一大堆 minor mode。</p>
+
+  <p>约定俗成的是：<strong>major mode 总是显示在 mode line 上</strong>；minor mode 一般也显示，但通常只显示那些明显改变 buffer 外观或交互方式的。</p>
+
+  <div class="callout warn"><b>易错</b><p>一个 32.1 才发生的行为变化：<strong>Emacs 32.1 起，在文件局部变量（file-local variables）里写一个 minor mode，现在会「启用」它，而不是「切换」它。</strong>以前是 toggle（切换）——你写了两遍就会互相抵消，Emacs 31.1 的 NEWS 把旧行为评价为「既不可靠，一般也不符合人们的期望」。如果你从老配置里抄了一段包含 minor mode 的文件局部变量过来，注意语义已经变了。</p></div>
+
+  <details class="deep">
+    <summary>进阶：tree-sitter 模式是什么时候、怎么接管传统模式的</summary>
+    <p>Emacs 30 起，<code>*-ts-mode</code> 系列被声明为对应传统主模式的<strong>子模式</strong>。这带来两个后果：文件里的 <code>-*- mode -*-</code> 提示、YASnippet 的代码片段集合这些按主模式名索引的东西，对 tree-sitter 模式同样生效；但通过 mode hook 安装的配置<strong>不会</strong>自动继承过去（因为声明了子模式并不等于继承行为）。</p>
+    <p>加载一个 tree-sitter 模式（比如用 <code>M-x load-library</code>）会触发<strong>重映射</strong>：以后访问 <code>.c</code> 文件就直接用 <code>c-ts-mode</code>，不再用 <code>c-mode</code>。</p>
+    <p>推荐的做法是用新变量 <code>major-mode-remap-alist</code> 明确表达你的偏好，因为它会覆盖「加载文件时顺便重映射」的自动行为：</p>
+    <pre class="el"><code>;; 永远用 tree-sitter 版 C 模式
+(add-to-list 'major-mode-remap-alist '(c-mode . c-ts-mode))
+
+;; 或者相反：C 文件就用传统的 c-mode
+(add-to-list 'major-mode-remap-alist '(c-mode))</code></pre>
+    <p>需要注意的是，tree-sitter 支持是<strong>编译期可选</strong>的：只有编译 Emacs 时带了 tree-sitter 支持，这些 <code>*-ts-mode</code> 才存在。如果你的 Emacs 里 <code>M-x c-ts-mode</code> 报「Command is undefined」，就是没编进去，树形高亮的细节留到本书第十二章。</p>
+  </details>
+
+  <div class="keys">
+    <h4>本节按键：模式</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd></td><td><code>describe-mode</code></td><td>说明当前 buffer 的 major mode 是干什么的、绑了哪些键</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>fundamental-mode</code></td><td><code>fundamental-mode</code></td><td>换成最基础的主模式（自救用）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>text-mode</code></td><td><code>text-mode</code></td><td>换成纯文本主模式</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>flyspell-mode</code></td><td><code>flyspell-mode</code></td><td>切换实时拼写检查（minor mode 的标准写法）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>auto-fill-mode</code></td><td><code>auto-fill-mode</code></td><td>切换自动折行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>overwrite-mode</code></td><td><code>overwrite-mode</code></td><td>切换覆盖模式（插入字符会顶掉后面的）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd></td><td><code>rectangle-mark-mode</code></td><td>进入矩形选区模式，做表格编辑</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.9 配置文件放哪：.emacs、init.el 与今天的位置</h3>
+
+  <p>最后一个必须当场结账的约定：Emacs 的用户配置在哪。</p>
+
+  <p>Emacs 用户最爱做的事就是互相分享配置片段，所以「配置文件在哪」是新手问得最多的问题。历史上有过好几套位置：</p>
+
+  <table>
+    <thead><tr><th>路径</th><th>出现时间</th><th>现在还用吗</th></tr></thead>
+    <tbody>
+      <tr><td><code>~/.emacs</code></td><td>最早</td><td><strong>Emacs 从不主动读它</strong>，但<strong>只要它存在就会改变 Emacs 的选择</strong>——Emacs 会因此改用 <code>~/.emacs.d/</code>（那个目录会被自动建出来）。这是「我在改 <code>~/.config/emacs/init.el</code> 却毫无效果」的<strong>头号原因</strong></td></tr>
+      <tr><td><code>~/.emacs.d/init.el</code></td><td>很早普及</td><td>还能用，而且<strong>优先级高于 XDG 目录</strong>：只要 <code>~/.emacs.d</code> 存在，<code>~/.config/emacs/</code> 就轮不到；但它不是推荐位置</td></tr>
+      <tr><td><code>$XDG_CONFIG_HOME/emacs/init.el</code><br>（<code>XDG_CONFIG_HOME</code> 未设置时即 <code>~/.config/emacs/init.el</code>）</td><td><strong>Emacs 27.1 起</strong></td><td><strong>推荐位置。</strong>Emacs 永远不会自动创建这个目录，得你自己建</td></tr>
+    </tbody>
+  </table>
+
+  <p>需要解释一下为什么会有 <code>.emacs.d</code> 这个「带点的目录」：Emacs 启动时会往你的用户目录里写好几个文件（package 下载的包、桌面文件、最近访问列表、各种自动保存文件），全堆在 <code>~</code> 下面太乱了，于是约定把它们收进一个隐藏目录 <code>~/.emacs.d/</code>。后来 freedesktop 的 XDG 目录规范普及，Emacs 27.1 起改用 <code>~/.config/emacs/</code>。Emacs 32 的官方手册里有一节叫「How Emacs Finds Your Init File」，上面这些规则都能在那一节查到。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong>Emacs 选哪个目录，有一条容易被忽略的优先级规则</strong>（Emacs 27.1 的 NEWS 与 32 的手册都写得很明确）：如果 <code>~/.emacs.d</code> 或 <code>~/.emacs</code> 或 <code>~/.emacs.el</code> <em>已经存在</em>，Emacs 就会用 <code>~/.emacs.d/</code>，<strong>即使 <code>~/.config/emacs/</code> 存在也一样</strong>。换句话说：<strong>你必须先把老的 <code>~/.emacs.d</code> 和 <code>~/.emacs</code> 删掉或改名，XDG 目录才会生效。</strong>如果 <code>~/.emacs.d</code> 不存在、Emacs 又决定用它（因为 XDG 目录也不存在），Emacs 会替你建出来；反过来，<code>$XDG_CONFIG_HOME/emacs</code> 永远不会被 Emacs 自动创建。你以为自己在改 <code>~/.config/emacs/init.el</code> 却毫无效果，多半就是踩了这一条。</p></div>
+
+  <p>Emacs 选定的那个目录，会被写进 <strong><code>user-emacs-directory</code></strong> 变量。<strong>它在这台机器上到底是什么，取决于你的 <code>HOME</code> 里已经有什么，不是固定值。</strong>所以别照抄任何人的路径，按 <kbd>M</kbd><kbd>x</kbd> 查这一个变量就够了——它一定是你这台机器真正会用的那个目录：</p>
+
+  <pre class="term"><code>M-x user-emacs-directory RET
+
+"~/.emacs.d/"           ← HOME 下什么都没有时是这个（全新机器最常见）
+"~/.config/emacs/"       ← ~/.config/emacs/ 已经存在时是这个</code></pre>
+
+  <p>然后拼上 <code>init.el</code> 就是你要粘配置的文件。<strong>想直接看完整路径，用 <kbd>M</kbd><kbd>x</kbd> 输入 <code>user-init-file</code></strong>（在正常启动的 Emacs 里它就是你那个 init 文件的完整路径；只有 <code>emacs -Q</code> / <code>--batch</code> 这种「故意不读配置」的方式才会把它显示成 <code>nil</code>）。</p>
+
+  <div class="callout note"><b>要点</b><p>这一条本书作者实测了四种情况：<code>HOME</code> 全空 → <code>~/.emacs.d/</code>；预建 <code>~/.config/emacs/</code> → <code>~/.config/emacs/</code>；预建 <code>~/.emacs.d/</code> → <code>~/.emacs.d/</code>；只有一个 <code>~/.emacs</code> 文件 → <code>~/.emacs.d/</code>。<strong>结论就是：你在网上或本书里看到的任何一个具体路径都可能是你那台机器的正确答案，也可能不是。</strong>所以第 0 章让你先查再动手，就是为这件事。</p></div>
+
+  <p>在 Windows 上，Emacs 同样认 <code>XDG_CONFIG_HOME</code> 环境变量，默认基准目录也是 <code>~/.config</code>。想要更符合 Windows 习惯的位置，就把 <code>XDG_CONFIG_HOME</code> 设成 <code>%APPDATA%</code>，init 文件就落在 <code>%APPDATA%\emacs\init.el</code>。这条对本书后面的章节不产生任何差别，不必现在纠结。</p>
+
+  <div class="callout note"><b>要点</b><p>所以当有人说「把你的 <code>.emacs</code> 文件改成这样」或者「<code>init.el</code> 怎么写」，他们指的就是上面这个<strong>init 文件</strong>。正确的变量名是 <code>user-init-file</code>。<strong>本书作者在 Emacs 32.0.50 上实测过</strong>：<code>init-file</code> 这个变量求值会得到 <em>void-variable</em> 错误——网上和旧书里常见的那个名字在今天的 Emacs 里已经不能用了。如果你看到有人让你 <code>(setq init-file ...)</code>，那是过时写法。</p></div>
+
+  <h4>改完配置怎么生效</h4>
+
+  <p>原书在这里给了一个非常朴素的建议：<strong>对初学者来说，改完 init 文件就重启 Emacs。</strong>这个建议今天依然是最稳的。Emacs 读配置文件的时机是启动时；运行中改文件不会自动生效。</p>
+
+  <p>当然还有更快的办法，本书第十三章会详细讲：<code>M-x eval-buffer</code>（把当前 buffer 当 Elisp 求值，改 init 文件时用这个）、<code>M-x load-file</code>（加载指定文件）、<code>M-x restart-emacs</code>（重启并自动重新加载配置）。<code>M-x eval-buffer</code> 和 <code>M-x load-file</code> 都是内置的交互命令。</p>
+
+  <div class="callout note"><b>要点</b><p><strong>Emacs 31 新增的 <code>user-lisp/</code> 目录</strong>：如果你的 Emacs 配置目录里放一个叫 <code>user-lisp/</code> 的子目录，Emacs 启动时会递归地扫描它——里面的 Lisp 文件会被字节编译（byte-compile）、抓取 autoload 标记，并加入 <code>load-path</code>。这等于给你自己的私有函数和宏开了一个「不用自己 require、也不会污染 <code>load-path</code>」的干净位置。处理目录名可以用选项 <code>user-lisp-directory</code>，随时手动重扫用 <code>M-x prepare-user-lisp</code>；不想要这个行为就把 <code>user-lisp-auto-scrape</code> 设成 <code>nil</code>。</p></div>
+
+  <div class="callout warn"><b>易错</b><p><strong>Emacs 不会自动保存你在它内部做的设置。</strong>你在 Emacs 里改了某个选项，那个改动只存在于内存里。你必须通过 <strong>Customize</strong> 界面（<code>M-x customize</code>）保存，它会把结果写进你的 init 文件。反过来说：<strong>如果你把 Emacs 配崩了，退出再启动就恢复了</strong>——<strong>但这条只对「纯本地配置」成立。</strong>如果你的 init 文件里有会在启动时联网装包的东西（比如 <code>(setq use-package-always-ensure t)</code> 加上某个 <code>use-package</code> 块），网络一断它照样崩，「退出再启动」救不了你。<strong>所以第 0 章那份配置在贴进去之前，先把 init 文件备份一份</strong>（复制成 <code>init.el.bak</code>），万一起不来就把它换回去——这比任何急救手段都可靠。第 13 章会讲怎么让启动过程和崩溃调试都可控。</p></div>
+
+  <h4>不想自己写配置：starter kit（起步套件）</h4>
+
+  <p>如果你完全不想从零配 Emacs，有一批社区维护的 <strong>starter kit</strong>（一键配置套装）：它们是一堆社区贡献的配置文件，打包了作者认为合理的默认值和一堆第三方包。</p>
+
+  <p>好处是上手极快。坏处正如原书所说：<strong>你不知道 Emacs 本身在哪里、套件加的东西在哪里</strong>。你可能会遇到「我的 Emacs 坏了」，却完全无从下手，因为你不了解全貌。</p>
+
+  <ul>
+    <li><strong>Doom Emacs</strong> —— 目前最流行的一套，模块化配置系统（<code>modules</code>），自带性能优化、界面主题和常用包。github.com/hlissner/doom-emacs。它比较重，依赖大量第三方包。装之前想清楚你是想学 Emacs，还是想用 Doom。</li>
+    <li><strong>Crafted Emacs</strong> —— 系统化、文档导向的入门配置，适合想「按部就班把 Emacs 摸一遍」的人。github.com/SystemCrafters/crafted-emacs。</li>
+    <li><strong>Steve Purcell 的 emacs.d</strong> —— 一套久经考验的纯文本配置，作者是有二十年经验的老用户。github.com/purcell/emacs.d</li>
+    <li><strong>Prelude</strong>（Bozhidar Batzov）—— 原书推荐的经典之一，<strong>但这个项目已经多年不再维护</strong>，作者后来的几个后继项目也都已经停止。如果你今天要选，优先考虑上面三个。（这一条说的是本书写作时的社区状况；具体项目今天是否仍在更新，请以它自己的仓库为准。）</li>
+  </ul>
+
+  <div class="callout tip"><b>技巧</b><p>不管用不用 starter kit，都建议你自己动手写过一个完整配置之后再去用它。区别在于：自己配过一遍的人，遇到问题知道去哪查；没配过的人，遇到问题只能换套件或者放弃。</p></div>
+
+  <h4>用图形界面改选项：Customize</h4>
+
+  <p>不想写 Elisp 也有路走。<strong>Customize</strong> 是 Emacs 内置的选项浏览器，它把几百个用户选项组织成一棵可搜索的树，勾选之后点「保存」就会写进你的 init 文件。相关命令：</p>
+
+  <pre class="term"><code>M-x customize                    打开 Customize 主界面（顶层）
+M-x customize-set-variable      直接跳到某个变量去设置
+M-x customize-variable          设置一个变量
+M-x customize-face             设置一个外观（颜色、字体）
+M-x load-theme                  切换配色主题</code></pre>
+
+  <p>顺带纠正一个常见错误：<strong>没有 <code>M-x customize-theme</code> 这个命令</strong>，换主题的命令是 <code>M-x load-theme</code>。（容易混淆的是它有个复数的表亲 <code>M-x customize-themes</code>，那是另一回事，见下。）主题名可以直接在 minibuffer 里用 <kbd>C</kbd><kbd>t</kbd> 触发补全——输入 <code>modus-</code> 你会发现 <code>modus-operandi</code>（浅色）和 <code>modus-vivendi</code>（深色）这对主题。它们<strong>从 Emacs 28 起就是内置的</strong>，官方 NEWS 用的词是「高度无障碍」（highly accessible），经过对比度检查；Emacs 30 又补上了 <code>-tinted</code>、<code>-deuteranopia</code>、<code>-tritanopia</code> 等变体凑成八件套，方便按色觉类型挑。</p>
+
+  <div class="callout warn"><b>易错</b><p>老资料常说「<code>M-x load-theme</code> 之后按 <kbd>C</kbd><kbd>c</kbd> 可以逐个预览主题」。<strong>今天没有这回事</strong>：<code>load-theme</code> 用的是普通补全（<code>completing-read</code>），提示符里只支持 <kbd>C</kbd><kbd>t</kbd> / <kbd>TAB</kbd> 补全，按 <kbd>C</kbd><kbd>c</kbd> 不会切换主题。想一个一个看主题、边看边勾选，用的是另一个命令：<code>M-x customize-themes</code>（注意是复数），它打开一个 <code>*Custom Themes*</code> 缓冲区，每个主题前面有一个勾选框，勾上立刻生效，最后用 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd> 保存。</p></div>
+
+  <div class="keys">
+    <h4>本节按键：配置与主题</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>customize</code></td><td><code>customize</code></td><td>打开 Customize 选项浏览器（注意别和 <kbd>C</kbd><kbd>h</kbd> <kbd>a</kbd> 混淆，那个键是 <code>apropos-command</code>）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd></td><td><code>describe-variable</code></td><td>查一个变量：当前值、取值含义、怎么改</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>load-theme</code></td><td><code>load-theme</code></td><td>切换配色主题</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>eval-buffer</code></td><td><code>eval-buffer</code></td><td>把当前 buffer 当 Elisp 求值（改完 init 文件立刻生效）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>load-file</code></td><td><code>load-file</code></td><td>加载指定的 Elisp 文件</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>restart-emacs</code></td><td><code>restart-emacs</code></td><td>重启 Emacs（重启时会自动重新求值配置）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>package-refresh-contents</code></td><td><code>package-refresh-contents</code></td><td>刷新可用包的列表</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>package-install</code></td><td><code>package-install</code></td><td>按名字安装包</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>doctor</code></td><td><code>doctor</code></td><td>体检：系统、编码、启动过程哪里不对</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>save-buffers-kill-terminal</code></td><td>询问保存后退出 Emacs</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.10 本章速查：随时问 Emacs 自己</h3>
+
+  <p>Emacs 是<strong>自文档化</strong>的编辑器——文档就是它自己的源代码和运行时状态。这一点值得单独强调，因为它是你日后最好的学习工具。</p>
+
+  <p>原书把这个能力单独列为一章（第九章），但从第一章起你就应该用它，而不是去搜索引擎里瞎猜。下面这些入口按「查命令 / 查按键 / 查变量 / 查文档」分组列全：</p>
+
+  <div class="keys">
+    <h4>本节按键：自助查询</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd></td><td><code>describe-function</code></td><td>输入命令名，看它的文档、绑定和当前键位</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd></td><td><code>describe-key</code></td><td>按一个键，看它到底绑到了什么命令</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>c</kbd></td><td><code>describe-key-briefly</code></td><td>按一个键，只回显「这个键做什么」</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd></td><td><code>describe-variable</code></td><td>输入变量名，看它的含义和当前值</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd></td><td><code>describe-mode</code></td><td>看当前主模式的说明和它自己的键位表</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>d</kbd></td><td><code>apropos-documentation</code></td><td>按关键词模糊搜索所有命令和变量</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd></td><td><code>info</code></td><td>打开 Info 手册阅读器（Emacs 官方文档的格式）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>r</kbd></td><td><code>info-emacs-manual</code></td><td>直接打开 Emacs 手册主页；里面有 Elisp 入门教程</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>h</kbd></td><td><code>help-for-help</code></td><td>「帮助的帮助」：教你怎么用这套帮助系统</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>t</kbd></td><td><code>help-with-tutorial</code></td><td>交互式教程，会带着你亲手敲一遍基本操作</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>a</kbd></td><td><code>about-emacs</code></td><td>打开「Emacs 快速上手」面板，新手最该先看的一页</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd></td><td><code>keyboard-quit</code></td><td>打断正在执行的命令（Emacs 卡住时先按它）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip"><b>技巧</b><p>本章反复出现的按键记号，这里统一解释一次：<kbd>C</kbd> 表示 Control 键，<kbd>M</kbd> 表示 <strong>Meta</strong> 键，<kbd>S</kbd> 表示 Shift 键。两个记号之间有空格表示「先按前一个，再按后一个」，比如 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 是先按住 Control 敲 <kbd>X</kbd>，松开，再按住 Control 敲 <kbd>F</kbd>。<strong>Mac 上最常踩的坑恰好在这里，而且方向和传闻相反：默认是 <kbd>Option</kbd>（写作 <kbd>Alt</kbd>）当 Meta，<kbd>Command</kbd> 并不当 Meta——它是 <code>super</code> 修饰键</strong>。所以网上抄来的「Mac 上 <kbd>M</kbd> 等于 <kbd>Command</kbd>」是错的，照着它找键位会处处对不上。想要 <kbd>Command</kbd> 直接当 Meta 用，改两个变量即可（把它们写进 init 文件，Emacs 26 起支持）：<code>(setq ns-alternate-modifier 'none)</code> 让 <kbd>Option</kbd> 交还给系统（用来打重音字母），再 <code>(setq ns-command-modifier 'meta)</code>。随时可以用 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 查 Emacs 认为某个键该做什么。</p></div>
+
+  <h3>1.11 练习</h3>
+
+  <p>下面十二道题覆盖本章的全部核心概念。答案都能验证，动手敲一遍比读十遍有用。</p>
+
+  <div class="drill" data-answer="buffer 不是文件">
+    <p class="drill-q"><b>练习 1</b>　Emacs 里「所有文件都是 buffer，但不是所有 buffer 都是文件」这句话，反过来说明了一件什么事？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>说明 buffer 是 Emacs 的一等数据对象，它的存在不依赖磁盘上的文件。你可以创建、编辑、关闭一个从不落盘的 buffer（比如 <code>*scratch*</code>），只有显式执行保存才会产生文件；反过来，Emacs 也随时会把一个进程（比如 shell）的输出当成 buffer 让你编辑。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x 2 split-window-below / C-x 3 split-window-right">
+    <p class="drill-q"><b>练习 2</b>　要一个 Emacs 窗口里上下分屏和左右分屏，分别是哪两个键？对应的命令名是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>上下分屏是 <kbd>C</kbd><kbd>x</kbd> <kbd>2</kbd>（<code>split-window-below</code>），左右分屏是 <kbd>C</kbd><kbd>x</kbd> <kbd>3</kbd>（<code>split-window-right</code>）。注意这两个是 <em>window</em> 的操作，一个 frame 被切成多个 window，每个 window 显示一个 buffer。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x C-f 打开文件，C-x 4 f 在另一个 window 打开">
+    <p class="drill-q"><b>练习 3</b>　一个 frame 里已经有两个 window，处在左边那个。你想打开一个文件但不要换掉左边的内容，应该用哪个键位组合？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>x</kbd> <kbd>4</kbd> <kbd>f</kbd>，命令是 <code>find-file-other-window</code>：它会在另一个 window 里打开文件，当前 window 保持不动。如果想在另一个 <em>frame</em>（新窗口）里打开，那是 <kbd>C</kbd><kbd>x</kbd> <kbd>5</kbd> <kbd>f</kbd>（<code>find-file-other-frame</code>）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-SPC 设 mark，C-x C-SPC 是 pop-global-mark">
+    <p class="drill-q"><b>练习 4</b>　用键盘在 Emacs 里设置 region 的起点（设 mark），用哪个键？它背后的命令名是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd> <kbd>SPC</kbd>（在终端里通常发成 <kbd>C</kbd><kbd>@</kbd>，两者绑同一个命令），命令是 <code>set-mark-command</code>。在当前 point 位置设下 mark，之后你移动 point 选中的那段文本就是 region。注意别记混：<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>SPC</kbd> 绑的是 <code>pop-global-mark</code>，那是「跳回上一个 mark 位置」，不是设 mark。<kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd>（<code>exchange-point-and-mark</code>）则可以在两端之间来回跳。</p></div>
+  </div>
+
+  <div class="drill" data-answer="kill / yank / kill-ring-save">
+    <p class="drill-q"><b>练习 5</b>　把「剪切、复制、粘贴」这三个动作翻译成 Emacs 的术语，分别是什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>剪切是 <strong>kill</strong>（<kbd>C</kbd><kbd>w</kbd>，<code>kill-region</code>），复制是 <strong>kill-ring-save</strong>（<kbd>M</kbd><kbd>w</kbd>，口语上直接叫 copy），粘贴是 <strong>yank</strong>（<kbd>C</kbd><kbd>y</kbd>）。它们共享一个叫 <strong>kill ring</strong> 的环形缓冲区，用 <kbd>M</kbd><kbd>y</kbd>（<code>yank-pop</code>）可以在里面往回转。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-w 复制到 kill ring，buffer 内容不变">
+    <p class="drill-q"><b>练习 6</b>　你选中了一段文字，按了 <kbd>M</kbd><kbd>w</kbd>，屏幕上什么都没发生。这正常吗？为什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>完全正常。<kbd>M</kbd><kbd>w</kbd> 是 <code>kill-ring-save</code>，也就是 Emacs 的「复制」——它把 region 复制进 kill ring 顶部的位置，但<strong>不修改 buffer</strong>，所以屏幕上看不出任何变化。它的效果要等你按 <kbd>C</kbd><kbd>y</kbd> 才会显现。</p></div>
+  </div>
+
+  <div class="drill" data-answer="每个 buffer 有且只有一个 major mode，minor mode 可以有多个">
+    <p class="drill-q"><b>练习 7</b>　一个 buffer 能同时有几个 major mode？几个 minor mode？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>major mode 有且<strong>只有一个</strong>；minor mode 可以有任意多个。major mode 决定这个 buffer 的整体行为（语法高亮、缩进规则、专用命令），由文件扩展名或文件头的模式提示决定；minor mode 是可选增强（比如 <code>flyspell-mode</code>、<code>auto-fill-mode</code>），随时可以增删。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x fundamental-mode（模式名以 -mode 结尾）">
+    <p class="drill-q"><b>练习 8</b>　你打开了一个内容很怪的文件，Emacs 猜错了主模式，导致所有快捷键都不好使。最快的自救办法是什么命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>M-x fundamental-mode</code>（回车），把 buffer 换成最基础的主模式，键位全部恢复默认。然后你就能正常用 <kbd>C</kbd> <kbd>SPC</kbd> 之类的键了。Emacs 不会自动把模式改回去。同一手法也可以换成 <code>M-x text-mode</code>（纯文本）或者任何一个别的模式命令——凡是名字以 <code>-mode</code> 结尾的，通常都能用 <code>M-x</code> 直接调起来。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x user-emacs-directory，看它加 init.el；变量名 user-init-file">
+    <p class="drill-q"><b>练习 9</b>　你的 Emacs 的 init 文件实际放在哪？用什么命令当场查出来？（注意：没有唯一答案，取决于你机器上已经有哪些目录。）</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>x</kbd> 输入 <code>user-emacs-directory</code> 回车，Emacs 会显示你<strong>这台机器</strong>真正会用的那个目录，在它下面找 <code>init.el</code> 就行。想直接看完整路径用 <code>user-init-file</code>（在正常启动的 Emacs 里）。<strong>常见结果是两种</strong>：<code>~/.emacs.d/</code>（<code>HOME</code> 下什么都没有时的默认）或 <code>~/.config/emacs/</code>（这个目录已经存在时）。<strong>所以别抄别人的路径</strong>——历史路径 <code>~/.emacs</code> 已经不再读取，<code>~/.emacs.d/init.el</code> 还能用但优先级高于 XDG 目录。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x load-theme">
+    <p class="drill-q"><b>练习 10</b>　想在 Emacs 里换一个配色主题，正确命令是什么？为什么 <code>M-x customize-theme</code> 是错的？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>正确命令是 <code>M-x load-theme</code>，在它的提示符后按 <kbd>C</kbd><kbd>t</kbd> / <kbd>TAB</kbd> 补全会列出所有可用主题。<code>M-x customize-theme</code> 在今天的 Emacs 里根本不存在（敲了会报 command is undefined），因为主题是 theme 而不是 custom 选项；真正用来浏览主题的是它的复数版 <code>M-x customize-themes</code>，会打开一个带勾选框的 <code>*Custom Themes*</code> 缓冲区。</p></div>
+  </div>
+
+  <div class="drill" data-answer="配置门槛、离 Vim 肌肉记忆远、包质量参差、启动要调优、单线程">
+    <p class="drill-q"><b>练习 11</b>　请至少说出三项 Emacs 的真实代价（不是优点）。</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>常见答案：① 配置门槛高，开箱即用体验差；② 键位与 Vim 的肌肉记忆差得远，想用 <code>hjkl</code> 得装第三方包 Evil；③ 第三方包质量参差不齐，需要自己判断维护状态；④ 启动速度需要调优，配置臃肿时可达数秒；⑤ Elisp 解释器单线程，长任务会卡住界面；⑥ 重型插件（如 LSP、大量 major mode）能显著拖慢启动和日常操作。至少能说出三项，才算真的理解这一章的取舍。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-x lunar-phases 与 M-x eww（不是 M-x lunar / M-x eww-open）">
+    <p class="drill-q"><b>练习 12</b>　网上和很多旧资料里会写 <code>M-x eww-open</code> 和 <code>M-x lunar</code>。在今天的 Emacs 31/32 里，这两个命令各应该怎么写？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>浏览器是 <code>M-x eww</code>（<code>M-x browse-web</code> 是同一个命令的旧别名，仍然可用）；月相查询是 <code>M-x lunar-phases</code>。本章提到的另一个常见错写是换主题：没有 <code>M-x customize-theme</code>，只有 <code>M-x load-theme</code>。养成用 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 核实命令名的习惯，这类问题就不会再坑你。</p></div>
+  </div>
+</section>

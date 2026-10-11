@@ -1,0 +1,796 @@
+<section class="ch" id="ch-07-editing-b" data-stage="进阶" data-min="35">
+  <h2 class="ch-title">七、编辑理论（二）：替换、大小写、计数、文本操作</h2>
+  <p class="ch-lead">上一章讲了怎么「安全地删」。这一章讲怎么「批量地改」：把一处改动同步到全文件、按条件筛行、在表格里对齐着批量编辑。光靠单键操作写不出这些东西，但只要学会本章的替换、过滤和矩形编辑，Emacs 就能替代掉你平时随手开的那些文本处理小工具。</p>
+  <p>读完你应该能：熟练使用 <strong>query-replace</strong>（交互式替换，逐条确认）并说清它每一键的含义；写出符合 Emacs 方言的正则表达式，知道它比 PCRE 少什么、多什么；在正写的过程中用三个 <kbd>M</kbd> 键改大小写；用 <code>keep-lines</code> / <code>flush-lines</code> 筛行；用矩形命令批量处理对齐好的表格。本章覆盖原书第 209–234 页（<em>Search and Replace</em>、<em>Changing Case</em>、<em>Counting</em>、<em>Text Manipulation</em>）。</p>
+  <p><strong>本章的每一条键位、命令名和默认值，都在 Emacs 32.0.50 上用 <code>(key-binding …)</code> 和 <code>(fboundp …)</code> 实测核对过</strong>；与原书写成书时的 Emacs 26–30 不一致的地方，正文会单独标出「今天的做法」。</p>
+
+  <h3>一、搜索与替换：Emacs 最有生产力的一个命令</h3>
+
+  <h4>1.1 两个家族：交互式与非交互式</h4>
+
+  <p>Emacs 的替换命令分两族，区别只有一条：<strong>要不要逐条问你</strong>。</p>
+
+  <div class="keys">
+    <h4>搜索与替换命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>%</kbd></td><td><code>query-replace-regexp</code></td><td>交互式正则替换：每找到一个就问你要不要换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>%</kbd></td><td><code>query-replace</code></td><td>交互式字面量替换（模式按纯文本处理）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>replace-regexp</code></td><td><code>replace-regexp</code></td><td>非交互式正则替换，不问，全部换掉</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>replace-string</code></td><td><code>replace-string</code></td><td>非交互式字面量替换，不问，全部换掉</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>名字里的 <strong>query</strong> 就是「提问」的意思：<code>query-replace</code> 会把每一处匹配高亮出来，然后停下来等一个键。<code>replace-string</code> / <code>replace-regexp</code> 是它们的「闷头干活」版本，一次跑完，<em>不能撤销单次替换，只能整体 <kbd>C</kbd><kbd>-</kbd> 撤销</em>。所以除非你写 Elisp 脚本，日常请一律用 <kbd>M</kbd><kbd>%</kbd> 和 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd>。</p>
+
+  <div class="callout warn"><b>易错</b><p><code>replace-regexp</code> 改坏了整个缓冲区之后想反悔？<kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 能把缓冲区<em>整个</em>恢复到替换前的状态——因为整批替换在 undo 列表里属于<strong>同一个命令的一组记录，中间没有撤销边界</strong>（本机实测：替换 5 处之后 <code>buffer-undo-list</code> 里是 5 条连续的删除记录 <code>("a" 10) ("a" 8) ("a" 6) ("a" 4) ("a" 2)</code>，它们之间没有 <code>nil</code> 边界，所以一次 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 全退）。<strong>但只要你紧接着敲了别的编辑命令，这组记录就整体失效了</strong>。这不是 Emacs 特意为难你，而是「一步撤销一整批修改」和「随时插入别的操作」在数据结构上无法同时成立。养成习惯：先想清楚再敲，敲错了立刻 <kbd>C</kbd><kbd>-</kbd>。</p></div>
+
+  <p>用 <code>query-replace</code> 时，<strong>顺序是：先问搜索串，再问替换串，最后才开始逐条确认</strong>。按 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 时，本机源码 <code>replace.el</code> 给出的第一个提示串是 <code>Query replace regexp</code>（小输入框自动补上 <code>: </code>）；回车后第二个提示由 <code>(format "%s %s with: " prompt (query-replace-descr from))</code> 拼出来，实际长这样：<code>Query replace regexp Hello with: </code>——<strong>你刚搜的内容就夹在中间</strong>，而且会被预填成初值，所以直接按 <kbd>RET</kbd> 等于「用同样的东西替换」（这不是 bug，敲 <kbd>e</kbd> 就能回去改它）。填完替换串才进入 <code>Replace this occurrence?</code> 的循环。两个输入框之间可以用 <kbd>M</kbd><kbd>s</kbd> <kbd>t</kbd> 来回横跳（命令 <code>query-replace-read-transpose-from-to</code>，本机实测确认它绑在 <code>query-replace-read-map</code> 上）。</p>
+
+  <h4>1.2 逐条确认：记住常用的这十来个键就够用了</h4>
+
+  <p>这是 <code>query-replace</code> 的交互界面。下面这张表逐条<strong>抄自 Emacs 32.0.50 源码里 <code>replace.el</code> 的 <code>query-replace-map</code> 键表定义</strong>（不是转述，所以不会有出入）；抄的是<em>最常用的那十几个</em>，那张表里另外还有 <kbd>C</kbd><kbd>r</kbd>（<code>edit</code>，重开一轮替换）、<kbd>C</kbd><kbd>l</kbd>（<code>recenter</code>）、以及上下翻页与滚动其它窗口的那几个键，忘了随时 <kbd>C</kbd><kbd>h</kbd><kbd>f</kbd> 查。</p>
+
+  <div class="keys">
+    <h4><code>query-replace</code> 提问时的按键</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>SPC</kbd> / <kbd>y</kbd></td><td><code>act</code></td><td>替换这一个，继续找下一个</td></tr>
+        <tr><td><kbd>n</kbd></td><td><code>skip</code></td><td>不替换这一个，跳过（直接按 <kbd>DEL</kbd> 也是跳过）</td></tr>
+        <tr><td><kbd>.</kbd></td><td><code>act-and-exit</code></td><td>替换这一个，然后直接退出整个替换</td></tr>
+        <tr><td><kbd>,</kbd></td><td><code>act-and-show</code></td><td>替换这一个，但<strong>停在这一处不动</strong>，方便你看清楚结果再决定</td></tr>
+        <tr><td><kbd>q</kbd> / <kbd>RET</kbd> / <kbd>ESC</kbd></td><td><code>exit</code> / <code>exit-prefix</code></td><td>退出，不替换当前这个</td></tr>
+        <tr><td><kbd>!</kbd></td><td><code>automatic</code></td><td><strong>剩下的一律替换，不再问</strong></td></tr>
+        <tr><td><kbd>^</kbd></td><td><code>backup</code></td><td>光标退回上一个匹配处（改主意时用）</td></tr>
+        <tr><td><kbd>u</kbd> / <kbd>U</kbd></td><td><code>undo</code> / <code>undo-all</code></td><td>撤销上一次替换 / 撤销本次替换会话里的全部替换</td></tr>
+        <tr><td><kbd>e</kbd> / <kbd>E</kbd></td><td><code>edit-replacement</code> / <code>edit-replacement-exact-case</code></td><td>回小输入框改替换串（<kbd>E</kbd> 版不改动大小写规则）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>w</kbd></td><td><code>delete-and-edit</code></td><td>删掉当前匹配，然后进入递归编辑手动敲正确的</td></tr>
+        <tr><td><kbd>d</kbd></td><td><code>diff</code></td><td>弹出 diff 缓冲区，看全部替换前后的对比</td></tr>
+        <tr><td><kbd>C</kbd><kbd>h</kbd> / <kbd>?</kbd> / <kbd>F1</kbd></td><td><code>help</code></td><td>在当前界面下呼出帮助</td></tr>
+        <tr><td><kbd>C</kbd><kbd>g</kbd> / <kbd>C</kbd><kbd>]</kbd></td><td><code>quit</code></td><td>中止整个替换</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout note"><b>要点</b><p>最该先记住的其实只有三个：<kbd>SPC</kbd> 换下一个、<kbd>n</kbd> 跳过、<kbd>!</kbd> 全部换掉。特别提醒 <kbd>,</kbd>（逗号）这个键——它的行为反直觉：<strong>按下去之后 Emacs 确实替换了，但<em>不</em>继续走，光标就留在这一处不动</strong>，等你打量清楚了再按 <kbd>SPC</kbd> 继续。它对应命令 <code>act-and-show</code>，意思是「替换了，但让你看一眼」。</p></div>
+
+  <div class="callout warn"><b>易错</b><p>在 <code>query-replace</code> 的提问界面里按 <kbd>e</kbd> 是<strong>「编辑替换串」</strong>，不是别的东西。本章第五节讲 <code>occur</code> 模式时也有一个 <kbd>e</kbd>，含义是「进入可编辑模式」——两个完全无关的功能在 Emacs 里各占一个 <kbd>e</kbd>，很容易记混。不过「记法」那条要更正一下：现代 Emacs 里 <code>occur</code> <strong>并不住在 <code>occur.el</code></strong>，那个文件早就不存在了（本机实测 <code>(require 'occur)</code> 直接报 <em>Cannot open load file</em>，整个 <code>lisp/</code> 目录里也搜不到 <code>occur.el</code>），<code>occur</code> 现在和 <code>query-replace</code> 同住在 <code>replace.el</code> 里。真正能记的只有一句：<code>e</code> = <code>occur-edit-mode</code>。</p></div>
+
+  <h4>1.3 在 Isearch 里直接替换</h4>
+
+  <p>如果你已经在用 <strong>Isearch</strong>（增量搜索，边打字边跳的那种，本系列第五章讲过），不需要退出来重新敲 <kbd>M</kbd><kbd>%</kbd>——搜索过程中直接按下面这几个键就能就地开始，<strong>你刚搜的那个串会作为搜索串填进去，不用重新敲一遍</strong>。</p>
+
+  <div class="keys">
+    <h4>Isearch 状态下的替换</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>%</kbd></td><td><code>isearch-query-replace-regexp</code></td><td>就着当前搜索串开始交互式正则替换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>%</kbd></td><td><code>isearch-query-replace</code></td><td>就着当前搜索串开始交互式字面量替换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd></td><td><code>isearch-occur</code></td><td>把当前搜索串的结果列成一个 <code>occur</code> 缓冲区</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>这三个键位本机实测确认（用 <code>(lookup-key isearch-mode-map …)</code> 与 <code>(lookup-key (lookup-key isearch-mode-map (kbd "M-s")) …)</code> 查询）。<kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd> 有个细节：从 <code>isearch-mode-map</code> 里直接查 <kbd>o</kbd> 得到的是 <code>isearch-printing-char</code>，因为 <kbd>M</kbd><kbd>s</kbd> 本身是个前缀键，得再按一层 <kbd>o</kbd> 才轮到 <code>isearch-occur</code>。实际使用没区别，只是别被键位查询的结果误导。</p>
+
+  <h4>1.4 大小写折叠：Emacs 最贴心的一处设计</h4>
+
+  <p>先看一个具体现象。假设缓冲区里有这么几行：</p>
+
+  <pre class="term"><code>HELLO_WORLD = "Hello, World!"
+function hello() {
+    print(HELLO_WORLD)
+}
+</code></pre>
+
+  <p>现在用 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 把 <code>hello</code> 换成 <code>goodbye</code>。Emacs 的结果<strong>不是</strong>你可能预期的「全部小写」或「全部原样」，而是<strong>逐处沿用被匹配文本的大小写形状</strong>：</p>
+
+  <pre class="term"><code>GOODBYE_WORLD = "Goodbye, World!"
+function goodbye() {
+    print(GOODBYE_WORLD)
+}
+</code></pre>
+
+  <p>这<strong>不是</strong>原书的举例需要，是 Emacs 的默认行为，我在本机 Emacs 32.0.50 上实跑验证过：缓冲区内容为 <code>hello HELLO Hello</code>，默认设置下执行 <code>(replace-regexp "hello" "goodbye")</code>，结果是 <code>goodbye GOODBYE Goodbye</code>；而把 <code>case-replace</code> 设成 <code>nil</code> 之后，结果变成 <code>goodbye goodbye goodbye</code>。</p>
+
+  <p>这个行为由两个变量控制，它们都在「Emacs 自己的实际源码 / 文档字符串」里定义：</p>
+
+  <ul>
+    <li><code>case-fold-search</code>（默认 <code>t</code>）：搜索时<strong>忽略大小写</strong>。</li>
+    <li><code>case-replace</code>（默认 <code>t</code>）：替换时<strong>沿用匹配文本的大小写</strong>。设成 <code>nil</code> 就是「一律按你输入的替换串原样插入」。</li>
+  </ul>
+
+  <p>但<strong>「忽略大小写」有一条重要的例外</strong>：如果你的<em>搜索串里含有大写字母</em>，Emacs 会自动把它当成「大小写敏感」来搜。这一点由第三个变量 <code>search-upper-case</code> 控制，默认值是 <code>not-yanks</code>，文档字符串原文是：</p>
+
+  <pre class="el"><code>If non-nil, upper case chars disable case fold searching.
+That is, upper and lower case chars must match exactly.</code></pre>
+
+  <p>实测印证：默认设置下 <code>(replace-regexp "HELLO" "goodbye")</code> 在 <code>hello HELLO Hello</code> 上只替换了中间那一个，结果 <code>hello goodbye Hello</code>。<strong>所以原书那句「如果你搜的是 <code>Hello</code> 或 <code>HELLO</code>，Emacs 只会替换字面吻合的那些」是对的</strong>，但要说清它依赖的是这个默认变量，而不是「永远大小写敏感」。</p>
+
+  <p>同一条规则在 <code>replace-regexp</code> 的文档字符串里被写得更死（原文：<em>“Preserve case in each match if <code>case-replace</code> and <code>case-fold-search</code> are non-nil <strong>and REGEXP has no uppercase letters</strong>.”</em>）——注意是 <strong>REGEXP</strong>，也就是<em>搜索串</em>，不是替换串。</p>
+
+  <div class="callout tip"><b>技巧</b><p>在输入搜索串的小输入框里，按 <kbd>M</kbd><kbd>s</kbd> <kbd>c</kbd> 可以临时切换这一次的「大小写折叠」开关（命令 <code>read-regexp-toggle-case-fold</code>，提示「Case folding is now on/off」；本机实测该键绑在 <code>read-regexp-map</code> 上，而源码里 <code>read-regexp-map</code> 是用 <code>:parent query-replace-read-map</code> 定义的——<strong>它是 <code>query-replace-read-map</code> 的子表</strong>，所以那张表上原有的 <kbd>M</kbd><kbd>s</kbd> <kbd>s</kbd>（翻历史）和 <kbd>M</kbd><kbd>s</kbd> <kbd>t</kbd>（在两个输入框之间横跳）它全都继承。<strong>这个键是 Emacs 29 新增的</strong>——本机 <code>etc/NEWS.29:3552</code> 原文：<em>“<kbd>M</kbd><kbd>s</kbd> <kbd>c</kbd> in <code>read-regexp</code> now toggles case folding.”</em>Emacs 28 及更早的输入框里没这个键，遇到时改用 1.4 节说的「把 <code>search-upper-case</code> 设成 <code>nil</code>」的办法即可）。想「无视大小写地替换所有 HELLO」，就用它把折叠打开。</p></div>
+
+  <h4>1.5 替换文本里的特殊字符：<strong>本章最容易踩坑的地方</strong></h4>
+
+  <p>替换串不是「原样插入的文本」，它有一套自己的转义规则。这套规则的<strong>确切清单</strong>，Emacs 32.0.50 的 <code>query-replace</code> 文档字符串（源码 <code>replace.el</code>）是这么写的：</p>
+
+  <div class="keys">
+    <h4>替换串里的转义（<kbd>M</kbd><kbd>%</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 的第二个输入框）</h4>
+    <table>
+      <thead><tr><th>写法</th><th>命令 / 来源</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>\&amp;</code></td><td><code>replace-match</code></td><td>插入<strong>整个匹配文本</strong></td></tr>
+        <tr><td><code>\1</code> … <code>\9</code></td><td><code>replace-match</code></td><td>插入第 N 个 <code>\(…\)</code> 捕获组匹配到的文本（从 1 开始数）</td></tr>
+        <tr><td><code>\\</code></td><td><code>replace-match</code></td><td>插入一个字面的反斜杠</td></tr>
+        <tr><td><code>\?</code></td><td><code>query-replace-regexp</code></td><td>在输入框的<em>这个位置</em>停下来，让你手改这一次要插入的内容</td></tr>
+        <tr><td><code>\,(表达式)</code></td><td><code>query-replace-compile-replacement</code></td><td>每替换一处就 Elisp 求值一次，用结果当替换文本</td></tr>
+        <tr><td><code>\#</code></td><td>同上</td><td>已替换的次数，<strong>从 0 开始</strong>（第一条是 0，第二条是 1……）</td></tr>
+        <tr><td><code>\#&amp;</code> / <code>\#N</code></td><td>同上</td><td>整个匹配 / 第 N 组，经 <code>string-to-number</code> 转成整数——<strong>只能在 <code>\,</code> 表达式内部用</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p><strong>替换串里写 <code>\n</code> 是会报错的</strong>，错误信息是 <em>“Invalid use of ‘\’ in replacement text”</em>。这不是我保守推测——Emacs 32.0.50 的 <code>replace-match</code> 文档字符串最后一句白纸黑字写着：<em>“Any other character following ‘\’ signals an error.”</em>（反斜杠后面跟任何其他字符都会报错。）我也在本机实跑过 <code>(replace-regexp-in-string "b" "a\\nb" "abcb")</code>，确实抛这个错误。同理 <code>\t</code>、<code>\d</code> 之类也都不行。</p>
+  <p>要插入换行，请用 <code>\,</code> 表达式。容易困惑的是：<strong>在 <code>\,(…)</code> 的<em>内部</em>，你写的是一段 Elisp，Elisp 自己的字符串里 <code>"\n"</code> 是合法的换行</strong>——所以这条能用：</p>
+
+  <pre class="el"><code>\,(concat "第" \# "行\n")</code></pre>
+
+  <p>本机实测它编译成 <code>(replace-eval-replacement replace-quote (concat "第" replace-count "行&lt;换行&gt;"))</code>，完全正常。区别只在于<strong>换行发生在哪一层</strong>：替换串<em>自己</em>的 <code>\n</code> 是 Emacs 替换语法的转义（不认识，报错）；<code>\,(…)</code> 内部 Elisp 字符串的 <code>"\n"</code> 是 Elisp 语法（认识，是换行）。</p>
+
+  <p>另外注意方向别搞反：<strong>在<em>搜索串</em>（第一个输入框）里，Emacs 会专门检测你写的 <code>\n</code> 或 <code>\t</code></strong>（这条检查<em>只在正则模式</em>下生效，也就是 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> / <kbd>C</kbd><kbd>s</kbd>；源码里的条件是 <code>regexp-flag</code>），然后在回显区提醒你「<em>Note: `\n' here doesn't match a newline; to do that, type C-q C-j instead</em>」或「<em>Note: `\t' here doesn't match a tab; to do that, just type TAB</em>」——在搜索串里要匹配真正的换行，得按 <kbd>C</kbd><kbd>q</kbd> <kbd>C</kbd><kbd>j</kbd>（<code>quoted-insert</code>，插入一个控制字符）。<strong>搜索串、替换串、Elisp 字符串是三套转义规则，别指望它们一致。</strong>（顺便：这条只是提醒、并不拒绝输入，所以你按了 <kbd>C</kbd><kbd>q</kbd> <kbd>C</kbd><kbd>j</kbd> 之后看到的搜索串里会是一段控制字符显示。）</p></div>
+
+  <p>还有一条<strong>方向容易搞反</strong>的规则，我专门实测确认过：</p>
+
+  <div class="keys">
+    <h4>实测：<code>\&amp;</code> 和 <code>&amp;</code> 不是一回事</h4>
+    <table>
+      <thead><tr><th>替换串</th><th>输入 <code>abcb</code>、模式 <code>b</code> 的结果</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>a&amp;b</code></td><td><code>aa&amp;bca&amp;b</code></td><td><code>&amp;</code> 是<strong>普通字符</strong>，原样输出</td></tr>
+        <tr><td><code>a\&amp;b</code></td><td><code>aabbcabb</code></td><td><code>\&amp;</code> 才代表「整个匹配」，这里匹配到的 <code>b</code> 被插进去了</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>记住这条就够了：<strong>Emacs 里 <code>\&amp;</code>（带反斜杠）才是「整个匹配」，单独的 <code>&amp;</code> 就是个和字</strong>。这跟 Perl / PCRE 习惯的 <code>$&amp;</code>（裸 &amp; 才是整段）正好相反，写惯了 Perl 的人第一次一定会在此翻车。</p>
+
+  <p>用 <code>\?</code> 做「逐条确认替换内容」也很实用。比如你有一批 <code>foo</code> 要换成不同的东西，替换串写 <code>\?替换成什么</code>，Emacs 每处理一处就会停下来等你输入，输入 <kbd>RET</kbd> 继续。命令源码 <code>replace.el</code> 原文：<em>“<code>\?</code> lets you edit the replacement text in the minibuffer at the given position for each replacement.”</em></p>
+
+  <h4>1.6 在替换里调用 Elisp</h4>
+
+  <p><code>\,(表达式)</code> 是本章最强大也最容易把人吓到的功能：替换串的每一处都会现场执行一段 Elisp，用返回值当替换文本。</p>
+
+  <p>在表达式内部，匹配到的内容以<strong>字符串</strong>形式暴露出来：<code>\&amp;</code> 是整个匹配的字符串，<code>\1</code> 是第 1 组的<strong>字符串</strong>，<code>\#&amp;</code> 和 <code>\#N</code> 是把对应内容用 <code>string-to-number</code> 转成<strong>数字</strong>，<code>\#</code> 是已替换次数。源码里那句注释是 <em>“<code>\#&amp;</code> and <code>\#N</code> the respective numeric values from <code>string-to-number</code>”</em>。</p>
+
+  <p>一个把「数字加上千分位」的实用例子（把 <code>1234567</code> 变成 <code>1,234,567</code>）：</p>
+
+  <pre class="el"><code>\,,(format "%,d" \#&amp;)</code></pre>
+
+  <p>我不需要你懂 Elisp 也能用——先记住两条规矩就够了：</p>
+
+  <ol>
+    <li><strong>捕获组是字符串</strong>，不是数字。要参与算术必须显式转换，源码文档字符串对 <code>\#N</code> 的说明就是「the numeric values from <code>string-to-number</code>」。</li>
+    <li><strong>一个 <code>\,</code> 只能放一个表达式</strong>。要调多个函数，用 <code>\,(concat …)</code> 把它们的结果拼起来。</li>
+  </ol>
+
+  <div class="callout warn"><b>易错</b><p>如果 <code>\,</code> 后面跟的是一个<strong>标识符</strong>（比如 <code>\,upcase</code>），而紧接着的下一个字符又是字母，Emacs 会把那个字母也当成标识符的一部分——本机实测 <code>(query-replace-compile-replacement "\\,upcaseX" t)</code> 编译出来是 <code>(replace-eval-replacement replace-quote upcaseX)</code>，<code>X</code> 被吞进去了。<strong>文档字符串给的正式解法是在标识符后面补一个空格</strong>，那个空格会被自动吃掉（实测 <code>\,upcase </code> 编译成 <code>upcase</code>）。包一层写成 <code>\,(or \#)</code> 同样有效（实测编译成 <code>(or replace-count)</code>）。另外，如果替换串里的下一个字符<strong>本来</strong>就该是数字，你可以直接写 <code>\#</code> 而不必套 <code>\,</code>。</p></div>
+
+  <div class="callout note"><b>要点</b><p>原书作者对 <code>\,</code> 的评价很中肯，值得原样传达：Emacs 内部那些「能干活的」函数绝大多数操作的是<strong>缓冲区</strong>而不是字符串，所以 <code>\,</code> 这个功能虽然很强，实际用起来限制不少。真要搞复杂的多步文本变换，原书建议改用 <strong>键盘宏</strong>（本系列第八章）——这个建议是对的，键盘宏在这类场景下通常比硬凑 <code>\,</code> 表达式更省事。</p></div>
+
+  <h3>二、Emacs 的正则表达式：跟 PCRE 长得不一样</h3>
+
+  <h4>2.1 一句话总结</h4>
+
+  <p>如果你用过 PCRE（Perl、JavaScript、Python 里那套正则），最需要重新适应的一条是：<strong>在 Emacs 里 <code>(</code> 和 <code>)</code> 是普通字符，不是分组括号</strong>。要写分组必须转义成 <code>\(</code> 和 <code>\)</code>。这个差异会一路影响到<em>搜索串</em>和<em>捕获组引用</em>两边，务必先记住。</p>
+
+  <p>Emacs 的正则引擎本身是 GNU 风格的，年代非常早，语法上比 PCRE「少」不少东西，但也有 PCRE 没有的<strong>语法类</strong>功能（见 2.3）。原书对它的评价很不客气，原文是 <em>“It's old, weathered and too entrenched – and heavily modified to suit Emacs's peculiar needs – to be easily replaced.”</em>（老、磨损过度、根深蒂固，又为了迁就 Emacs 的特殊需求被改得面目全非，很难替换掉了。）这是作者本人的判断，本章不对社区态度下断言；但下面这些差异你必须知道。</p>
+
+  <div class="keys">
+    <h4>必须转义才能用的元字符</h4>
+    <table>
+      <thead><tr><th>Emacs 写法</th><th>命令 / 术语</th><th>PCRE 里对应</th></tr></thead>
+      <tbody>
+        <tr><td><code>\(</code> <code>\)</code></td><td>捕获组</td><td><code>( )</code></td></tr>
+        <tr><td><code>\|</code></td><td>交替（or）</td><td><code>|</code></td></tr>
+        <tr><td><code>\{n,m\}</code></td><td>重复次数</td><td><code>{n,m}</code></td></tr>
+        <tr><td><code>\(.\+?\)</code></td><td>非贪婪重复</td><td><code>(.+?)</code></td></tr>
+        <tr><td><code>\(.*?\)</code></td><td>非贪婪的 <code>*</code></td><td><code>(.*?)</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>非贪婪那条特别容易忘：Emacs 里 <code>*</code> 和 <code>+</code> <strong>本身就是贪婪的</strong>，想改成非贪婪<strong>必须</strong>紧跟一个问号，<strong>而且这个问号要写在 <code>\(…\)</code> 捕获组<em>内部</em></strong>。本机实测：<code>string-match-p "\\(.*?\\)" "aXbXc"</code> 返回 <code>0</code>、<code>"\\(.+?\\)"</code> 也返回 <code>0</code>，两个都匹配成功。（顺便一提，<code>\(?:…\)</code> 这种「不捕获的分组」Emacs 是有的，本机实测 <code>string-match-p "\\(?:ab\\)" "ab"</code> 返回 <code>0</code>；但 PCRE 的 <code>(?:ab)</code> 写法不行，实测返回 <code>nil</code>，会被当成普通字符去找字面量 <code>(?:ab)</code>。）</p>
+
+  <h4>2.2 Emacs <strong>没有</strong>的东西</h4>
+
+  <p>这几条是原书明确点出、我在本机也逐一验证过的：Emacs 正则<strong>不支持</strong>任何形式的<strong>前后向断言</strong>（look-ahead / look-behind），也没有分支重置组（branch reset group）之类的花活。</p>
+
+  <ul>
+    <li><strong>没有</strong> <code>(?=…)</code>、<code>(?!…)</code>、<code>(?&lt;=…)</code>、<code>(?&lt;!…)</code>。本机实测这四个在 <code>string-match-p</code> 下全部返回 <code>nil</code>（不匹配），不会被当成 PCRE 语法解析。</li>
+    <li><strong>没有</strong> <code>\d</code> 这个数字类简写。本机实测 <code>string-match-p "\\d" "a1"</code> 返回 <code>nil</code>——它<em>不会</em>匹配到 <code>1</code>。想匹配数字必须写 <code>[0-9]</code>，或者用字符类 <code>[[:digit:]]</code>。</li>
+    <li><strong>没有</strong> PCRE 的内联修饰符，比如 <code>(?i)</code>。本机实测 <code>string-match-p "(?i)foo" "FOO"</code> 返回 <code>nil</code>。要忽略大小写靠的是 1.4 节讲的 <code>case-fold-search</code>，不是模式里的标志。</li>
+  </ul>
+
+  <p>对绝大多数文本编辑场景，这些缺失并不致命——用 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 做重构时，「匹配后面跟着冒号的那个词」这种需求，实践中往往写成「先匹配词、替换时人工确认」，比硬凑一个 look-ahead 省事。</p>
+
+  <h4>2.3 Emacs <strong>独有</strong>的东西：语法类</h4>
+
+  <p>这是 Emacs 正则真正发光的地方。它不只认「字符」，还认<strong>字符在当前 major mode 语法表里的类别</strong>——也就是「这是不是个空白」「这是不是个单词成分」。</p>
+
+  <div class="keys">
+    <h4>Emacs 独有的正则构造</h4>
+    <table>
+      <thead><tr><th>构造</th><th>命令 / 术语</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>\&lt;</code> <code>\&gt;</code></td><td>词边界</td><td>匹配「词」的开始和结束</td></tr>
+        <tr><td><code>\_&lt;</code> <code>_&gt;</code></td><td>符号边界</td><td>匹配「符号」的开始和结束（<code>\_&lt;</code> 与 <code>\&gt;</code> 之间的空格是<strong>必须</strong>的）</td></tr>
+        <tr><td><code>\s代码</code></td><td>语法类匹配</td><td>匹配语法表代码为 <em>代码</em> 的任何字符</td></tr>
+        <tr><td><code>\S代码</code></td><td>语法类取反</td><td>匹配语法表代码<strong>不是</strong> <em>代码</em> 的任何字符</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>「词」和「符号」这两个概念不是 Emacs 自己定的，而是由当前 buffer 的<strong>语法表</strong>（syntax table）决定的，因此<strong>随 major mode 变化</strong>。本机用 <code>(looking-at "\_&lt;…\_&gt;")</code> 和 <code>(looking-at "\\&lt;…\\&gt;")</code> 在四种模式下实测同一个字符串「算不算一个符号 / 一个词」，结果很说明问题：</p>
+
+  <div class="keys">
+    <h4>实测：同一段文本在不同 major mode 下的符号切分</h4>
+    <table>
+      <thead><tr><th>字符串</th><th>命令 / 术语</th><th>在哪些模式里算<strong>一个符号</strong>（<code>\_&lt;…\_&gt;</code> 匹配）</th></tr></thead>
+      <tbody>
+        <tr><td><code>foo-bar</code> / <code>foo_bar</code> / <code>foo.bar</code></td><td>symbol constituent</td><td>四种模式<strong>全部</strong>算一个符号</td></tr>
+        <tr><td><code>&lt;foo&gt;</code></td><td>symbol constituent</td><td><strong>只有</strong> <code>emacs-lisp-mode</code>；C / Python / shell 模式下<strong>不是</strong>（因为 <code>&lt;</code> <code>&gt;</code> 在那三种语言的符号成分表里缺席）</td></tr>
+        <tr><td><code>&lt;foo&gt;</code>（改用词边界 <code>\&lt;…\&gt;</code>）</td><td>word constituent</td><td><strong>四种模式都不是</strong>一个词——因为 <code>&lt;</code> <code>&gt;</code> 是标点，会把词切开</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>（测试用的四种模式是 <code>emacs-lisp-mode</code>、<code>c-mode</code>、<code>python-mode</code>、<code>sh-mode</code>。）最后一行是「词」和「符号」两个概念真正分家的地方：<strong>emacs-lisp-mode 里 <code>&lt;foo&gt;</code> 是<em>一个</em>符号，却<em>不是</em>一个词。</strong>做代码重命名时这个区别很要紧——你多半想用 <code>\_&lt;</code> <code>_&gt;</code> 而不是 <code>\&lt;</code> <code>\&gt;</code>。</p>
+
+  <p>下面是原书给的那份简表，类名和本机 <code>C-u C-x =</code> 打印的语法类代码一一对应（本机 Emacs 32.0.50 实测确认这些类名都有效）：</p>
+
+  <div class="keys">
+    <h4>常用语法类（跟在 <code>\s</code> 或 <code>\S</code> 后面）</h4>
+    <table>
+      <thead><tr><th>写法</th><th>命令 / 术语</th><th>匹配什么</th></tr></thead>
+      <tbody>
+        <tr><td><code>\s-</code></td><td>whitespace</td><td>空白：空格、换行、制表符、还有各种 Unicode 空白</td></tr>
+        <tr><td><code>\sw</code></td><td>word constituent</td><td>单词成分：字母、数字、各文字系统的对应字符</td></tr>
+        <tr><td><code>\s_</code></td><td>symbol constituent</td><td>符号成分：<code>\sw</code> 全部 + <code>*</code> <code>_</code> <code>-</code> <code>+</code> <code>/</code> <code>&lt;</code> <code>&gt;</code> <code>=</code> <code>:</code> <code>%</code> <code>&amp;</code> <code>|</code> <code>~</code> <code>^</code> 等（<strong>最随 major mode 变化的一类</strong>）</td></tr>
+        <tr><td><code>\s.</code></td><td>punctuation</td><td>「和 <code>.</code> 同一语法类」——所以具体匹配什么，取决于<strong>当前模式下 <code>.</code> 本身是什么类</strong>：在 <code>text-mode</code> / <code>c-mode</code> / <code>python-mode</code> / <code>sh-mode</code> 里它匹到 <code>.</code> <code>,</code> <code>;</code> <code>'</code> 这一批标点；在 <code>emacs-lisp-mode</code> 里 <code>.</code> 属于符号成分，于是 <code>\s.</code> 匹到的也是符号成分，一个标点都匹不到（手册里也明说「有些编程语言模式，比如 Emacs Lisp 模式，这一类里没有任何字符」）</td></tr>
+        <tr><td><code>\s(</code> <code>\s)</code></td><td>配对括号</td><td>成对括号字符。官方手册的原文是「在人类语言和 C 代码里，括号对是 <code>()</code> <code>[]</code> 和 <code>{}</code>；<strong>在 Emacs Lisp 里，只有列表和向量用的 <code>()</code> 和 <code>[]</code> 被归为括号字符</strong>」——本机实测 <code>emacs-lisp-mode</code> 里 <code>\s(</code> <strong>不</strong>匹配 <code>{</code>，而 <code>text-mode</code> / <code>c-mode</code> / <code>python-mode</code> / <code>sh-mode</code> 都匹配</td></tr>
+        <tr><td><code>\s"</code></td><td>string constituent</td><td>字符串定界符。手册原文：「人类文本没有字符串定界符；Lisp 模式有两个——双引号 <code>"</code> 和竖线 <code>|</code>；C 也有两个——双引号 <code>"</code> 和单引号 <code>'</code>」。本机实测：<code>text-mode</code> 里 <code>\s"</code> 连 <code>"</code> 都不匹配，<code>c-mode</code> / <code>python-mode</code> / <code>sh-mode</code> 匹配 <code>"</code> 和 <code>'</code>，<code>emacs-lisp-mode</code> 只匹配 <code>"</code>。<code>«</code> <code>»</code> 在这四种模式里实测<strong>都不</strong>匹配</td></tr>
+        <tr><td><code>\s&lt;</code> <code>\s&gt;</code></td><td>comment</td><td>注释起止符：<code>&lt;!--</code> 和 <code>--&gt;</code>；只有行注释的语言里只有 <code>\s&lt;</code> 有意义</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>「随 major mode 变化」不是套话，本机实测就是这样的：</strong>同样是 <code>!</code> 这个字符，在 <code>text-mode</code> 里 <code>(char-syntax ?!)</code> 返回 <code>46</code>，也就是语法类 <code>!</code>——官方手册给这一类的名字是「通用注释定界符」（generic comment delimiter，也叫 comment-fence）；而在 <code>emacs-lisp-mode</code> 里返回 <code>95</code>，也就是语法类 <code>_</code>，手册里的名字是「符号成分」（symbol constituent），因为 Lisp 把 <code>!</code> 当作可以出现在符号名里的字符。实测 <code>foo!bar</code> 在 <code>emacs-lisp-mode</code> 里 <kbd>M</kbd><kbd>f</kbd> 会当成<em>一个符号</em>跳过去，但它<em>不是</em>一个<em>词</em>。<code>_</code> 则在两种模式下<strong>都是</strong> <code>95</code>——这正是 3.3 节 <code>greeting_string</code> 要退两个语法单位的原因。所以<strong>写正则时拿不准某个字符属于哪一类，别推理，直接问 Emacs</strong>（下一节的办法）。</p>
+
+  <p>这些类不只在替换里能用，<strong><kbd>C</kbd><kbd>s</kbd>、<kbd>C</kbd><kbd>M</kbd><kbd>%</kbd>、<kbd>M</kbd><kbd>x</kbd> <code>occur</code> 全都能用</strong>。一个真实例子：在 Python 里同时用单引号和双引号，想把所有引号统一成双引号：</p>
+
+  <pre class="term"><code>C-M-%  RET  \s"  RET  "  RET  !
+</code></pre>
+
+  <p>另一个：用 <code>\sw\+</code> 匹配所有由单词成分组成的标识符（函数名、变量名），这是代码重构里最常用的一个模式。</p>
+
+  <h4>2.4 不确定某个字符属于哪一类？问 Emacs</h4>
+
+  <p>光标停在任意一个字符上，按 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>=</kbd>，Emacs 会打印一整块信息：Unicode 码位、Unicode 名字、<strong>语法类</strong>、字符表、以及它继承了哪些 face。本机实测 <kbd>C</kbd><kbd>x</kbd> <kbd>=</kbd> 绑定的命令是 <code>what-cursor-position</code>，前缀 <kbd>C</kbd><kbd>u</kbd> 只是让它打印得更详细（不移动光标）。</p>
+
+  <p>想知道全部 Unicode 类别，用 <kbd>M</kbd><kbd>x</kbd> <code>describe-categories</code>（本机实测该命令存在）。</p>
+
+  <h3>三、大小写转换</h3>
+
+  <h4>3.1 两组命令：改区域 vs 改词</h4>
+
+  <p>Emacs 有两套大小写命令，作用对象不同。</p>
+
+  <div class="keys">
+    <h4>区域命令（作用于整个选区）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>u</kbd></td><td><code>upcase-region</code></td><td>选区全部转大写</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>l</kbd></td><td><code>downcase-region</code></td><td>选区全部转小写</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>upcase-initials-region</code></td><td><code>upcase-initials-region</code></td><td>选区里<strong>每个词</strong>的首字母大写（<em>没有默认键位</em>，要 <kbd>M</kbd><kbd>x</kbd> 调用）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout note"><b>要点</b><p>原书在这里有个<strong>读者特别容易误解</strong>的点，它说得很准确，值得强调：<code>upcase-initials-region</code> 的「首字母大写」是<strong>把每一个词</strong>都首字母大写，<em>不是</em>「只把句子的第一个词首字母大写」。而且本机实测确认：它<strong>只改首字母，其余字母原样不动</strong>——所以 <code>hello WORLD</code> 会被变成 <code>Hello WORLD</code>，而不是 <code>Hello World</code>。</p>
+  <p><strong>这里有个容易踩的不对称：同样叫「首字母大写」，<code>capitalize-word</code>（<kbd>M</kbd><kbd>c</kbd>）会把<em>其余字母转小写</em>，<code>upcase-initials-region</code> 不会。</strong><code>capitalize-word</code> 的文档字符串明说 <em>“This gives the word(s) a first character in upper case <strong>and the rest lower case</strong>.”</em>。本机实测：<code>heLLO</code> 用 <kbd>M</kbd><kbd>c</kbd> 得到 <code>Hello</code>，用 <code>upcase-initials-region</code> 则会得到 <code>HeLLO</code>。所以想真正的小写化之后再首字母大写（<code>Hello World</code>），最简单的办法是 <strong><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>l</kbd> 和 <kbd>M</kbd><kbd>x</kbd> <code>upcase-initials-region</code> 两个都跑一遍</strong>。</p></div>
+
+  <h4>3.2 词命令：真正该背下来的三个</h4>
+
+  <div class="keys">
+    <h4>词命令（作用到「下一个词」；正参数会把光标带到词尾，负参数才原地不动）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>u</kbd></td><td><code>upcase-word</code></td><td>把光标处<strong>往后的</strong>一个词转大写</td></tr>
+        <tr><td><kbd>M</kbd><kbd>l</kbd></td><td><code>downcase-word</code></td><td>把光标处往后的一个词转小写</td></tr>
+        <tr><td><kbd>M</kbd><kbd>c</kbd></td><td><code>capitalize-word</code></td><td>把光标处往后的一个词首字母大写</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>这组键的元音字母和命令名是对应的：<strong>u</strong>pper、<strong>l</strong>ower、<strong>c</strong>apitalize。而且它们跟 <kbd>M</kbd><kbd>f</kbd>、<kbd>M</kbd><kbd>b</kbd>、<kbd>M</kbd><kbd>d</kbd> 这些移动 / 杀死命令<strong>遵守同一套「语法单位」规则</strong>，也就是说它们认识当前 major mode 的语法表：能在词中间断开的地方就断开。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong>原书那句「它不会移动你的光标」——放在负数参数那一版上是对的，放到正参数上就是错的。</strong>本机实测：缓冲区 <code>hello world</code>、光标在 <code>hello</code> 中间（第 3 个字符），敲 <kbd>M</kbd><kbd>u</kbd> 之后<strong>光标从第 3 位移到了第 6 位</strong>；<kbd>M</kbd><kbd>c</kbd> 同样会移（结果 <code>heLlo world</code>，光标停在 6）。<code>upcase-word</code> 和 <code>capitalize-word</code> 的文档字符串第一句都写着 <em>“…<strong>moving over</strong>.”</em>，<strong>只有带负参数时才是 “but do not move”</strong>。所以准确的说法是：<strong>正参数版会跳到词尾，负参数版才原地不动</strong>。</p>
+  <p>还有一个更要命的细节，文档字符串接着写：<em>“If point is in the middle of a word, the part of that word before point is ignored when moving forward.”</em>——<strong>光标在词中间时，词在你光标<em>前面</em>的那部分不会被改</strong>。实测：<code>hello world</code> 的光标在第 3 个字符，敲 <kbd>M</kbd><kbd>u</kbd> 得到的是 <code>heLLO world</code>，<strong>不是</strong> <code>HELLO world</code>。所以要改整个词，光标得先落在词的<strong>开头</strong>。</p></div>
+
+  <p>原书真正该被记住的观察是：<strong>这三个键会把整个词跳掉，所以你可以一边写一边随手改</strong>——写完 <code>How</code> 想让它大写，直接 <kbd>M</kbd><kbd>u</kbd>，光标已经落在词尾，你接着往下敲就行。</p>
+
+  <h4>3.3 负数参数：回头改已经写过的词</h4>
+
+  <p><kbd>M</kbd><kbd>u</kbd> 往前改，<kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>u</kbd> 就<strong>往回</strong>改上一个词。命令文档字符串写得很清楚：<em>“With negative argument, convert previous words but do not move.”</em>（带负参数时转换之前的词，且不移动光标。）本机实测确认这条说明与代码一致。</p>
+
+  <pre class="term"><code>Hey how are you?█
+
+按 M-f（跳到下一个词开头）、. （插入句号）、M-c（首字母大写）之后：
+
+Hey. How█are you?
+</code></pre>
+
+  <p>注意 <kbd>M</kbd><kbd>c</kbd> 之后光标<strong>已经跳过了整个词</strong>（本机实测落点在 <code>How</code> 之后，也就是原文 <code>Hey. How█are you?</code> 里 <code>█</code> 的位置），你可以接着敲后面的字。反过来改的例子：</p>
+
+  <pre class="term"><code>print(greeting_string)█
+光标在右括号前
+
+按 M-- M-2 M-u 之后：
+print(GREETING_STRING)█
+</code></pre>
+
+  <p>这个例子<strong>光标确实没动</strong>（本机实测前后都是第 23 位），因为用的是<strong>负参数</strong>——<code>upcase-word</code> 文档字符串里的 “With negative argument, convert previous words but do not move.” 就是这个意思。正参数版则相反，见上面那个提示框。</p>
+
+  <p>这里 <code>_</code>（下划线）在多数 major mode 里属于<strong>标点或符号成分</strong>而非单词成分，所以 Emacs 认为 <code>greeting_string</code> 是<strong>三个</strong>语法单位，不是一个词。你得回退 2 个才能覆盖到开头——<strong>Emacs 怎么算「一个词」，由语法表说了算，不是你觉得怎么算就怎么算</strong>。</p>
+
+  <div class="callout tip"><b>技巧</b><p>连续用这组键时，<strong>不要松开 <kbd>M</kbd>（Meta 键）</strong>。手按着左边的 Meta 键，用其他手指敲 <kbd>u</kbd>、<kbd>-</kbd>、<kbd>2</kbd>，动作会快很多：<kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>2</kbd> <kbd>M</kbd><kbd>u</kbd> 等价于按住 <kbd>M</kbd> 依次敲 <kbd>-</kbd> <kbd>2</kbd> <kbd>u</kbd>。这个「前缀键对称」原则在整本书里反复出现。</p></div>
+
+  <h4>3.4 非拉丁文字也能用</h4>
+
+  <p>Emacs 的 Unicode 大小写支持比较完整。实测：<code>upcase</code> 能把希腊文 <code>αβψδεφγ</code> 变成 <code>ΑΒΨΔΕΦΓ</code>，丹麦语的 <code>æøå</code> 变成 <code>ÆØÅ</code>，俄语 <code>привет</code> 变成 <code>ПРИВЕТ</code>（注意是<strong>全大写</strong>，不是首字母大写）；而中日韩字符因为<strong>本来就没有大小写</strong>，转了也还是原样。</p>
+
+  <h3>四、计数</h3>
+
+  <p>Emacs 自带计数功能，不用切到终端去 <code>wc</code>。</p>
+
+  <div class="keys">
+    <h4>计数命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>=</kbd></td><td><code>count-words-region</code></td><td>统计<strong>选区</strong>的行数、句数、词数、字符数</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>count-words</code></td><td><code>count-words</code></td><td>统计<strong>整个缓冲区</strong>（有选区时统计选区），同上四项</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>count-matches</code></td><td><code>count-matches</code></td><td>统计正则表达式匹配了多少处</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>count-lines</code></td><td><code>count-lines</code></td><td>返回行数（编程接口，不打印消息）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p><strong>原书列的 <code>M-x count-lines-region</code> 这个命令不存在。</strong>本机实测 <code>(fboundp 'count-lines-region)</code> 返回 <code>nil</code>——在 <kbd>M</kbd><kbd>x</kbd> 里输入它，Emacs 会拒绝执行（提示该符号不是一个命令；找不到相近命令时可以用 <kbd>M</kbd><kbd>x</kbd> <code>apropos-command RET lines RET</code> 搜）。真正存在的是 <code>count-lines</code>，而且它是个<strong>编程函数</strong>：文档字符串第一句就是 <em>“Return number of lines between START and END.”</em>，交互调用不打印任何消息。所以<strong>想统计行数，请用 <kbd>M</kbd><kbd>=</kbd></strong>——它的输出里本来就带行数。</p></div>
+
+  <p><code>count-words</code> 这个名字有点误导：文档字符串实际写的是 <em>“Print a message reporting the number of lines, sentences, words, and chars.”</em>——它一次报四项，<strong>行数、句数、词数、字符数</strong>，不只是词数。所以 <kbd>M</kbd><kbd>=</kbd> 就等于你需要的全部。</p>
+
+  <p><code>count-matches</code> 的范围规则也值得知道：<strong>Transient Mark mode（一种让选区自动高亮并保持的默认行为）开着且选区激活时统计选区，否则从光标统计到缓冲区末尾</strong>。而且它<strong>遵守大小写折叠规则</strong>——文档字符串说，如果表达式里含大写字母且 <code>search-upper-case</code> 非 nil，匹配就是大小写敏感的（和 1.4 节是同一套机制）。</p>
+
+  <h3>五、文本操作</h3>
+
+  <h4>5.1 <code>occur</code> 可编辑模式：批量改动的利器</h4>
+
+  <p><kbd>M</kbd><kbd>x</kbd> <code>occur</code> 把所有匹配某个模式的<strong>行</strong>列成一个列表缓冲区（本系列第五章讲过）。<strong>原书提到、但很多教程略过的一个关键能力</strong>：这个列表是可以<em>直接编辑</em>的，改完再一次性写回原处。</p>
+
+  <div class="keys">
+    <h4><code>occur</code> 模式里的按键</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>e</kbd></td><td><code>occur-edit-mode</code></td><td>进入可编辑模式：可以自由修改这些行，缓冲区内容随之变化</td></tr>
+        <tr><td><kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd></td><td><code>occur-mode-goto-occurrence</code></td><td><strong>提交修改</strong>：把改动写回原缓冲区对应的行</td></tr>
+        <tr><td><kbd>o</kbd></td><td><code>occur-mode-goto-occurrence-other-window</code></td><td>跳到原缓冲区里的那一行</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>（三个键位均本机用 <code>(lookup-key occur-mode-map …)</code> 实测确认。）工作流是：<kbd>M</kbd><kbd>x</kbd> <code>occur RET 模式</code> → <kbd>e</kbd> → 用任意编辑命令（包括 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 和键盘宏）批量改 → <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> 提交。</p>
+
+  <div class="callout tip"><b>技巧</b><p>原书特别提到这个功能「配合键盘宏特别好使」，这个评价很公道。典型场景：日志里有 200 行 <code>ERROR: disk full</code>，你想在每行前面加时间戳——<code>occur</code> 出这些行，<kbd>e</kbd> 进编辑模式，起一个键盘宏往每行开头插一段固定文本，<kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> 写回。<strong>这比写脚本快，而且写错了 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd> 之前原缓冲区根本没被碰过</strong>——这是个很安全的默认值。</p></div>
+
+  <h4>5.2 删除重复行</h4>
+
+  <p><kbd>M</kbd><kbd>x</kbd> <code>delete-duplicate-lines</code>（<strong>Emacs 24 新增</strong>，依据本机 <code>etc/NEWS.24</code>）去重。而且它比命令行工具 <code>uniq</code> 强：<strong>重复的行不需要相邻也能识别</strong>，所以不用先排序。</p>
+
+  <div class="keys">
+    <h4><code>delete-duplicate-lines</code> 的前缀参数（均本机实测自文档字符串）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>（无）</td><td><code>delete-duplicate-lines</code></td><td>从前往后扫，<strong>保留每个重复行第一次出现的</strong>那份</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd></td><td>同上（<code>REVERSE</code>）</td><td>从后往前扫，因此<strong>保留最后出现的那份</strong></td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>u</kbd></td><td>同上（<code>ADJACENT</code>）</td><td>只删<strong>相邻</strong>的重复行（更快的算法，适合已经排好序的大段文本）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>u</kbd></td><td>同上（<code>KEEP-BLANKS</code>）</td><td>保留<strong>重复的空行</strong>（前三种模式都会把重复空行删掉）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>命令只作用于<strong>选区</strong>。想对整个缓冲区做，先 <kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd>（<code>mark-whole-buffer</code>，本机实测确认）全选。本机实测确认该命令会打印删除了多少行，并返回删除行数。</p>
+
+  <h4>5.3 按条件过滤行</h4>
+
+  <p>这四个命令都是<strong>老资格</strong>的：<code>keep-lines</code> 在本机 <code>etc/NEWS.18</code> 里就已被提及，<code>NEWS.20</code> 还专门记录过它们的一次行为变更。它们的范围规则不是「非选区不可」——文档字符串写的是：<strong>选区激活时处理选区，没激活时从光标一路处理到缓冲区末尾</strong>（<code>keep-lines</code> 的原文更精确：“operate on all lines whose accessible part is entirely contained in the region. Otherwise, the command applies to all lines starting after point.”）。有两个坑要注意：一是 <code>keep-lines</code> 那句 “entirely contained” 意味着<strong>只被选区压住一半的行会被跳过</strong>；二是想让整缓冲区都过一遍时，还是先 <kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd> 全选最稳。</p>
+
+  <div class="keys">
+    <h4>行过滤命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>flush-lines</code></td><td><code>flush-lines</code></td><td>删掉所有<strong>匹配</strong>模式的行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>keep-lines</code></td><td><code>keep-lines</code></td><td>只<strong>保留</strong>匹配模式的行，其余全删</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>copy-matching-lines</code></td><td><code>copy-matching-lines</code></td><td>把匹配的行<strong>复制</strong>出来（<strong>Emacs 28 新增</strong>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>kill-matching-lines</code></td><td><code>kill-matching-lines</code></td><td>把匹配的行<strong>杀死</strong>（进 kill ring，可 <kbd>C</kbd><kbd>y</kbd> 取回）（<strong>Emacs 28 新增</strong>）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>版本归属已核对本机 <code>etc/NEWS.28:976</code>：<em>“New commands <code>copy-matching-lines</code> and <code>kill-matching-lines</code>.”</em>——所以如果你用的是 Emacs 27 或更早，这两个命令不存在。</p>
+
+  <p><strong>模式是对「整行」做匹配的。</strong>文档字符串的措辞是 <em>“If a line matches…”</em>——只要模式在行内<strong>任意位置</strong>命中，这一整行就被算作匹配，然后<strong>整行</strong>被保留或删除。想只改行内某处而不动整行，那是 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 的活，不是这四个命令的。</p>
+
+  <h4>5.4 一个必须说清的问题：<code>\^</code> 和 <code>\$</code> <strong>不是</strong>行首行尾</h4>
+
+  <p>很多从 PCRE 过来的人会想当然地在 Emacs 里写 <code>\^</code> 表示行首、<code>\$</code> 表示行尾。<strong>这是错的</strong>——本机逐个实测，在 Emacs 32.0.50 里 <code>string-match-p</code> 和 <code>looking-at</code> 对 <code>\^</code>、<code>\$</code> <strong>一个都匹配不上</strong>。正确的锚点是下面这批：</p>
+
+  <div class="keys">
+    <h4>实测：Emacs 正则的锚点（缓冲区内容为 <code>foo\nbar</code>，逐条用 <code>looking-at</code> 探测）</h4>
+    <table>
+      <thead><tr><th>构造</th><th>命令 / 术语</th><th>作用（括号里是本机实测结果）</th></tr></thead>
+      <tbody>
+        <tr><td><code>^</code></td><td>行首</td><td>行首（实测在第 1 位匹配）</td></tr>
+        <tr><td><code>$</code></td><td>行尾</td><td>行尾（实测在第 4 位匹配）</td></tr>
+        <tr><td><code>\`</code></td><td>整个 buffer 开头</td><td>零宽匹配，只在缓冲区最开头（实测命中第 1 位；反斜杠不能省，裸 <code>`</code> 只是个普通反引号）</td></tr>
+        <tr><td><code>\'</code></td><td>整个 buffer 结尾</td><td>只匹配缓冲区末尾（实测命中第 8 位，即文本结尾；注意<strong>前面那个反斜杠不能省</strong>，裸 <code>'</code> 只是个普通单引号）</td></tr>
+        <tr><td><code>\=</code></td><td>光标当前位置</td><td>零宽匹配，<strong>只在光标（point）眼下所在的那一个位置</strong>成立。手册原文：<em>“matches the empty string, but only at point.”</em>（对字符串做匹配时它没有定义。）本机实测：缓冲区 <code>foo\nbar</code> 里把光标依次放到位置 1 到 8，<code>looking-at "\="</code> 就每次都在那一处返回 <code>t</code>——它跟着光标走，跟「搜索过没有」无关</td></tr>
+        <tr><td><code>\b</code> / <code>\B</code></td><td>零宽词边界</td><td><code>\b</code> 只在词的开始或结束处匹配（缓冲区首尾也匹配）；<code>\B</code> 正好相反。本机实测缓冲区 <code>foo\nbar</code> 里 <code>\b</code> 命中位置 1、4、5、8，<code>\B</code> 命中 2、3、6、7。<code>\bfoo\b</code> 可以只匹配「独立成一个词」的 <code>foo</code>，这是 PCRE 里没有的写法</td></tr>
+        <tr><td><code>\&lt;</code> <code>\&gt;</code></td><td>词首 / 词尾</td><td>（见 2.3 节。手册把它和 <code>\b</code> <code>\B</code> 归为同一类零宽断言，只是 <code>\&lt;</code> 只管词的开始、<code>\&gt;</code> 只管的结束）</td></tr>
+        <tr><td><code>\^</code> <code>\$</code></td><td><strong>无</strong></td><td><strong>不是锚点</strong>，实测匹配不到任何东西——别用</td></tr>
+        <tr><td>`` ` `` / <code>\G</code> / <code>(?m)</code> / <code>(?i)</code></td><td><strong>无</strong></td><td>实测一个都匹配不到。前两个是 Perl 习惯的写法；后两个是 PCRE 的内联修饰符，Emacs<strong>完全不支持</strong>（本机实测 <code>string-match-p "(?i)foo" "FOO"</code> 返回 <code>nil</code>）——想忽略大小写只能靠变量，见 1.4 节</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>所以在 <code>keep-lines</code> 里要求「整行正好是 <code>foo</code>」，正确写法是 <code>^foo$</code>，本机实测 <code>string-match-p "^foo$" "foo"</code> 匹配、<code>"foobar"</code> 和 <code>"xfoo"</code> 都不匹配。</p>
+
+  <p>还有一条<strong>方向最容易搞反</strong>的关联：<code>keep-lines</code>、<code>flush-lines</code>、<code>count-matches</code> <strong>和 <code>occur</code>、<code>query-replace</code> 共享同一套大小写规则</strong>——模式里含<em>大写</em>字母就把折叠关掉、变成大小写敏感。这是 Emacs 20 明确加进去的（见本机 <code>etc/NEWS.20:82</code> 原文：<em>“now have the same feature as <code>occur</code> and <code>query-replace</code>: if the pattern contains any upper case letters, then they never ignore case.”</em>）。所以：<code>keep-lines</code> 里输入 <code>error</code>（全小写）会把 error / Error / ERROR <strong>一网打尽</strong>；输入 <code>ERROR</code>（全大写）则<strong>只</strong>命中全大写的那些。反过来想只挑全小写的，把 <code>case-fold-search</code> 临时设成 <code>nil</code> 再用小写模式即可（真正控制「模式里的大写是否关折叠」的是 1.4 节那个 <code>search-upper-case</code>）。</p>
+
+  <p>「穷人的 grep」是 <code>keep-lines</code> 最常见的用法，<code>flush-lines</code> 正好相反。处理日志、清洗数据时，这两个命令几乎总是够用。</p>
+
+  <h4>5.5 矩形编辑</h4>
+
+  <p>Emacs 有两套矩形操作方式：一套基于 <strong>矩形标记模式</strong>，一套是<strong>不需要标记、直接用命令</strong>的。推荐先理解后者。</p>
+
+  <h4>矩形命令：只认 mark 和 point 的相对位置</h4>
+
+  <p>关键心智模型：<strong>矩形 = mark 和 point 这两个点围出的那个不可见矩形</strong>。命令只关心两个点的<em>相对位置</em>（谁在左上、谁在右下），<strong>完全不在乎你有没有激活选区</strong>。这一点反直觉，因为选区本身是连续的一段，读者会自然以为矩形命令会作用于整个选区——<strong>不会</strong>。</p>
+
+  <p>先说清楚怎么进入「矩形标记模式」：<kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd>，命令 <code>rectangle-mark-mode</code>（本机实测 <code>(key-binding (kbd "C-x SPC"))</code> = <code>rectangle-mark-mode</code>）。文档字符串说：<em>“Toggle the region as rectangular. Activates the region if it's inactive and Transient Mark mode is on. Only lasts until the region is next deactivated.”</em></p>
+
+  <p>它<strong>只是一个开关</strong>：文档字符串里没有任何「前缀参数 = 行数」的说法，我读过的实现也证实了这点（<code>rect.el</code> 里的 <code>define-minor-mode</code> 只根据前缀参数的正负来开/关）。那「我要一个 10 行的矩形」怎么办？靠模式里的<strong>键表</strong>：</p>
+
+  <div class="keys">
+    <h4>矩形标记模式激活时，<code>rectangle-mark-mode-map</code> 额外提供的键</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>t</kbd></td><td><code>string-rectangle</code></td><td>直接替换矩形内容（<strong>不用再敲 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> 前缀</strong>）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>o</kbd></td><td><code>open-rectangle</code></td><td>直接右移（同样省掉前缀）</td></tr>
+        <tr><td>任何调用 <code>next-line</code> 的键</td><td><code>rectangle-next-line</code></td><td>把矩形<strong>向下扩一整行</strong></td></tr>
+        <tr><td>任何调用 <code>previous-line</code> 的键</td><td><code>rectangle-previous-line</code></td><td>把矩形<strong>向上扩一整行</strong></td></tr>
+        <tr><td>任何调用 <code>forward-char</code> / <code>backward-char</code> 的键</td><td><code>rectangle-forward-char</code> / <code>rectangle-backward-char</code></td><td>把矩形的<strong>右边界</strong>扩 / 缩一列</td></tr>
+        <tr><td>任何调用 <code>exchange-point-and-mark</code> 的键</td><td><code>rectangle-exchange-point-and-mark</code></td><td>在矩形的几个角之间循环跳</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>这张表抄自 Emacs 32.0.50 源码 <code>rect.el</code> 里的 <code>defvar-keymap rectangle-mark-mode-map</code> 定义。注意后四行在源码里写作 <code>&lt;remap&gt;</code>——<strong>它们不是新增的键位，而是把已有命令「劫持」到矩形逻辑上</strong>。所以你在模式里按 <kbd>M</kbd><kbd>n</kbd>、<kbd>C</kbd><kbd>v</kbd> 还是 <kbd>C</kbd><kbd>n</kbd>，只要这个键平常调用的正是 <code>next-line</code>，此刻就会变成「矩形下扩一行」。（正因为是 remap，它们没法用 <code>lookup-key</code> 直接查出来，我是照源码列表写的。）这些劫持在模式一退出时自动失效——所以不用刻意记，用的时候发现「<kbd>M</kbd><kbd>n</kbd> 行为怪了」就是了。</p>
+
+  <div class="callout warn"><b>易错</b><p><strong>不要用 <kbd>C</kbd><kbd>SPC</kbd> 代替 <kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd>。</strong>在今天的 Emacs 里 <kbd>C</kbd><kbd>SPC</kbd> 是 <code>set-mark-command</code>（设置标记），<em>不是</em>矩形标记模式——我本机实测 <code>(lookup-key global-map (kbd "C-SPC"))</code> 的结果是 <code>set-mark-command</code>，而 Emacs 源码 <code>bindings.el</code> 里对应的那行上面还留着一句注释：<em>“Many people are used to typing C-SPC and getting C-@.”</em>（很多人习惯敲 <kbd>C</kbd><kbd>SPC</kbd> 却得到 <kbd>C</kbd><kbd>@</kbd>。）这是个有历史包袱的键，<strong>图形界面和终端下它都是设置标记</strong>；只有少数模式会改绑（比如 Calendar、Dired、ERC、Ido），所以更别把它当全局键位依赖。<strong>顺带澄清一个常见误会</strong>：<code>point-to-register</code>（把 point 存进寄存器）绑的是 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>SPC</kbd>，不是裸的 <kbd>C</kbd><kbd>SPC</kbd>。矩形标记模式的键<strong>只有</strong> <kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd>。</p></div>
+
+  <div class="keys">
+    <h4>矩形命令（全部 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> 前缀，本机逐条实测）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>t</kbd></td><td><code>string-rectangle</code></td><td><strong>替换</strong>：把矩形内的内容换成你输入的字符串</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>k</kbd></td><td><code>kill-rectangle</code></td><td>把矩形内容杀死（进 kill ring）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>y</kbd></td><td><code>yank-rectangle</code></td><td>在光标处取回上次 kill 的矩形内容</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>d</kbd></td><td><code>delete-rectangle</code></td><td>直接删除矩形内容（<strong>不进 kill ring</strong>）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>c</kbd></td><td><code>clear-rectangle</code></td><td>把矩形内容替换成空格</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>o</kbd></td><td><code>open-rectangle</code></td><td>在矩形左侧插入等宽的空白，把内容整体右移</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>N</kbd></td><td><code>rectangle-number-lines</code></td><td>给每一行加行号（带前缀参数可指定起始号和格式）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>M</kbd><kbd>w</kbd></td><td><code>copy-rectangle-as-kill</code></td><td>把矩形内容复制进 kill ring（原内容不动）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>r</kbd></td><td><code>copy-rectangle-to-register</code></td><td>把矩形内容存进寄存器（会问你寄存器名）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>string-insert-rectangle</code></td><td><code>string-insert-rectangle</code></td><td><strong>插入</strong>字符串到每行，把原内容右移（<em>无默认键位</em>）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p><strong>本节最关键的一处区别，Emacs 自身文档里写得很清楚：</strong></p>
+  <p><code>string-rectangle</code>（<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>t</kbd>）的文档字符串第一句就是 <em>“<strong>Replace</strong> rectangle contents with STRING on each line.”</em>——它是<strong>替换</strong>，会<strong>覆盖</strong>矩形里原有的文字。</p>
+  <p><code>string-insert-rectangle</code>（只能 <kbd>M</kbd><kbd>x</kbd> 调，<strong>没有默认键位</strong>）的文档字符串是 <em>“<strong>Insert</strong> STRING on each line of region-rectangle, <strong>shifting text right</strong>. […] This command does <strong>not</strong> delete or overwrite any existing text.”</em>——它是<strong>插入</strong>，把原有文字<strong>整体右移</strong>。</p>
+  <p>原书把这张表里的 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>t</kbd> 写成「Prefix rectangle with string（在矩形前加字符串）」，<strong>这个描述是错的</strong>——它是替换，不是加前缀。想要「加前缀」的效果，正解就是 <kbd>M</kbd><kbd>x</kbd> <code>string-insert-rectangle</code>。这是初学者最常混的一对命令，务必分清。</p></div>
+
+  <p>还要注意命令的<strong>命名方向</strong>：Emacs 这套矩形命令是<strong>动词在前</strong>的——<code>string-rectangle</code>、<code>clear-rectangle</code>、<code>kill-rectangle</code>、<code>delete-rectangle</code>、<code>open-rectangle</code>、<code>yank-rectangle</code>、<code>copy-rectangle-as-kill</code>，<strong>不是</strong> <code>rectangle-clear</code>、<code>rectangle-kill</code> 那种写法（我实测过 <code>(fboundp 'rectangle-clear)</code> 和 <code>(fboundp 'rectangle-kill)</code>，<strong>都返回 <code>nil</code></strong>，这两个名字是错的）。上面这张表里的命令中，只有 <code>rectangle-number-lines</code> 和 <code>rectangle-mark-mode</code> 是以 <code>rectangle-</code> 开头的。</p>
+
+  <div class="callout warn"><b>易错</b><p>原书最后建议「忘了就看看 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>C</kbd><kbd>h</kbd>」——<strong>这个键位是错的</strong>。<strong>它没有被绑定</strong>（本机实测 <code>(key-binding (kbd "C-x r C-h"))</code> 返回 <code>nil</code>）。<code>C</code><kbd>x</kbd> <kbd>r</kbd> 这张键表里确实有几个键被别的命令占了，但占掉它们的是 <code>point-to-register</code>，而它绑在 <kbd>SPC</kbd> / <kbd>C</kbd><kbd>SPC</kbd> / <kbd>C</kbd><kbd>@</kbd> 上，不是 <kbd>C</kbd><kbd>h</kbd>（本机 <code>bindings.el</code> 的 <code>ctl-x-r-map</code> 里逐条查过）。<strong>正确做法</strong>：<kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> 然后输入命令名去查单个命令；想一次看全部矩形命令，用 <kbd>M</kbd><kbd>x</kbd> <code>apropos-command RET rectangle RET</code>。另外 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> 这个前缀后面还有很多<strong>普通寄存器命令</strong>，不只是矩形命令（本机 <code>bindings.el</code> 里的 <code>ctl-x-r-map</code> 键表）：<kbd>s</kbd> / <kbd>x</kbd> 是 <code>copy-to-register</code>，<kbd>i</kbd> / <kbd>g</kbd> 是 <code>insert-register</code>，<kbd>j</kbd> 是 <code>jump-to-register</code>，<kbd>n</kbd> 是 <code>number-to-register</code>，<kbd>+</kbd> 是 <code>increment-register</code>，<kbd>w</kbd> / <kbd>f</kbd> / <kbd>F</kbd> / <kbd>B</kbd> 分别是窗口配置、框架集、文件、缓冲区的存取。<strong>敲 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>SPC</kbd> 或 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>C</kbd><kbd>@</kbd> 则是 <code>point-to-register</code></strong>（把当前 point 存进寄存器）——<em>注意被占掉的是这三个键，不是 <kbd>C</kbd><kbd>h</kbd></em>。这也是 Emacs 里少数几个「<kbd>C</kbd><kbd>@</kbd> 有实际用处」的地方之一。</p></div>
+
+  <h4>一个完整的矩形编辑例子</h4>
+
+  <p>假设你有一张对齐好的表，想把第二列整体往右挪一格（给左边补一个空格）：</p>
+
+  <pre class="term"><code>name        value   unit
+alpha       1.20    ms
+beta        330     ms
+gamma       42.0    s
+
+操作：
+1. 光标移到 value 那一列的开头（第一行）
+2. C-x SPC              矩形标记模式开关，mark 落在光标处
+3. M-n  M-n            连按两下，矩形向下各扩一整行（共 3 行）
+4. C-x r t             替换成一个空格（也可以用模式里的 C-t，同一个命令）
+
+结果：
+name         value   unit
+alpha          1.20  ms
+beta           330   ms
+gamma          42.0  s
+</code></pre>
+
+  <p>这里有个关键点：<strong>第 3 步结束时矩形是「零宽」的</strong>（mark 和 point 在同一列），所以第 4 步的 <code>string-rectangle</code> 实际上起的是<em>插入</em>作用——官方文档说得很宽松：“The length of STRING need not be the same as the rectangle width.”，宽度为 0 时就是往每行里插一个字符。<strong>另注意第 4 步不能写成 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>SPC</kbd></strong>：那个键是 <code>point-to-register</code>（见上面的提示框），不是替换。</p>
+
+  <p>这个例子里三个环节缺一不可：<strong>mark</strong>（矩形的一个角）、<strong>point</strong>（对角），以及中间那条命令。<strong>mark 从哪来？</strong>原书这节讲得很好，值得保留：任何「会把光标带走」的命令都会顺手设标记——最常见的是 <kbd>C</kbd><kbd>s</kbd> / <kbd>C</kbd><kbd>r</kbd> 搜索（Isearch 开始时会在起点设标记）。<strong>所以实用套路是</strong>：先移动到矩形一角，敲 <kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd> 把标记钉在那一瞬间（如果当时没有选区，Emacs 会显示 <em>“Mark set (rectangle mode)”</em> 并帮你设好），再移动到对角，敲矩形命令。想确认矩形到底圈了什么，可以在敲命令前按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd> 交换 point 和 mark 看一眼高亮。</p>
+
+  <p>原书给出他本人最常用的三个是 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>t</kbd>、<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>k</kbd>、<kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>y</kbd>，并称之为「插入文本、杀死、取回矩形」这一实用三件套（原书用词是 practical trifecta）。这个建议可以照搬。</p>
+
+  <h4>5.6 复制行 / 复制区域</h4>
+
+  <div class="keys">
+    <h4>复制命令（<strong>Emacs 29 新增</strong>，Emacs 28 及更早没有）</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>duplicate-line</code></td><td><code>duplicate-line</code></td><td>复制当前行 N 次（无键位）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>duplicate-dwim</code></td><td><code>duplicate-dwim</code></td><td>看情况：<strong>没有选区</strong>时等同 <code>duplicate-line</code>，<strong>有选区</strong>时复制整个选区</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>版本归属已核对本机 <code>etc/NEWS.29:681</code>：<em>“New commands <code>duplicate-line</code> and <code>duplicate-dwim</code>.”</em> 原书的「This feature requires Emacs 29」是准确的。</p>
+
+  <p>「dwim」是 <strong>D</strong>o <strong>W</strong>hat <strong>I</strong> <strong>M</strong>ean 的缩写，Emacs 里到处是这个词，意思是「你要是没明确说，我就猜你想干什么」。<code>duplicate-dwim</code> 的文档字符串写得很清楚：<em>“Duplicate the current line or region N times. If the region is inactive, duplicate the current line (like <code>duplicate-line</code>). Otherwise, duplicate the region, which remains active afterwards. <strong>If the region is rectangular, duplicate on its right-hand side.</strong>”</em></p>
+
+  <p>数字前缀表示<strong>额外复制几份</strong>：<kbd>M</kbd> <kbd>3</kbd> <kbd>M</kbd><kbd>x</kbd> <code>duplicate-line</code> 是在原行之外<strong>再复制 3 份</strong>，最后是 4 行（本机实测：只有一行 <code>one</code> 的缓冲区里执行后变成 4 行 <code>one</code>）。别和「结果一共几行」搞混。</p>
+
+  <p>Emacs 30 给它补了一个相关的用户选项 <code>duplicate-region-final-position</code>，用来控制复制区域后 point 和选区停在哪（本机 <code>etc/NEWS.30:691-693</code>）；<code>duplicate-line-final-position</code> 是对应的行版本，Emacs 29 就有了（<code>etc/NEWS.29:686</code>）。<strong>这两个变量的默认值都是 <code>0</code></strong>（本机 <code>(require 'misc)</code> 之后实测两者值均为 <code>0</code>），不设就是用 Emacs 的默认行为。<strong>顺手提醒一个容易误判的坑</strong>：在 <code>emacs --batch -Q</code> 这种还没加载 <code>misc.el</code> 的环境里查 <code>(boundp 'duplicate-region-final-position)</code> 会返回 <code>nil</code>——那只说明库没载入，<strong>不代表它「没有默认值」</strong>，<code>defcustom</code> 定义的变量在定义它的库加载之后总是有值的。</p>
+
+  <h4>5.7 拆行与合行</h4>
+
+  <p>这四个命令<strong>不碰 kill ring</strong>，是纯粹的结构调整。</p>
+
+  <div class="keys">
+    <h4>拆行与合行命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>o</kbd></td><td><code>open-line</code></td><td>在光标<em>后面</em>插入一个换行，光标<strong>留在原位不动</strong></td></tr>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>o</kbd></td><td><code>split-line</code></td><td>在光标<em>后面</em>换行，<strong>并把后面的文字垂直对齐原列</strong></td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>o</kbd></td><td><code>delete-blank-lines</code></td><td>删除空行（有严格的三条规则，见下）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>^</kbd></td><td><code>delete-indentation</code></td><td><strong>把当前行并到上一行</strong>，并整理空白</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p><strong><kbd>M</kbd><kbd>^</kbd> 的键位上绑的命令是 <code>delete-indentation</code>，不是 <code>join-line</code>。</strong>本机实测 <code>(key-binding (kbd "M-^"))</code> 返回 <code>delete-indentation</code>，其文档字符串第一句是 <em>“Join this line to previous and fix up whitespace at join.”</em>（把本行并到上一行并整理连接处的空白）。而且这个名字里完全没有「join」的意思——它说的是「删掉本行开头的缩进」，缩进一删，行自然就和上面那行并到一起了，纯属历史遗留。另外注意 <kbd>M</kbd><kbd>^</kbd> 和 <kbd>M</kbd><kbd>-</kbd> 长得极像，<strong>两个是完全不同的键</strong>，别敲错。</p>
+  <p>（附带：<code>join-line</code> 这个名字也确实存在，但它<strong>不是</strong>另一个方向的命令——本机实测 <code>(symbol-function 'join-line)</code> 直接返回 <code>delete-indentation</code>，两者就是同一个函数，文档字符串也一字不差。所以两个名字指的是同一件事。真正「反向」的是<em>带前缀参数</em>的用法：<kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>^</kbd> 会把本行并到<em>下一</em>行去，这在 <code>delete-indentation</code> 的文档字符串里写得很清楚：“With prefix ARG, join the current line to the following line.”）</p></div>
+
+  <p><kbd>C</kbd><kbd>o</kbd> 和 <kbd>C</kbd><kbd>M</kbd><kbd>o</kbd> 的区别最好用原书的例子看：</p>
+
+  <pre class="term"><code>起点：All the world's a stage, █and all the …
+
+按 C-o 之后（光标留在原位，█ 不动）：
+All the world's a stage, █
+and all the …
+
+按 C-M-o 之后（后面的文字保持原来的列对齐，█ 也不动）：
+All the world's a stage, █
+                  and all the …
+</code></pre>
+
+  <p><strong>两个命令光标都不移动</strong>——本机实测确认：把光标放在上面第 27 位，分别执行 <code>open-line</code> 和 <code>split-line</code>，<em>两次 point 都停在原处没动</em>，变的只有缓冲区内容。这是它们相对于 <kbd>RET</kbd> 的全部意义：<kbd>RET</kbd> 敲完光标就跳到下一行了，而 <kbd>C</kbd><kbd>o</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>o</kbd> 让你能把一个段落拆成两段、或者把一个长函数调用拆成多行，而光标仍留在原位等你接着写。</p>
+
+  <p>还有个 <strong>fill prefix</strong>（填充前缀，Emacs 用来自动在续行开头插入同样缩进的机制，本系列第六章讲过）的交互：<kbd>C</kbd><kbd>M</kbd><kbd>o</kbd> 的文档字符串说，如果当前行以 fill prefix 开头，<strong>新行也会自动带上 fill prefix</strong>；反过来 <kbd>M</kbd><kbd>^</kbd> 合并时会把续行的 fill prefix 去掉。原书这段描述经核对<strong>准确</strong>。</p>
+
+  <p><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>o</kbd> 的三条规则，本机实测确认与文档字符串完全一致（原文：<em>“On blank line, delete all surrounding blank lines, leaving just one. On isolated blank line, delete that one. On nonblank line, delete any immediately following blank lines.”</em>）：</p>
+
+  <ol>
+    <li><strong>光标在空行上：</strong>把周围所有空行删掉，<strong>只留一个</strong>。所以在一堆空行里反复敲它，最后总会剩下一个空行——这正好用来<strong>统一段落间距</strong>。</li>
+    <li><strong>光标在孤立的空行上：</strong>把这个空行本身删掉。</li>
+    <li><strong>光标在非空行上：</strong>删掉它<strong>后面紧挨着</strong>的空行，<strong>而且全删</strong>（不像规则 1 会留一个）。</li>
+  </ol>
+
+  <p>第 3 条还覆盖了「只含空格和制表符的行」——这种行也会被当空行删掉，所以它对清理代码里那些看不见的空行特别好用。</p>
+
+  <p><kbd>M</kbd><kbd>^</kbd> 合并时会自动修剪空白：<strong>并入一个空行时把所有空白都清掉，并入一个有内容的行时保留恰好一个空格</strong>。这也是它比「手动 <kbd>C</kbd><kbd>-</kbd> <kbd>SPC</kbd> 删掉换行」省事的地方。</p>
+
+  <h4>5.8 空白管理</h4>
+
+  <div class="keys">
+    <h4>空白处理命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>SPC</kbd></td><td><code>cycle-spacing</code></td><td>循环切换：留一个 → 全删 → 恢复原样（<strong>Emacs 29 起</strong>绑到这个键）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>\</kbd></td><td><code>delete-horizontal-space</code></td><td>把光标<strong>前后</strong>的空白<strong>全删光</strong>，不留一个</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>just-one-space</code></td><td><code>just-one-space</code></td><td>前后空白压成<strong>恰好一个</strong>（<strong>Emacs 29 之前 <kbd>M</kbd><kbd>SPC</kbd> 干的就是这件事</strong>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>delete-trailing-whitespace</code></td><td><code>delete-trailing-whitespace</code></td><td>删掉行尾空白（<strong>没有选区时删整个缓冲区，有选区时只删选区内</strong>；无键位）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn"><b>易错</b><p><strong><kbd>M</kbd><kbd>SPC</kbd> 的默认行为在 Emacs 29 变过，这是原书难得标对了的一处。</strong>Emacs 28 及更早，<kbd>M</kbd><kbd>SPC</kbd> 绑的是 <code>just-one-space</code>；<strong>Emacs 29 起改成了 <code>cycle-spacing</code></strong>（本机 <code>etc/NEWS.29:1253</code> 原文：<em>“<kbd>M-SPC</kbd> is now bound to <code>cycle-spacing</code>.”</em>）。本机实测确认 <code>(key-binding (kbd "M-SPC"))</code> = <code>cycle-spacing</code>，<code>cycle-spacing-actions</code> 的默认值是 <code>(just-one-space delete-all-space restore)</code>，正好对应「留一个 → 全删 → 恢复」。</p>
+  <p><strong>如果你想拿回 Emacs 28 的老行为</strong>，在配置里加这一行就行：</p>
+<pre class="el"><code>(global-set-key (kbd "M-SPC") #'just-one-space)</code></pre>
+  <p>本机实测确认这一行有效：执行后 <code>(key-binding (kbd "M-SPC"))</code> 返回 <code>just-one-space</code>。注意原书这里写的 <code>(global-set-key [remap cycle-spacing] 'just-one-space)</code> <strong>是错的</strong>：<code>global-set-key</code> 要的是「按键向量」不是「remap 规格」，那样写不会生效。正确写法就是上面这行。</p></div>
+
+  <p><code>cycle-spacing</code> 比 <code>just-one-space</code> 多了这些设计，本机源码 <code>simple.el</code> 确认：</p>
+
+  <ul>
+    <li><strong>可以自定义动作和顺序</strong>：改变量 <code>cycle-spacing-actions</code>，它是个动作列表（Emacs 29 新增这个可定制性，见 <code>NEWS.29:1255-1256</code>）。<strong>预定义的动作有五个</strong>（本机 <code>simple.el:1193</code> 的 <code>defcustom</code> 文档原文列的）：<code>just-one-space</code>（只留 N 个，N 是前缀参数）、<code>delete-space-after</code>（只留点<em>后</em>面的 N 个）、<code>delete-space-before</code>（只留点<em>前</em>面的 N 个）、<code>delete-all-space</code>（前后全删）、<code>restore</code>（恢复成最初的空白）。<strong>但这个列表并不封闭</strong>——同一段文档接着说，<em>“In addition to the predefined actions listed above, <strong>any function which accepts one argument is allowed</strong>. It receives the raw prefix arg of this cycle.”</em>，所以你完全可以把自己的函数塞进去（比如「只删点后面的空格、保留前面的」）。甚至还能写成 <code>(动作 参数)</code> 的二元形式，比如 <code>(just-one-space -)</code> 让它连换行一起处理。填一个「一个参数都不接」的函数才会报错。</li>
+    <li><strong>负数前缀能把换行也处理掉</strong>：文档字符串说 <em>“a zero or positive prefix arg allows only for deletion of tabs and spaces whereas a negative prefix arg also allows for deleting newlines.”</em></li>
+    <li><strong>一次负前缀会贯穿整个循环</strong>：<kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>SPC</kbd> 敲三次，等价于 <kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>SPC</kbd> <kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>SPC</kbd> <kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>SPC</kbd>——不用每敲一次都重新按。</li>
+    <li><strong>敲别的命令会重开一轮</strong>：文档字符串说 <em>“A new sequence can be started by providing a different prefix arg … or by doing any other command before the next <kbd>M</kbd><kbd>SPC</kbd>.”</em> 所以你中间去打了几个字再回来 <kbd>M</kbd><kbd>SPC</kbd>，它会从第一个动作重新开始，不会接着上次的进度。</li>
+  </ul>
+
+  <h4>5.9 <code>whitespace-mode</code>：把藏起来的空白揪出来</h4>
+
+  <p>空白的问题在于<strong>你看不见</strong>。Emacs 内置了一个小模式专门把它显示出来。</p>
+
+  <div class="keys">
+    <h4>空白相关命令</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>whitespace-mode</code></td><td><code>whitespace-mode</code></td><td>次要模式：高亮各种空白问题</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>whitespace-newline-mode</code></td><td><code>whitespace-newline-mode</code></td><td>次要模式：在行尾画 <code>$</code> 标出换行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>whitespace-toggle-options</code></td><td><code>whitespace-toggle-options</code></td><td>交互式开关某些高亮项</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>whitespace-report</code></td><td><code>whitespace-report</code></td><td>列出缓冲区里的所有空白问题</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>whitespace-report-region</code></td><td><code>whitespace-report-region</code></td><td>同上，但只针对选区</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>whitespace-cleanup</code></td><td><code>whitespace-cleanup</code></td><td>自动清理（<strong>会真改缓冲区</strong>）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>x</kbd> <code>whitespace-cleanup-region</code></td><td><code>whitespace-cleanup-region</code></td><td>同上，只清理选区</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>这七个命令本机 <code>(fboundp …)</code> 逐一实测全部存在。默认高亮项由变量 <code>whitespace-style</code> 控制，本机实测默认值是：</p>
+
+  <pre class="el"><code>(whitespace-style
+ '(face tabs spaces trailing lines space-before-tab
+       newline indentation empty space-after-tab
+       space-mark tab-mark newline-mark missing-newline-at-eof))</code></pre>
+
+  <p>对应的还有 <code>whitespace-line-column</code>（本机实测默认 <code>80</code>），用来标记超长行；设成 <code>nil</code> 时改用 <code>fill-column</code> 的值。<strong>这里要更正一个流传很广但其实不存在的说法</strong>：网上常说「超长行的显示范围可以用 <code>whitespace-line-column-start</code> 和 <code>whitespace-line-column-end</code> 限定」——可这两个变量在 Emacs 32.0.50 里<strong>根本不存在</strong>：本机 <code>(boundp 'whitespace-line-column-start)</code> 返回 <code>nil</code>，把整个 Emacs 安装目录 grep 一遍也是零命中。真正能控制画法的是 <code>whitespace-style</code> 里选哪个成员：<code>lines</code>（整行高亮）、<code>lines-tail</code>（只高亮超出 <code>whitespace-line-column</code> 的那一段）、<code>lines-char</code>（只在第一个超出的字符上打 face）。</p>
+
+  <div class="callout tip"><b>技巧</b><p>觉得默认高亮太吵，就用 <kbd>M</kbd><kbd>x</kbd> <code>customize-group RET whitespace RET</code> 改颜色和开关——原书也这么建议。只想开某几项，用 <kbd>M</kbd><kbd>x</kbd> <code>whitespace-toggle-options</code> 更省事，它的文档字符串说，如果模式当前是关的，它会<strong>顺便把模式打开</strong>。</p></div>
+
+  <div class="keys">
+    <h4>本章按键总表</h4>
+    <table>
+      <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>C</kbd><kbd>M</kbd><kbd>%</kbd></td><td><code>query-replace-regexp</code></td><td>交互式正则替换</td></tr>
+        <tr><td><kbd>M</kbd><kbd>%</kbd></td><td><code>query-replace</code></td><td>交互式字面量替换</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>u</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>l</kbd></td><td><code>upcase-region</code> / <code>downcase-region</code></td><td>选区转大写 / 小写</td></tr>
+        <tr><td><kbd>M</kbd><kbd>u</kbd> / <kbd>M</kbd><kbd>l</kbd> / <kbd>M</kbd><kbd>c</kbd></td><td><code>upcase-word</code> / <code>downcase-word</code> / <code>capitalize-word</code></td><td>下一个词转大写 / 小写 / 首字母大写（<kbd>M</kbd><kbd>-</kbd> 变体回头改）</td></tr>
+        <tr><td><kbd>M</kbd><kbd>=</kbd></td><td><code>count-words-region</code></td><td>统计选区的行 / 句 / 词 / 字符数</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd></td><td><code>mark-whole-buffer</code></td><td>全选缓冲区（筛行类命令前先敲这个）</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd></td><td><code>rectangle-mark-mode</code></td><td>把选区切换成矩形</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>t</kbd> / <kbd>k</kbd> / <kbd>y</kbd> / <kbd>d</kbd> / <kbd>c</kbd> / <kbd>o</kbd> / <kbd>N</kbd> / <kbd>M</kbd><kbd>w</kbd> / <kbd>r</kbd></td><td><code>string-rectangle</code> / <code>kill-rectangle</code> / <code>yank-rectangle</code> / <code>delete-rectangle</code> / <code>clear-rectangle</code> / <code>open-rectangle</code> / <code>rectangle-number-lines</code> / <code>copy-rectangle-as-kill</code> / <code>copy-rectangle-to-register</code></td><td>矩形：替换 / 杀死 / 取回 / 删除 / 填空 / 右移 / 编号 / 复制 / 存寄存器</td></tr>
+        <tr><td><kbd>C</kbd><kbd>o</kbd> / <kbd>C</kbd><kbd>M</kbd><kbd>o</kbd> / <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>o</kbd> / <kbd>M</kbd><kbd>^</kbd></td><td><code>open-line</code> / <code>split-line</code> / <code>delete-blank-lines</code> / <code>delete-indentation</code></td><td>光标后换行 / 换行并对齐列 / 删空行 / 并到上一行</td></tr>
+        <tr><td><kbd>M</kbd><kbd>SPC</kbd> / <kbd>M</kbd><kbd>\</kbd></td><td><code>cycle-spacing</code> / <code>delete-horizontal-space</code></td><td>循环调整空格 / 前后空白全删</td></tr>
+        <tr><td><kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>x</kbd> <kbd>=</kbd></td><td><code>what-cursor-position</code></td><td>显示光标处字符的 Unicode 名、语法类等详细信息</td></tr>
+        <tr><td><kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>x</kbd></td><td><code>exchange-point-and-mark</code></td><td>交换光标和标记（并激活选区），用来确认矩形范围</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>六、练习</h3>
+
+  <div class="drill" data-answer="C-M-%，回车输入模式，再回车输入替换串">
+    <p class="drill-q"><b>练习 1</b>　把当前缓冲区里所有 <code>foo_bar</code> 换成 <code>fooBar</code>，每处都要亲自确认，不想误伤别的行，用哪个键？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>C</kbd><kbd>M</kbd><kbd>%</kbd>（<code>query-replace-regexp</code>）。回车输入搜索模式，再回车输入替换串，然后每处按 <kbd>SPC</kbd> 确认、<kbd>n</kbd> 跳过。如果确定全都要换，按 <kbd>!</kbd> 一次搞定。</p></div>
+  </div>
+
+  <div class="drill" data-answer="\&amp;（带反斜杠）">
+    <p class="drill-q"><b>练习 2</b>　你有一个列表 <code>a b c</code>，想用 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 把每个元素用尖括号包起来，得到 <code>&lt;a&gt; &lt;b&gt; &lt;c&gt;</code>。替换串该怎么写？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>模式填 <code>\sw</code>，替换串填 <code>&lt;\&amp;&gt;</code>——也就是<strong>一个字面的 <code>&lt;</code>、一个 <code>\&amp;</code>、一个字面的 <code>&gt;</code></strong>，中间只有一个反斜杠。<strong><code>\&amp;</code>（带反斜杠）才代表「整个匹配」</strong>，裸的 <code>&amp;</code> 是个普通字符，会原样输出——这是从 Perl 过来的人最常栽的地方。还要小心一个连带陷阱：<strong>尖括号<em>不要</em>写成 <code>\&lt;</code></strong>，本机实测 <code>(replace-regexp-in-string "\\sw" "\\&lt;\\&amp;\\&gt;" "a b c")</code> 直接报 <em>“Invalid use of ‘\’ in replacement text”</em>——替换串里反斜杠只认 <code>\&amp;</code>、<code>\N</code>、<code>\\</code>、<code>\?</code>、<code>\,</code>、<code>\#</code> 这几个，<code>\&lt;</code> 不在其列。</p></div>
+  </div>
+
+  <div class="drill" data-answer="delete-indentation；join-line 是它的别名">
+    <p class="drill-q"><b>练习 3</b>　<kbd>M</kbd><kbd>^</kbd> 的命令名到底是什么？<code>join-line</code> 算正确答案吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><code>delete-indentation</code>（本机 <code>(key-binding (kbd "M-^"))</code> 实测确认）。两点澄清：一，原书其实只是用一句英文描述它的行为，并没有把它写成命令名 <code>join-line</code>；二，<code>join-line</code> 这个名字确实存在，但它和 <code>delete-indentation</code> 是<strong>同一个函数</strong>（实测 <code>(symbol-function 'join-line)</code> 返回 <code>delete-indentation</code>，文档字符串完全相同），不是方向相反的另一条命令。<code>delete-indentation</code> 这个名字说的是「把本行开头的缩进删掉」——缩进一删，行自然就和上一行并到一起了。</p></div>
+  </div>
+
+  <div class="drill" data-answer="string-rectangle 是替换，string-insert-rectangle 才是插入">
+    <p class="drill-q"><b>练习 4</b>　想给矩形的每一行前面加上字符串 <code>#</code>，但不能覆盖原有的内容。用哪个命令？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>x</kbd> <code>string-insert-rectangle</code>（无默认键位），<strong>不是</strong> <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>t</kbd>。后者 <code>string-rectangle</code> 的文档字符串写的是 <em>“<strong>Replace</strong> rectangle contents”</em>，会覆盖原内容；前者才是 <em>“does not delete or overwrite any existing text”</em>，它把原文字右移。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x SPC，不是 C-SPC">
+    <p class="drill-q"><b>练习 5</b>　打开矩形标记模式的键位是什么？<kbd>C</kbd><kbd>SPC</kbd> 行不行？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>是 <kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd>（<code>rectangle-mark-mode</code>）。<kbd>C</kbd><kbd>SPC</kbd> <strong>不是</strong>——本机实测 <code>(lookup-key global-map (kbd "C-SPC"))</code> 返回 <code>set-mark-command</code>（设置标记），图形界面下也是它。<code>point-to-register</code> 绑的是 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>SPC</kbd>，不是裸的 <kbd>C</kbd><kbd>SPC</kbd>。Emacs 源码 <code>bindings.el</code> 附近还留着一句历史注释：<em>“Many people are used to typing C-SPC and getting C-@.”</em></p></div>
+  </div>
+
+  <div class="drill" data-answer="C-x h 然后 M-x flush-lines RET 模式 RET">
+    <p class="drill-q"><b>练习 6</b>　想删掉当前文件里所有含 <code>FIXME</code> 的行，但只处理「打开时就有的那一大段」，不想连你刚敲的笔记也删掉。怎么做？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>先 <kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd> 全选（<code>mark-whole-buffer</code>），再 <kbd>M</kbd><kbd>x</kbd> <code>flush-lines</code>，输入 <code>FIXME</code>。<strong><code>flush-lines</code> 的范围由选区决定</strong>：选区激活时只处理选区，没激活时从光标处理到缓冲区末尾——所以想整缓冲区过一遍就先 <kbd>C</kbd><kbd>x</kbd> <kbd>h</kbd>，想只处理某一段就先 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>d</kbd> 圈定。想反过来（只<em>保留</em>匹配的行）用 <code>keep-lines</code>（注意它的选区是「整行都在选区里才算数」）。</p></div>
+  </div>
+
+  <div class="drill" data-answer="C-u 表示保留最后出现的那份">
+    <p class="drill-q"><b>练习 7</b>　<code>delete-duplicate-lines</code> 默认保留重复行的第一份还是最后一份？想要最后一份怎么敲？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>默认<strong>保留第一份</strong>（从前往后扫）。要保留最后一份，加一个纯前缀参数 <kbd>C</kbd><kbd>u</kbd>，命令会改为<strong>从后往前</strong>扫。另外 <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>u</kbd> 变成「只删相邻的重复行」，<kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>u</kbd> <kbd>C</kbd><kbd>u</kbd> 变成「保留重复空行」——三条都是本机文档字符串里明确写的。</p></div>
+  </div>
+
+  <div class="drill" data-answer="会报错，替换串里没有 \n 这个转义">
+    <p class="drill-q"><b>练习 8</b>　在 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 的替换串里写 <code>\n</code> 想插入换行，会发生什么？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>会报错：<em>“Invalid use of ‘\’ in replacement text”</em>。Emacs 32.0.50 的 <code>replace-match</code> 文档字符串最后一句是 <em>“Any other character following ‘\’ signals an error.”</em> 替换串只认 <code>\&amp;</code>、<code>\N</code>、<code>\\</code>、<code>\?</code>、<code>\,(…)</code>、<code>\#</code> 这几个。要换行请用 <code>\,</code> 表达式。<strong>注意方向反了</strong>：在<em>搜索串</em>里写 <code>\n</code> 不会匹配换行，Emacs 会提示你改按 <kbd>C</kbd><kbd>q</kbd> <kbd>C</kbd><kbd>j</kbd>。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-= count-words-region">
+    <p class="drill-q"><b>练习 9</b>　想知道选中的一段有多少行、多少词、多少字符，最快的键是什么？<kbd>M</kbd><kbd>x</kbd> <code>count-lines-region</code> 对吗？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p>按 <kbd>M</kbd><kbd>=</kbd>（<code>count-words-region</code>），一次报出行数、句数、词数、字符数四项。<strong><code>count-lines-region</code> 这个命令不存在</strong>——本机实测 <code>(fboundp 'count-lines-region)</code> 返回 <code>nil</code>。真正存在的是 <code>count-lines</code>，但它是个编程函数，交互调用不打印任何东西。</p></div>
+  </div>
+
+  <div class="drill" data-answer="M-- M-2 M-u">
+    <p class="drill-q"><b>练习 10</b>　你刚写完 <code>print(greeting_string)</code>，光标在右括号前，想把 <code>greeting_string</code> 改成全大写。用什么键序列？</p>
+    <button class="drill-btn" type="button">显示答案</button>
+    <div class="drill-a"><p><kbd>M</kbd><kbd>-</kbd> <kbd>M</kbd><kbd>2</kbd> <kbd>M</kbd><kbd>u</kbd>。<strong>要退 2 个而不是 1 个</strong>，因为 <code>_</code> 在多数 major mode 里属于标点或符号成分、不是单词成分，Emacs 认为 <code>greeting_string</code> 是三个语法单位。Emacs 怎么切分「一个词」由语法表说了算——在 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 里看 <code>syntax-table</code> 可以查当前 buffer 的切分规则。</p></div>
+  </div>
+
+  <details class="deep">
+    <summary>进阶：为什么 Emacs 的正则不能向前看</summary>
+    <p>Emacs 的正则引擎写于 1980 年代，是 GNU 风格的老引擎。它的设计目标是「在编辑缓冲区时够用且极快」，而不是「表达力最强」。</p>
+    <p>没有 look-ahead 意味着你不能直接表达「匹配一个后面跟着冒号的词」。实践中人们用两个绕法：</p>
+    <ol>
+      <li><strong>把上下文也匹配进去，然后在替换时丢掉。</strong>要找「后面跟冒号的词」，写成 <code>\(\sw\+\):</code>，替换串写 <code>\1:</code>——冒号被重新插回去，等于没变。</li>
+      <li><strong>用两轮替换。</strong>先用一个宽泛的模式改掉全部，再回头修边角。</li>
+    </ol>
+    <p>Emacs <em>确实</em>有硬编码的特殊断言（原书提到「except specific, hard coded constructs」），数量很有限，而且全都是<strong>零宽</strong>的——它们只看「我此刻站在哪」，从不往前／往后<em>读</em>字符，所以仍然不是 look-ahead：<code>\`</code>（只匹配缓冲区开头）、<code>\'</code>（只匹配缓冲区末尾）、<code>\=</code>（只匹配光标当前位置）、<code>\b</code>（词首或词尾）、<code>\B</code>（词首词尾之外）、以及 <code>\&lt;</code> <code>\&gt;</code> / <code>\_&lt;</code> <code>\_&gt;</code> 这两组词与符号边界。本机实测：缓冲区内容为 <code>foo\nbar</code> 时，<code>re-search-forward</code> 扫 <code>\`</code>、<code>\'</code>、<code>\=</code> 分别命中第 1、8、1 位，而 Perl 习惯的 <code>`</code>、<code>'</code>（不带反斜杠）和 <code>\G</code> <strong>一个都匹配不到</strong>——它们在 Emacs 里只是普通字面字符。<strong>行首行尾的锚点是 <code>^</code> 和 <code>$</code>（不带反斜杠）</strong>，这一点和 PCRE 正好相反，是本章最容易记混的地方之一。</p>
+    <p>另一类 Emacs 特有构造带<strong>双下划线前缀</strong>（<code>\_&lt;</code>、<code>\_&gt;</code>、<code>\s-</code>、<code>\sw</code> …），那不是断言，而是语法类匹配——见 2.3 节。</p>
+    <p>反过来说，Emacs 独有的<strong>语法类</strong>（<code>\s-</code>、<code>\sw</code>、<code>\s_</code>、<code>\s"</code>、<code>\s(</code> …）是 PCRE 完全没有的，而且直接绑定到 Emacs 的语法表——<strong>「在当前语言的语境里理解文本」这件事，Emacs 正则比 PCRE 强</strong>。这才是它当年被选中的原因。</p>
+  </details>
+
+  <details class="deep">
+    <summary>进阶：<code>\,</code> 求值为什么有这么多限制</summary>
+    <p>源码里 <code>query-replace-compile-replacement</code> 的实现揭示了原因：Emacs 会在你按下 <kbd>RET</kbd> 的瞬间<strong>把替换串编译成一个 Elisp 表达式</strong>，然后每次替换时求值它一次。</p>
+    <p>所以：</p>
+    <ul>
+      <li>它<strong>只能</strong>出现在交互式调用里。非交互调用（比如从 Elisp 里写 <code>(query-replace-regexp "a" "\\,(upcase \\&amp;)")</code>）<strong>不会</strong>触发编译，你会拿到 <em>“Invalid use of ‘\’ in replacement text”</em> 这个错误——我本机实测确认了这一点，因为编译步骤发生在<em>读小输入框</em>的那一步。</li>
+      <li>编译的粒度是「每替换一处求值一次」，所以表达式里可以引用 <code>replace-count</code> 这类逐次变化的状态。</li>
+      <li>正因为每次都真跑一遍 Elisp，<strong>写错的代价是真的</strong>：表达式报错会让整个替换中断。</li>
+    </ul>
+    <p>实际建议和原书一致：<code>\,</code> 适合「格式转换」这种一两行能说清的需求；超过这个复杂度就上键盘宏，或者直接写一小段 Elisp——那种代码还能存下来反复用，比每次手敲 <code>\,</code> 表达式划算。</p>
+  </details>
+</section>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 是如何工作的 · 跟着 claude-code 源码学 Agent / TypeScript / JavaScript</title>
+<meta name="description" content="一个零依赖的交互式教学网站：从最小的 Agent 循环讲到 claude-code 真实源码，顺带学会 TypeScript 与 JavaScript 的核心特性。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%99%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+<!-- file:// 直开检测：ES Modules 需要走 http，脚本会在这里填提示 -->
+<div id="protocol-banner" class="protocol-banner" hidden></div>
+
+<div class="layout">
+
+  <!-- 左侧：章节导航 -->
+  <aside class="sidebar">
+    <header class="sidebar-head">
+      <div class="logo">⚙︎ Agent 解剖学</div>
+      <p class="tagline">跟着 claude-code 源码，<br>从第一行循环开始理解 Agent</p>
+    </header>
+    <nav id="chapter-nav" class="chapter-nav" aria-label="章节导航"></nav>
+    <footer class="sidebar-foot">
+      <p class="foot-note">源码根目录<br><code>~/Projects/Agent/claude-code</code></p>
+      <button id="reset-progress" class="btn-ghost" type="button">重置学习进度</button>
+    </footer>
+  </aside>
+
+  <!-- 主区：当前章节 -->
+  <main class="content" id="content" tabindex="-1">
+    <!-- JS 渲染章节内容 -->
+  </main>
+
+</div>
+
+<script type="module" src="./js/main.js"></script>
+<script>
+  // ES Modules 需要 http 协议（file:// 下会被 CORS 拦截，上面的 module 脚本
+  // 根本不会执行），所以检测必须放在普通脚本里。
+  if (location.protocol === 'file:') {
+    const banner = document.getElementById('protocol-banner')
+    banner.hidden = false
+    banner.innerHTML =
+      '⚠️ 直接双击打开会因浏览器安全策略失败。请在项目目录运行 ' +
+      '<code>python3 -m http.server 8080</code>，然后访问 <code>http://localhost:8080</code>'
+  }
+</script>
+</body>
+</html>
