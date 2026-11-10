@@ -71,6 +71,12 @@ def main() -> None:
             frozenset(),
             "migration-guide.html（单文件成品）",
         ),
+        (
+            ROOT / "tutorials/scheme-primer-zh.html",
+            SITE / "scheme-primer-zh.html",
+            frozenset(),
+            "scheme-primer-zh.html（单文件成品）",
+        ),
     ]
 
     # 先校验全部源存在，再动 _site：防止教程目录被误移后静默组装出空站

@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scheme 入门 · 中文译本</title>
+<meta name="description" content="Spritely Institute《A Scheme Primer》中文译本：从表达式、过程、闭包、递归讲到宏，最后用 30 行 Scheme 写出一个元循环求值器。">
+<style>
+/* ============================================================
+   Scheme 入门 · 中文译本 —— 单文件页面样式
+   深浅色跟随系统；正文、代码、脚注三套字号
+   ============================================================ */
+:root {
+  color-scheme: light dark;
+  --bg: #faf9f7;
+  --bg-elev: #ffffff;
+  --bg-sunk: #f1efec;
+  --fg: #2d2a28;
+  --fg-muted: #6e6a64;
+  --fg-faint: #97928b;
+  --accent: #3548b5;
+  --accent-soft: #e8eaf8;
+  --accent-2: #8f5faf;
+  --border: #e2ded8;
+  --border-strong: #c9c4bc;
+  --code-bg: #f4f2ef;
+  --code-border: #e5e1db;
+  --kbd-bg: #ffffff;
+  --kbd-border: #c9c4bc;
+  --kbd-shadow: #b5b0a7;
+  --syntax-str: #2f7f4f;
+  --syntax-kw: #7a3fa0;
+  --syntax-cmt: #8b857c;
+  --syntax-fn: #205f9e;
+  --syntax-type: #9a6700;
+  --mark: #ffe89e;
+  --mark-fg: #2d2a28;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181c;
+    --bg-elev: #1e2025;
+    --bg-sunk: #131418;
+    --fg: #e4e2de;
+    --fg-muted: #a5a19a;
+    --fg-faint: #78746e;
+    --accent: #a9b6ff;
+    --accent-soft: #262a3d;
+    --accent-2: #c8aaf5;
+    --border: #31343b;
+    --border-strong: #454953;
+    --code-bg: #202228;
+    --code-border: #31343b;
+    --kbd-bg: #26292f;
+    --kbd-border: #454953;
+    --kbd-shadow: #0c0d10;
+    --syntax-str: #8fd694;
+    --syntax-kw: #d3a6f5;
+    --syntax-cmt: #8d8880;
+    --syntax-fn: #8cc4f7;
+    --syntax-type: #e0b35d;
+    --mark: #5a4d1e;
+    --mark-fg: #e4e2de;
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Noto Sans CJK SC", "Source Han Sans SC", ui-sans-serif, system-ui,
+               -apple-system, "Segoe UI", sans-serif;
+  font-size: 16.5px;
+  line-height: 1.85;
+  -webkit-font-smoothing: antialiased;
+}
+code, kbd, pre, .mono {
+  font-family: "JetBrains Mono", "Noto Sans Mono CJK SC", ui-monospace,
+               "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+/* ---------------- 顶栏 ---------------- */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.topbar a { color: var(--fg-muted); text-decoration: none; }
+.topbar a:hover { color: var(--accent); }
+.topbar .sep { color: var(--fg-faint); }
+.topbar .current { color: var(--fg); font-weight: 600; }
+.topbar .spacer { flex: 1; }
+.topbar .source { border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px 12px; }
+
+/* ---------------- 两栏布局 ---------------- */
+.layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 48px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px 96px;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 0 18px 64px; }
+  .toc-side { display: none; }
+}
+
+/* ---------------- 侧边目录 ---------------- */
+.toc-side {
+  position: sticky; top: 72px;
+  align-self: start;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  padding: 32px 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.toc-side .toc-title {
+  margin: 0 0 10px;
+  font-size: 12px; font-weight: 700; letter-spacing: .14em;
+  color: var(--fg-faint);
+}
+.toc-side ol { list-style: none; margin: 0; padding: 0; }
+.toc-side li { margin: 2px 0; }
+.toc-side a {
+  display: block;
+  padding: 3px 10px;
+  border-left: 2px solid transparent;
+  color: var(--fg-muted);
+  text-decoration: none;
+  border-radius: 0 6px 6px 0;
+}
+.toc-side a:hover { color: var(--fg); background: var(--bg-sunk); }
+.toc-side a.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ---------------- 页头 ---------------- */
+.hero { padding: 64px 0 8px; }
+.hero .eyebrow {
+  display: inline-block; margin: 0 0 18px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: .12em;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 3px 14px; border-radius: 999px;
+}
+.hero h1 {
+  margin: 0 0 14px;
+  font-size: clamp(32px, 5vw, 46px);
+  line-height: 1.2;
+  letter-spacing: .01em;
+}
+.hero .sub {
+  margin: 0 0 26px;
+  max-width: 46em;
+  font-size: 17px;
+  color: var(--fg-muted);
+}
+.meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px 22px;
+  margin: 0 0 8px;
+  padding: 18px 20px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.meta dt { color: var(--fg-faint); font-size: 12px; letter-spacing: .06em; }
+.meta dd { margin: 2px 0 0; }
+.meta a { color: var(--accent); text-decoration: none; }
+.meta a:hover { text-decoration: underline; }
+
+/* ---------------- 移动端目录 ---------------- */
+.toc-mobile {
+  display: none;
+  margin: 28px 0 0;
+  padding: 14px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 14.5px;
+}
+.toc-mobile summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+.toc-mobile ol { margin: 10px 0 0; padding-left: 1.4em; }
+.toc-mobile a { color: var(--fg-muted); text-decoration: none; }
+.toc-mobile a:hover { color: var(--accent); }
+@media (max-width: 900px) { .toc-mobile { display: block; } }
+
+/* ---------------- 正文 ---------------- */
+.content { max-width: 46em; }
+.content .outline-2 { margin-top: 4.5rem; }
+.content h2 {
+  display: flex; align-items: baseline; gap: .55em;
+  margin: 0 0 1.4rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: clamp(23px, 3vw, 27px);
+  line-height: 1.4;
+  letter-spacing: .01em;
+}
+.content h2 .section-number-2 {
+  color: var(--accent);
+  font-size: .72em;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.content p { margin: 0 0 1.05em; }
+.content i, .content em { font-style: italic; }
+.content b, .content strong { font-weight: 700; }
+.content a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.content a:hover { border-bottom-color: var(--accent); }
+.content ul, .content ol { margin: 0 0 1.2em; padding-left: 1.6em; }
+.content li { margin: .35em 0; }
+.content li > p { margin: .35em 0; }
+
+/* 行内代码 */
+.content p code, .content li code, .content dd code, .content td code {
+  padding: .08em .38em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+/* 代码块 */
+pre.src {
+  margin: 0 0 1.5em;
+  padding: 16px 18px;
+  overflow-x: auto;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 10px;
+  line-height: 1.65;
+  tab-size: 4;
+}
+pre.src code, pre.src span { font-size: inherit; }
+.org-string { color: var(--syntax-str); }
+.org-keyword, .org-builtin { color: var(--syntax-kw); }
+.org-comment, .org-comment-delimiter { color: var(--syntax-cmt); font-style: italic; }
+.org-function-name { color: var(--syntax-fn); }
+.org-type, .org-constant, .org-variable-name { color: var(--syntax-type); }
+
+/* 行内代码之后的说明句，避免与正文挤在一起 */
+.org-src-container + p { margin-top: 1.1em; }
+
+/* 引用块 */
+.content blockquote {
+  margin: 0 0 1.5em;
+  padding: 14px 20px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  color: var(--fg);
+}
+.content blockquote p { margin: 0 0 .9em; }
+.content blockquote p:last-child { margin-bottom: 0; }
+.content blockquote pre.src { background: var(--bg-elev); }
+
+
+/* 题献体的短引文（原文用车贴、题词） */
+.content p.verse {
+  margin: 1.8em 0;
+  padding-left: 1.2em;
+  border-left: 2px solid var(--border-strong);
+  color: var(--fg-muted);
+  line-height: 2;
+}
+
+/* 脚注引用 */
+.content sup { font-size: .72em; line-height: 0; }
+.content sup a {
+  padding: 0 .15em;
+  border-bottom: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------------- 脚注区 ---------------- */
+#footnotes { margin-top: 5.5rem; padding-top: 1.4rem; border-top: 1px solid var(--border-strong); }
+#footnotes h2 { font-size: 20px; border-bottom: none; margin-bottom: 1rem; }
+#text-footnotes { font-size: 14.5px; line-height: 1.75; color: var(--fg-muted); }
+.footdef {
+  display: grid;
+  grid-template-columns: 2.2em minmax(0, 1fr);
+  gap: 0 6px;
+  margin: 0 0 1.1em;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.footdef:target { background: var(--accent-soft); }
+.footdef .footnum {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: none;
+}
+.footdef .footpara { margin: 0 0 .7em; }
+.footdef .footpara:last-child { margin-bottom: 0; }
+.footdef pre.src { font-size: 13px; margin: .6em 0; }
+
+/* ---------------- 页脚 ---------------- */
+.page-footer {
+  max-width: 46em;
+  margin-top: 4rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--border);
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--fg-muted);
+}
+.page-footer a { color: var(--accent); text-decoration: none; }
+.page-footer a:hover { text-decoration: underline; }
+
+/* ---------------- 打印 ---------------- */
+@media print {
+  .topbar, .toc-side, .toc-mobile { display: none; }
+  .layout { display: block; max-width: none; padding: 0; }
+  .content { max-width: none; }
+  pre.src { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+</style>
+</head>
+<body>
+<nav class="topbar" aria-label="站点导航">
+  <a href="./">中文教程合集</a>
+  <span class="sep">/</span>
+  <span class="current">Scheme 入门</span>
+  <span class="spacer"></span>
+  <a class="source" href="https://files.spritely.institute/papers/scheme-primer.html">英文原文</a>
+</nav>
+
+<div class="layout">
+  <aside class="toc-side" aria-label="章节目录">
+    <p class="toc-title">目录</p>
+    <ol>
+        <li><a href="#introduction">1. 引言</a></li>
+        <li><a href="#setting-up">2. 环境准备</a></li>
+        <li><a href="#hello-scheme">3. 你好，Scheme！</a></li>
+        <li><a href="#scheme-basic-types">4. 基本类型与几个小函数</a></li>
+        <li><a href="#scheme-variables-and-procedures">5. 变量与过程</a></li>
+        <li><a href="#scheme-conditionals-and-predicates">6. 条件表达式与谓词</a></li>
+        <li><a href="#scheme-lists-and-cons">7. 列表与「cons」</a></li>
+        <li><a href="#scheme-closure">8. 闭包</a></li>
+        <li><a href="#scheme-iteration-recursion">9. 迭代与递归</a></li>
+        <li><a href="#scheme-effects">10. 变更、赋值与其他副作用</a></li>
+        <li><a href="#scheme-extensibility">11. Scheme 的可扩展性（以及一般意义上的 Lisp）</a></li>
+        <li><a href="#scheme-in-scheme">12. 用 Scheme 写 Scheme</a></li>
+        <li><a href="#footnotes">脚注</a></li>
+    </ol>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <p class="eyebrow">SPRITELY INSTITUTE · 中文译本</p>
+      <h1>Scheme 入门</h1>
+      <p class="sub">一份不上不下的 Scheme 导论：比速成教程深，比语言报告浅。从表达式和过程一路讲到闭包、递归与宏，最后用 30 行 Scheme 写一个能跑斐波那契的求值器。</p>
+      <dl class="meta">
+        <div><dt>作者</dt><dd>Christine Lemmer-Webber 与 Spritely Institute</dd></div>
+        <div><dt>原文</dt><dd><a href="https://files.spritely.institute/papers/scheme-primer.html">A Scheme Primer</a></dd></div>
+        <div><dt>许可</dt><dd><a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>（原文另以 Apache 2.0 发布）</dd></div>
+        <div><dt>篇幅</dt><dd>12 章 · 27 条脚注</dd></div>
+      </dl>
+    </header>
+
+    <details class="toc-mobile">
+      <summary>章节目录</summary>
+      <ol>
+        <li><a href="#introduction">1. 引言</a></li>
+        <li><a href="#setting-up">2. 环境准备</a></li>
+        <li><a href="#hello-scheme">3. 你好，Scheme！</a></li>
+        <li><a href="#scheme-basic-types">4. 基本类型与几个小函数</a></li>
+        <li><a href="#scheme-variables-and-procedures">5. 变量与过程</a></li>
+        <li><a href="#scheme-conditionals-and-predicates">6. 条件表达式与谓词</a></li>
+        <li><a href="#scheme-lists-and-cons">7. 列表与「cons」</a></li>
+        <li><a href="#scheme-closure">8. 闭包</a></li>
+        <li><a href="#scheme-iteration-recursion">9. 迭代与递归</a></li>
+        <li><a href="#scheme-effects">10. 变更、赋值与其他副作用</a></li>
+        <li><a href="#scheme-extensibility">11. Scheme 的可扩展性（以及一般意义上的 Lisp）</a></li>
+        <li><a href="#scheme-in-scheme">12. 用 Scheme 写 Scheme</a></li>
+        <li><a href="#footnotes">脚注</a></li>
+      </ol>
+    </details>
+
+    <article class="content">
+<div id="outline-container-introduction" class="outline-2"> <h2 id="introduction"><span class="section-number-2">1.</span> 引言</h2> <div class="outline-text-2" id="text-introduction"> <p> 在整个计算机编程的世界里，很少有语言能像 Scheme 一样简单、干净、全面、强大又可扩展。Scheme 标准化文件 <a href="https://schemers.org/Documents/Standards/R5RS/">R5RS</a> 版的导言，把它的哲学讲得很清楚<sup><a id="fnr.rnrs" class="footref" href="#fn.rnrs" role="doc-backlink">1</a></sup>：</p>  <blockquote> <p> 编程语言的设计不该靠一层层堆叠特性，而该去掉那些让额外特性显得必要的弱点与限制。</p> </blockquote>  <p> 这种极简意味着 Scheme 的基础容易学。R5RS 的导言接着说：</p>  <blockquote> <p> Scheme 表明，构造表达式的规则只需很少几条，对它们怎么组合也不加限制，就足以拼出一门实用、高效的编程语言。这门语言足够灵活，能支撑当今大多数主要的编程范式。</p> </blockquote>  <p> 只消几条规则和简单得难以想象的语法，Scheme 就能对付你扔过去的任何语言范式。它极小的基础，加上对可扩展性的有力支持，让它在学术语言研究里备受喜爱，也常被拿来做研究的基础。</p>  <p> 可是一门语言在某个领域声名显赫，换个领域也可能变成坏名声。Scheme 跟「学术语言」挂上钩，也常常因此被人当成太难的东西，「普通」程序员上不了手。</p>  <p> 其实 Scheme 一点也不难，任何程序员都能在很短的时间里学会它（甚至连小孩和非程序员也不例外，说不定还更容易）。<sup><a id="fnr.scheme-and-non-programmers" class="footref" href="#fn.scheme-and-non-programmers" role="doc-backlink">2</a></sup> </p>  <p> 在 <a href="https://spritely.institute/">Spritely Institute</a>，我们决定把核心技术 <a href="https://spritely.institute/goblins/">Spritely Goblins</a> 建在 Scheme 之上。我们发现，Scheme 的深入著述很优秀，简单短小的教程也有，缺的是不高不低、正好居中的入门材料。下面这份材料，介于简要概览和全面综述之间。浅读一遍就够你开始用 Scheme 做出东西，而热心的读者能挖到不少深度（尤其是读脚注的时候）。</p>  <p> 我们不预设你有编程经验，不过有经验能让你更快读过前面几章。教程越往后走，主题越进阶。最后我们要来个狠的：<a href="#scheme-in-scheme">用 Scheme 写一个 Scheme 解释器</a>，只要区区 30 行代码。</p> </div> </div>
+<div id="outline-container-org358be61" class="outline-2"> <h2 id="setting-up"><span class="section-number-2">2.</span> 环境准备</h2> <div class="outline-text-2" id="text-2"> <p> 你得挑一个 Scheme 实现来用，还要挑一个编辑器。两者的选择都很多，不过我们只把建议收窄到两条路线：</p>  <ul class="org-ul"> <li><a href="https://www.gnu.org/software/guile/">Guile Scheme</a> + <a href="https://www.gnu.org/software/emacs/">GNU Emacs</a> + <a href="https://www.nongnu.org/geiser/">Geiser</a>：本教程就是用这套写的，功能强大（还能顺带打开 <a href="https://guix.gnu.org/">Guix</a> 的门，那是目前最有意思的 Scheme 项目之一）。不过这条路线学习曲线不小。</li> <li><a href="https://racket-lang.org/">Racket</a>，自带一个叫 DrRacket 的 IDE。这条路线入门轻松。</li> </ul>  <p> 有些代码例子前面带 <code>REPL&gt;</code>。<i>REPL</i> 指「Read Eval Print Loop」（读取-求值-打印循环），在这里就是一个交互式的 Scheme 提示符，可以用它试着输入表达式。</p> </div> </div>
+<div id="outline-container-hello-scheme" class="outline-2"> <h2 id="hello-scheme"><span class="section-number-2">3.</span> 你好，Scheme！</h2> <div class="outline-text-2" id="text-hello-scheme"> <p> 这是大家熟悉的「hello world」，用 Scheme 写成：</p>  <div class="org-src-container"> <pre class="src src-scheme">(display <span class="org-string">"Hello world!\n"</span>)
+</pre> </div>  <p> 这会把「Hello world!」打印到屏幕上。（<code>"\n"</code> 表示「换行」，就像在文字处理软件里敲完一行字再按下回车。）</p>  <p> 如果你熟悉别的编程语言，这段代码看着会有点眼熟，又有点不一样。在大多数其他编程语言里，它可能长这样：</p>  <div class="org-src-container"> <pre class="src src-python">display(<span class="org-string">"Hello world!</span><span class="org-constant">\n</span><span class="org-string">"</span>)
+</pre> </div>  <p> 从这个角度看，在 Scheme（以及其他类似的 Lisp）里调用函数，跟别的语言差别不大，只是函数名要写在括号里面。</p> </div> </div>
+<div id="outline-container-scheme-basic-types" class="outline-2"> <h2 id="scheme-basic-types"><span class="section-number-2">4.</span> 基本类型与几个小函数</h2> <div class="outline-text-2" id="text-scheme-basic-types"> <p> 跟其他一些语言不同，像 <code>+</code> 和 <code>-</code> 这样的数学表达式就是前缀函数，跟别的函数一样，所以得写在最前面：</p>  <div class="org-src-container"> <pre class="src src-scheme">(+ 1 2)         <span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 3</span>
+(/ 10 2)        <span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 5</span>
+(/ 2 3)         <span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 2/3 </span>
+</pre> </div>  <p> 其中大多数都能接受多个参数：</p>  <div class="org-src-container"> <pre class="src src-scheme">(+ 1 8 10)   <span class="org-comment-delimiter">; </span><span class="org-comment">equivalent to "1 + 8 + 10" in infix notation</span>
+</pre> </div>  <p> 过程还可以嵌套，我们能用「代入法」看它们是怎么一步步化简的：</p>  <div class="org-src-container"> <pre class="src src-scheme">(* (- 8 (/ 30 5)) 21)   <span class="org-comment-delimiter">; </span><span class="org-comment">beginning expression</span>
+(* (- 8 6) 21)          <span class="org-comment-delimiter">; </span><span class="org-comment">simplify: (/ 30 5) =&gt; 6</span>
+(* 2 21)                <span class="org-comment-delimiter">; </span><span class="org-comment">simplify: (- 8 6)  =&gt; 2</span>
+42                      <span class="org-comment-delimiter">; </span><span class="org-comment">simplify: (* 2 21) =&gt; 42</span>
+</pre> </div>  <p> 支持的类型有很多。比如下面这些数学类型：</p>  <div class="org-src-container"> <pre class="src src-scheme">42          <span class="org-comment-delimiter">; </span><span class="org-comment">integer</span>
+98.6        <span class="org-comment-delimiter">; </span><span class="org-comment">floating point</span>
+2/3         <span class="org-comment-delimiter">; </span><span class="org-comment">fractions, or "rational" numbers</span>
+-42         <span class="org-comment-delimiter">; </span><span class="org-comment">these can all also be negative</span>
+</pre> </div>  <p> Scheme 支持整数、分数这类「精确」的数，对数的大小也没有任何限制，所以很适合做更精确的科学计算与数学计算。浮点数表示算作「非精确」，为了速度丢掉了精度。</p>  <p> 再看几个类型：</p>  <div class="org-src-container"> <pre class="src src-scheme">#t                             <span class="org-comment-delimiter">; </span><span class="org-comment">boolean representing "true"</span>
+#f                             <span class="org-comment-delimiter">; </span><span class="org-comment">boolean representing "false"</span>
+<span class="org-string">"Pangalactic Gargleblaster"</span>    <span class="org-comment-delimiter">; </span><span class="org-comment">string (text)</span>
+'foo                           <span class="org-comment-delimiter">; </span><span class="org-comment">a quoted symbol</span>
+'(1 2 3)                       <span class="org-comment-delimiter">; </span><span class="org-comment">a quoted list (of numbers, in this case)</span>
+(<span class="org-keyword">lambda</span> (x) (* x 2))           <span class="org-comment-delimiter">; </span><span class="org-comment">procedure (we'll come back to this)</span>
+'(<span class="org-keyword">lambda</span> (x) (* x 2))          <span class="org-comment-delimiter">; </span><span class="org-comment">a list of lists, symbols, and numbers</span>
+</pre> </div>  <p> 如果你是从非 Lisp 的编程语言过来的（少数例外不算），符号大概是最奇怪的类型。符号看着有点像字符串，代表的却是更程序化的东西。（在 <i>Goblins</i> 的 <code>methods</code> 语法里，我们用符号表示方法名。）</p>  <p> 引用符号 <code>'</code> 让紧跟其后的符号或表达式不被求值。如果被引用的是整个列表，就像上面那个被引用的 <code>lambda</code> 表达式，里面的符号同样不会被求值。</p>  <p> 我们会花些时间在<a href="#scheme-lists-and-cons">列表与 cons</a> 这一章里讨论列表。列表和符号的组合在很多 Lisp（包括 Scheme）里都格外显眼，因为它们正是 Lisp 可扩展性的核心：能写代码的代码。我们会在 <a href="#scheme-extensibility">Scheme 的可扩展性（以及一般意义上的 Lisp）</a>里看到怎么用上这份力量。</p> </div> </div>
+<div id="outline-container-scheme-variables-and-procedures" class="outline-2"> <h2 id="scheme-variables-and-procedures"><span class="section-number-2">5.</span> 变量与过程</h2> <div class="outline-text-2" id="text-scheme-variables-and-procedures"> <p> 用 <code>define</code> 可以给变量赋值：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">name</span> <span class="org-string">"Jane"</span>)
+REPL&gt; (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Hello Jane!"</span>
+</pre> </div>  <p> 不过，如果 <code>define</code> 后面跟着的东西包在括号里，Scheme 就把它当成过程定义：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> (<span class="org-function-name">greet</span> name)
+  (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>))
+</pre> </div>  <p> 现在这个过程有了名字，就可以调用它了：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (greet <span class="org-string">"Samantha"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Hello Samantha!"</span>
+</pre> </div>  <p> 注意 <i>Scheme</i> 有<i>隐式返回</i>。<code>string-append</code> 的结果因为是过程里的最后一个表达式，会自动返回给调用者。</p>  <p> <code>define</code> 的这第二种写法其实只是<i>语法糖</i>。这两个 <code>greet</code> 定义完全一样：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> (<span class="org-function-name">greet</span> name)
+  (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>))
+
+(<span class="org-keyword">define</span> <span class="org-function-name">greet</span>
+  (<span class="org-keyword">lambda</span> (name)
+    (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>)))
+</pre> </div>  <p> <code>lambda</code> 是「匿名过程」的名字（也就是没给名字）。虽然我们给它起了 <code>greet</code> 这个名字，没有名字它照样能用：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; ((<span class="org-keyword">lambda</span> (name)
+         (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>))
+       <span class="org-string">"Horace"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Hello Horace!"</span>
+</pre> </div>  <p> 除了 <code>define</code>，还有另一种给东西命名的办法，就是 <code>let</code>。它允许先写一串变量绑定，再写一个在这些绑定下求值的主体。<code>let</code> 的形式是：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">let</span> ((<span class="org-type">&lt;VARIABLE-NAME&gt;</span> <span class="org-type">&lt;VALUE-EXPRESSION&gt;</span>) ...)
+  <span class="org-type">&lt;BODY&gt;</span> ...)
+</pre> </div>  <p> （上面例子里的 <code>...</code> 表示它前面的那个表达式可以重复多次。）</p>  <p> 下面是 <code>let</code> 的一个用例：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">let</span> ((name <span class="org-string">"Horace"</span>))
+        (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Hello Horace!"</span>
+</pre> </div>  <p> 眼尖的读者会发现，这跟上一个例子很像。其实 <code>let</code> 就是 lambda 的<i>语法糖</i>：写成一个 lambda，立刻带上参数调用。前面这两段代码完全等价：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">let</span> ((name <span class="org-string">"Horace"</span>))
+        (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Hello Horace!"</span>
+REPL&gt; ((<span class="org-keyword">lambda</span> (name)
+         (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>))
+       <span class="org-string">"Horace"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Hello Horace!"</span>
+</pre> </div>  <p> <code>let*</code> 跟 <code>let</code> 类似，但允许绑定在这个表达式里引用前面的绑定：<sup><a id="fnr.more-lets" class="footref" href="#fn.more-lets" role="doc-backlink">3</a></sup> </p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">let*</span> ((name <span class="org-string">"Horace"</span>)
+             (greeting
+              (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!\n"</span>)))
+        (display greeting))   <span class="org-comment-delimiter">; </span><span class="org-comment">print greeting to screen</span>
+<span class="org-comment-delimiter">; </span><span class="org-comment">prints: Hello Horace!</span>
+</pre> </div>  <p> 用 <code>apply</code> 可以手动把一组参数应用到一个过程上。比如要对一列数求和，可以把 <code>apply</code> 和 <code>+</code> 组合起来用：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (apply + '(1 2 5))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 8</span>
+</pre> </div>  <p> 反过来，也可以用「点号记法」接收一组长度不定的参数。<sup><a id="fnr.dot-notation-cons-related" class="footref" href="#fn.dot-notation-cons-related" role="doc-backlink">4</a></sup>下面这个例子顺便演示了 Guile 的 <code>format</code>（第一个参数给 <code>#f</code> 时，它把格式化好的字符串当作值返回；给 <code>#t</code> 时，它直接打印到屏幕上，这里我们要的是后者）：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">chatty-add</span> chatty-name . nums)
+        (format #t <span class="org-string">"&lt;~a&gt; If you add those together you get ~a!\n"</span>
+                chatty-name (apply + nums)))
+REPL&gt; (chatty-add <span class="org-string">"Chester"</span> 2 4 8 6)
+<span class="org-comment-delimiter">; </span><span class="org-comment">Prints:</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">&lt;Chester&gt; If you add those together you get 20!</span>
+</pre> </div>  <p> 可选参数和关键字参数并不在 Scheme 标准里，但很多 Scheme 实现也支持。Guile 用 <code>define*</code> 实现这套抽象：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define*</span> (<span class="org-function-name">shopkeeper</span> thing-to-buy
+                           <span class="org-builtin">#:optional</span> (how-many 1)
+                           (cost 20)
+                           <span class="org-builtin">#:key</span> (shopkeeper <span class="org-string">"Sammy"</span>)
+                           (store <span class="org-string">"Plentiful Great Produce"</span>))
+        (format #t <span class="org-string">"You walk into ~a, grab something from the shelves,\n"</span>
+                store)
+        (display <span class="org-string">"and walk up to the counter.\n\n"</span>)
+        (format #t <span class="org-string">"~a looks at you and says, "</span>
+                shopkeeper)
+        (format #t <span class="org-string">"'~a ~a, eh? That'll be ~a coins!'\n"</span>
+                how-many thing-to-buy
+                (* cost how-many)))
+REPL&gt; (shopkeeper <span class="org-string">"apples"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">Prints:</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">You walk into Plentiful Great Produce, grab something from the shelves,</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">and walk up to the counter.</span>
+<span class="org-comment-delimiter">;</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">Sammy looks at you and says, '1 apples, eh? That'll be 20 coins!'</span>
+REPL&gt; (shopkeeper <span class="org-string">"bananas"</span> 10 28)
+<span class="org-comment-delimiter">; </span><span class="org-comment">Prints:</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">You walk into Plentiful Great Produce, grab something from the shelves,</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">and walk up to the counter.</span>
+<span class="org-comment-delimiter">;</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">Sammy looks at you and says, '10 bananas, eh? That'll be 280 coins!'</span>
+REPL&gt; (shopkeeper <span class="org-string">"screws"</span> 3 2
+                  <span class="org-builtin">#:shopkeeper</span> <span class="org-string">"Horace"</span>
+                  <span class="org-builtin">#:store</span> <span class="org-string">"Horace's Hardware"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">Prints:</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">You walk into Horace's Hardware, grab something from the shelves,</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">and walk up to the counter.</span>
+<span class="org-comment-delimiter">;</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">Horace looks at you and says, '3 screws, eh? That'll be 6 coins!'</span>
+</pre> </div>  <p> 最后，Scheme 的过程还能做件有意思的事：用&#x2026;&#x2026;<code>values</code> 返回多个值！举个特别傻的例子。也许我们想比较一下，两个数相加和相乘分别是什么结果：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">add-and-multiply</span> x y)
+        (values (+ x y)
+                (* x y)))
+REPL&gt; (add-and-multiply 2 8)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 10</span>
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 16</span>
+REPL&gt; (<span class="org-keyword">define-values</span> (added multiplied)
+        (add-and-multiply 3 10))
+REPL&gt; added
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 13</span>
+REPL&gt; multiplied
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 30</span>
+</pre> </div>  <p> 如你所见，可以用 <code>define-values</code> 接住这些值，上面就是这样做的。（<code>let-values</code> 和 <code>call-with-values</code> 也能用，但这一节的新语法已经够多了！）</p> </div> </div>
+<div id="outline-container-scheme-conditionals-and-predicates" class="outline-2"> <h2 id="scheme-conditionals-and-predicates"><span class="section-number-2">6.</span> 条件表达式与谓词</h2> <div class="outline-text-2" id="text-scheme-conditionals-and-predicates"> <p> 有时我们想检验某件事是否为真。比如想看看一个对象是不是字符串，用 <code>string?</code> 就能判断出来：<sup><a id="fnr.string-huh" class="footref" href="#fn.string-huh" role="doc-backlink">5</a></sup> </p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (string? <span class="org-string">"apple"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+REPL&gt; (string? 128)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; (string? 'apple)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+</pre> </div>  <p> （记住，<code>#t</code> 表示「真」，<code>#f</code> 表示「假」。）</p>  <p> 可以把它跟 <code>if</code> 结合起来用。它的形式是：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">if</span> <span class="org-type">&lt;TEST&gt;</span>
+    <span class="org-type">&lt;CONSEQUENT&gt;</span>
+    [<span class="org-type">&lt;ALTERNATE&gt;</span>])
+</pre> </div>  <p> （<code>&lt;ALTERNATE&gt;</code> 外面的方括号表示这一项是可选的。）<sup><a id="fnr.when" class="footref" href="#fn.when" role="doc-backlink">6</a></sup> </p>  <p> 于是我们可以写一个傻乎乎的过程，兴高采烈地报告某个对象是不是字符串：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">string-enthusiast</span> obj)
+        (<span class="org-keyword">if</span> (string? obj)
+            <span class="org-string">"Oh my gosh you gave me A STRING!!!"</span>
+            <span class="org-string">"That WASN'T A STRING AT ALL!! MORE STRINGS PLEASE!"</span>))
+REPL&gt; (string-enthusiast <span class="org-string">"carrot"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Oh my gosh you gave me A STRING!!!"</span>
+REPL&gt; (string-enthusiast 529)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "That WASN'T A STRING AT ALL!! MORE STRINGS PLEASE!"</span>
+</pre> </div>  <p> 可以看到，跟一些其他流行语言不同，<code>if</code> 还会返回被选中分支的求值结果，选中哪个分支由 <code>&lt;TEST&gt;</code> 决定。</p>  <p> Scheme 也自带一些数学比较运算。<code>&gt;</code> 和 <code>&lt;</code> 分别表示「大于」和「小于」，<code>&gt;=</code> 和 <code>&lt;=</code> 分别表示「大于或等于」和「小于或等于」，<code>=</code> 则用来检查数值是否相等：<sup><a id="fnr.prefix-vs-infix" class="footref" href="#fn.prefix-vs-infix" role="doc-backlink">7</a></sup> </p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (&gt; 8 9)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; (&lt; 8 9)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+REPL&gt; (&gt; 8 8)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; (&gt;= 8 8)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+</pre> </div>  <p> 想测试多种可能，可以用嵌套的 <code>if</code> 语句：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">goldilocks</span> n smallest-ok biggest-ok)
+        (<span class="org-keyword">if</span> (&lt; n smallest-ok)
+            <span class="org-string">"Too small!"</span>
+            (<span class="org-keyword">if</span> (&gt; n biggest-ok)
+                <span class="org-string">"Too big!"</span>
+                <span class="org-string">"Just right!"</span>)))
+REPL&gt; (goldilocks 3 10 20)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Too small!"</span>
+REPL&gt; (goldilocks 33 10 20)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Too big!"</span>
+REPL&gt; (goldilocks 12 10 20)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Just right!"</span>
+</pre> </div>  <p> 不过还有个顺眼得多的语法，叫 <code>cond</code>，可以直接拿它替代。它的形式是：<sup><a id="fnr.cond-or-if" class="footref" href="#fn.cond-or-if" role="doc-backlink">8</a></sup> </p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">cond</span>
+ (<span class="org-type">&lt;TEST&gt;</span>
+  <span class="org-type">&lt;THEN-BODY&gt;</span> ...) ...
+ [(<span class="org-keyword">else</span> <span class="org-type">&lt;ELSE-BODY&gt;</span> ...)])
+</pre> </div>  <p> 对比一下，改用 <code>cond</code> 之后，我们的 <code>goldilocks</code> 过程比嵌套 <code>if</code> 的版本好看多少：</p>  <div class="org-src-container"> <pre class="src src-scheme"><span class="org-comment-delimiter">;; </span><span class="org-comment">Nested "if" version</span>
+(<span class="org-keyword">define</span> (<span class="org-function-name">goldilocks</span> n smallest-ok biggest-ok)
+  (<span class="org-keyword">if</span> (&lt; n smallest-ok)
+      <span class="org-string">"Too small!"</span>
+      (<span class="org-keyword">if</span> (&gt; n biggest-ok)
+          <span class="org-string">"Too big!"</span>
+          <span class="org-string">"Just right!"</span>)))
+
+<span class="org-comment-delimiter">;; </span><span class="org-comment">"cond" version</span>
+(<span class="org-keyword">define</span> (<span class="org-function-name">goldilocks</span> n smallest-ok biggest-ok)
+  (<span class="org-keyword">cond</span>
+   ((&lt; n smallest-ok)
+    <span class="org-string">"Too small!"</span>)
+   ((&gt; n biggest-ok)
+    <span class="org-string">"Too big!"</span>)
+   (<span class="org-keyword">else</span>
+    <span class="org-string">"Just right!"</span>)))
+</pre> </div>  <p> Scheme 还提供了几种不同的方式，用来比较两个对象是不是同一个东西。对这一大堆相等谓词，最短也最简单的概述（并不完整）是：<code>equal?</code> 按内容是否等价来比较，<code>eq?</code> 则按对象的同一性来比较（同一性由语言的运行时定义）。<sup><a id="fnr.equality-is-a-tough-subject" class="footref" href="#fn.equality-is-a-tough-subject" role="doc-backlink">9</a></sup> 举个例子，<code>list</code> 每次都会构造一个全新的列表，带一个全新的身份，所以下面两个列表 <code>equal?</code> 为真，<code>eq?</code> 为假：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">a-list</span> (list 1 2 3))
+REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">b-list</span> (list 1 2 3))
+REPL&gt; (equal? a-list a-list)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+REPL&gt; (eq? a-list a-list)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+REPL&gt; (equal? a-list b-list)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+REPL&gt; (eq? a-list b-list)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+</pre> </div>  <p> 最后，在 Scheme 里，只要不是 <code>#f</code> 都算真。这一点有时会和 <code>member</code> 这类过程一起用。它寻找匹配的元素，找到就返回列表剩下的部分，否则返回 <code>#f</code>：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (member 'b '(a b c))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (b c)</span>
+REPL&gt; (member 'z '(a b c))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">fruit-sleuth</span> fruit basket)
+        (<span class="org-keyword">if</span> (member fruit basket)
+            <span class="org-string">"Found the fruit you're looking for!"</span>
+            <span class="org-string">"No fruit found! Gadzooks!"</span>))
+REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">fruit-basket</span> '(apple banana citron))
+REPL&gt; (fruit-sleuth 'banana fruit-basket)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Found the fruit you're looking for!"</span>
+REPL&gt; (fruit-sleuth 'pineapple fruit-basket)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "No fruit found! Gadzooks!"</span>
+</pre> </div> </div> </div>
+<div id="outline-container-scheme-lists-and-cons" class="outline-2"> <h2 id="scheme-lists-and-cons"><span class="section-number-2">7.</span> 列表与「cons」</h2> <div class="outline-text-2" id="text-scheme-lists-and-cons"> <p class="verse"> "My other CAR is a CDR"（我另一辆车是 CDR）<br> &#xa0;&#xa0;——一位 Lisp 爱好者的车贴<br> </p>  <p> 对于结构化数据，Scheme 支持列表，列表里可以装任何其他类型。<sup><a id="fnr.other-compound-types" class="footref" href="#fn.other-compound-types" role="doc-backlink">10</a></sup> 同一个列表有两种写法：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (list 1 2 <span class="org-string">"cat"</span> 33.8 'foo)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (1 2 "cat" 33.8 foo)</span>
+REPL&gt; '(1 2 <span class="org-string">"cat"</span> 33.8 foo)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (1 2 "cat" 33.8 foo)</span>
+</pre> </div>  <p> 上面两种写法有一点不同：在后一种带引用的例子里，符号 <code>foo</code> 不用单独再加引用，因为外层列表的引用已经让里面的一切都免于求值。</p>  <p> 另外，表达式里的引用是叠加的。注意在后一个例子里，整个列表都被引用了，所以列表成员 <code>foo</code> 不必再引用。在 <code>foo</code> 前面再加一个引用是合法的，但以后处理这个列表会更麻烦，得「反引用」或者求值好几次，才能拿回真正的符号。</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; '(foo 'bar '''baz)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (foo (quote bar) (quote (quote (quote baz))))</span>
+</pre> </div>  <p> 有一个「特殊」的列表叫「空列表」，它没有任何元素，写作 <code>'()</code>（也叫 <i>nil</i>；在标准 Scheme 里，它是唯一一个会让谓词 <code>null?</code> 返回 <code>#t</code> 的对象）。<i>Scheme</i> 里的列表其实是「链表」，也就是一串由 cons 单元组成的点对，末端落在空列表上：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; '()
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; ()</span>
+REPL&gt; (cons 'a '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (a)</span>
+REPL&gt; (cons 'a (cons 'b (cons 'c '())))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (a b c)</span>
+</pre> </div>  <p> 后一种写法等价于下面任意一种：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (list 'a 'b 'c)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (a b c)</span>
+REPL&gt; '(a b c)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (a b c)</span>
+</pre> </div>  <p> 出于非常历史的原因，<sup><a id="fnr.cons-car-cdr-historical-reasons" class="footref" href="#fn.cons-car-cdr-historical-reasons" role="doc-backlink">11</a></sup> 访问 cons 单元的第一个元素用 <code>car</code>，第二个元素用 <code>cdr</code>（读音是「could-er」）：<sup><a id="fnr.first-and-rest" class="footref" href="#fn.first-and-rest" role="doc-backlink">12</a></sup> </p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (car '(a b c))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; a</span>
+REPL&gt; (cdr '(a b c))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (b c)</span>
+REPL&gt; (car (cdr '(a b c)))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; b</span>
+</pre> </div>  <p> <code>cons</code> 的第二个成员不必是另一个 cons 单元，也不必是空列表。如果不是，它就成了「点对列表」，写法是 Lisp 里少见的中缀形式：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (cons 'a 'b)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (a . b)</span>
+</pre> </div>  <p> 注意它在结构上跟下面这个不一样：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (cons 'a (cons 'b '()))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (a b)</span>
+</pre> </div>  <p> 很容易一头扎进 <code>cons</code> 单元的拆解里（可以说搞 Scheme 的人拆得太多了，但 <code>cons</code> 本身也确实精巧有力）。<sup><a id="fnr.little-schemer" class="footref" href="#fn.little-schemer" role="doc-backlink">13</a></sup> </p>  <p> 某种意义上，这一小节是一段插曲。本文故意不大量使用 <code>cons</code>，正文里也完全没让 <code>car</code> 和 <code>cdr</code> 出场。这可能会引出疑问——那为什么还要保留这一小节讲列表？</p>  <p> 原因是我们在铺垫一件稍后会继续展开的事，也就是 Scheme 的可扩展性。Scheme 是用自己的核心数据类型写成的，因此也能像数据一样被修改。这个稍后会细讲。这里先看个例子，我们可以引用任何表达式，把代码变成数据：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (+ 1 2 (- 8 4))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 7</span>
+REPL&gt; '(+ 1 2 (- 8 4))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (+ 1 2 (- 8 4))</span>
+REPL&gt; (<span class="org-keyword">let</span> ((name <span class="org-string">"Horace"</span>))
+        (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Hello Horace!"</span>
+REPL&gt; '(<span class="org-keyword">let</span> ((name <span class="org-string">"Horace"</span>))
+         (string-append <span class="org-string">"Hello "</span> name <span class="org-string">"!"</span>))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (let ((name "Horace")) (string-append "Hello " name "!"))</span>
+</pre> </div>  <p> 最后一个例子尤其有意思：我们终于看清了符号在 Scheme 里为什么重要，因为函数名和语法名一旦被引用，就会被捕捉成符号。从这个意义上说，Lisp（包括 Scheme）是用 Lisp 写成的：程序员看到的表示和编译器看到的表示几乎没有区别，就像 <a href="#scheme-extensibility">Scheme 的可扩展性（以及一般意义上的 Lisp）</a>里那样。</p>  <p> 顺便说一句，撇号引用只是 <code>(quote &lt;EXPR&gt;)</code> 的简写：</p>  <div class="org-src-container"> <pre class="src src-scheme"><span class="org-comment-delimiter">;; </span><span class="org-comment">these two are the same</span>
+'foo
+(quote foo)
+
+<span class="org-comment-delimiter">;; </span><span class="org-comment">and these two are the same</span>
+'(<span class="org-keyword">lambda</span> (x) (* x 2))
+(quote (<span class="org-keyword">lambda</span> (x) (* x 2)))
+</pre> </div>  <p> 列表还能当作键和值之间的关联映射，这种列表叫 <i>alists</i>（关联列表）。用于方便查找的过程有不少，比如 <code>assoc</code>，找到就返回对应的点对，没找到就返回 <code>#f</code>：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">animal-noises</span>
+        '((cat . meow)
+          (dog . woof)
+          (sheep . baa)))
+REPL&gt; (assoc 'cat animal-noises)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (cat . meow)</span>
+REPL&gt; (assoc 'alien animal-noises)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+</pre> </div>  <p> 关联列表实现起来容易，在 Scheme 的打印表示里看着也够漂亮，跟函数式编程配合也方便。（想往关联列表里多加一点东西？再 cons 一个 cons 单元上去就行！）所以搞 Scheme 的人往往挺喜欢它。不过它并不总是高效。<code>assoc</code> 用在小关联列表上没问题，但一个有一千个元素的关联列表，要找到埋在底下的那个键值对就得走一千步。其他数据结构，比如提供平均常数时间查找的哈希表，很多 Scheme 实现都自带，有时是更好的选择。</p>  <p> 除了引用，还可以用准引用：反引号开始一段准引用，逗号用来反引用。这样就能在数据的世界和代码的世界之间快速来回。举个例子，用一套来路存疑的换算标准，把猫的年龄折算成人的年龄：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">cat-years</span> years)
+        (<span class="org-keyword">cond</span>
+         ((&lt;= years 1)       <span class="org-comment-delimiter">; </span><span class="org-comment">first year equivalent to 15</span>
+          (* years 15))
+         ((&lt;= years 2)
+          (+ 15 (* 9 (- years 1))))   <span class="org-comment-delimiter">;      </span><span class="org-comment">second year 9</span>
+         (<span class="org-keyword">else</span>
+          (+ 24 (* 4 (- years 2)))))) <span class="org-comment-delimiter">; </span><span class="org-comment">years after that 4</span>
+REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">cat-entry</span> name age)
+        `(cat (name ,name)
+              (age  ,age)
+              (cat-years-age ,(cat-years age))))
+REPL&gt; (cat-entry <span class="org-string">"Missy Rose"</span> 16)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (cat (name "Missy Rose")</span>
+<span class="org-comment-delimiter">;         </span><span class="org-comment">(age 16)</span>
+<span class="org-comment-delimiter">;         </span><span class="org-comment">(cat-years-age 80))</span>
+REPL&gt; (cat-entry <span class="org-string">"Kelsey"</span> 22)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (cat (name "Kelsey")</span>
+<span class="org-comment-delimiter">;         </span><span class="org-comment">(age 21)</span>
+<span class="org-comment-delimiter">;         </span><span class="org-comment">(cat-years-age 104))</span>
+</pre> </div>  <p> 哇！这几只猫可真够老的！</p> </div> </div>
+<div id="outline-container-scheme-closure" class="outline-2"> <h2 id="scheme-closure"><span class="section-number-2">8.</span> 闭包</h2> <div class="outline-text-2" id="text-scheme-closure"> <p> 回想一下我们之前对 <code>goldilocks</code> 的定义与用法：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">goldilocks</span> n smallest-ok biggest-ok)
+        (<span class="org-keyword">cond</span>
+         ((&lt; n smallest-ok)
+          <span class="org-string">"Too small!"</span>)
+         ((&gt; n biggest-ok)
+          <span class="org-string">"Too big!"</span>)
+         (<span class="org-keyword">else</span>
+          <span class="org-string">"Just right!"</span>)))
+REPL&gt; (goldilocks 3 10 20)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Too small!"</span>
+REPL&gt; (goldilocks 33 10 20)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Too big!"</span>
+REPL&gt; (goldilocks 12 10 20)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Just right!"</span>
+</pre> </div>  <p> 一遍又一遍地输入同样的 <code>smallest-ok</code> 和 <code>biggest-ok</code>，实在麻烦。金发姑娘的偏好范围，大概不会每调用一次就变。有没有办法做出一个金发姑娘的版本，让它带点记忆，<code>smallest-ok</code> 和 <code>biggest-ok</code> 只传一次，却仍能拿多个 <code>n</code> 去比对？有的……<i>闭包</i>来救场！</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> (<span class="org-function-name">make-goldilocks</span> smallest-ok biggest-ok)
+  (<span class="org-keyword">define</span> (<span class="org-function-name">goldilocks</span> n)   <span class="org-comment-delimiter">; </span><span class="org-comment">make a procedure which encloses</span>
+    (<span class="org-keyword">cond</span>                  <span class="org-comment-delimiter">;  </span><span class="org-comment">smallest-ok and biggest-ok so</span>
+     ((&lt; n smallest-ok)    <span class="org-comment-delimiter">;  </span><span class="org-comment">that only the n argument needs</span>
+      <span class="org-string">"Too small!"</span>)        <span class="org-comment-delimiter">;  </span><span class="org-comment">to be passed in  </span>
+     ((&gt; n biggest-ok)
+      <span class="org-string">"Too big!"</span>)
+     (<span class="org-keyword">else</span>
+      <span class="org-string">"Just right!"</span>)))
+  goldilocks)              <span class="org-comment-delimiter">; </span><span class="org-comment">return goldilocks procedure</span>
+</pre> </div>  <p> 现在可以调用 <code>make-goldilocks</code> 了，它返回被<i>包住</i>的那个 <code>goldilocks</code> 过程<sup><a id="fnr.why-not-lambda" class="footref" href="#fn.why-not-lambda" role="doc-backlink">14</a></sup>。</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (make-goldilocks 10 30)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #&lt;procedure goldilocks (n)&gt;</span>
+</pre> </div>  <p> 现在就可以一遍又一遍地调用内层的 <code>goldilocks</code> 了。</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">goldi</span>
+        (make-goldilocks 10 30))
+REPL&gt; (goldi 7)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Too small!"</span>
+REPL&gt; (goldi 256)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Too big!"</span>
+REPL&gt; (goldi 22)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Just right!"</span>
+</pre> </div>  <p> 外层过程「闭合于」内层过程，让内层过程能够访问 <code>smallest-ok</code> 和 <code>biggest-ok</code>，并且记住它们。</p>  <p> 顺带一提，<i>Goblins</i> 给自己的对象实现构造函数，用的也是这个套路：外层过程是构造函数，内层过程是对象的行为。（主要区别确实在于，<i>Goblins</i> 对象是用 <code>spawn</code> 生成的，会拿到一个 <i>bcom</i> 能力，可以拿它来改自己的行为！）</p>  <p> 妙的是，用同一套手法，我们还能拿纯抽象造出自己的 cons 单元。</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">abstract-cons</span> car-data cdr-data)
+        (<span class="org-keyword">lambda</span> (method)
+          (<span class="org-keyword">cond</span>
+           ((eq? method 'car)
+            car-data)
+           ((eq? method 'cdr)
+            cdr-data)
+           (<span class="org-keyword">else</span> (error <span class="org-string">"Unknown method:"</span> method)))))
+REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">our-cons</span> (abstract-cons 'foo 'bar))
+REPL&gt; (our-cons 'car)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; foo</span>
+REPL&gt; (our-cons 'cdr)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; bar</span>
+</pre> </div>  <p> 从这个角度看，闭包也是数据结构，只不过是由程序自身的代码流程搭起来的。</p>  <p> 闭包是<i>词法作用域</i>的一个特性。我们在 Goblins 里就利用了这一点：一个对象能访问的能力，无非就是它在自己行为的作用域里拥有的那些能力。</p> </div> </div>
+<div id="outline-container-scheme-iteration-recursion" class="outline-2"> <h2 id="scheme-iteration-recursion"><span class="section-number-2">9.</span> 迭代与递归</h2> <div class="outline-text-2" id="text-scheme-iteration-recursion"> <p> 编程里有很多工作都是成串的操作，尤其是在装着别的信息的数据结构上。函数式编程里有个处理列表特别好用的过程，叫 <code>map</code>，它把第一个参数（一个过程）应用到序列里的每个元素上。</p>  <p> 比如，<code>string-length</code> 返回给定字符串中的字符个数：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (string-length <span class="org-string">"cat"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 3</span>
+REPL&gt; (string-length <span class="org-string">"gorilla"</span>)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 7</span>
+</pre> </div>  <p> 于是用 <code>map</code>，我们可以轻松造出一个列表，装下每个字符串的长度：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">map</span> string-length '(<span class="org-string">"cat"</span> <span class="org-string">"dog"</span> <span class="org-string">"gorilla"</span> <span class="org-string">"salamander"</span>))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (3 3 7 10)</span>
+</pre> </div>  <p> 我们也可以传一个自己定义的过程进去：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">symbol-length</span> sym)
+        (string-length (symbol-&gt;string sym)))
+REPL&gt; (<span class="org-keyword">map</span> symbol-length '(basil oregano parsley thyme))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (5 7 7 5)</span>
+</pre> </div>  <p> 其实，并没有规定过程必须有名字……我们可以用 <code>lambda</code> 造一个匿名过程，直接交给 <code>map</code>：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">map</span> (<span class="org-keyword">lambda</span> (str)
+             (string-append <span class="org-string">"I just love "</span>
+                            (string-upcase str)
+                            <span class="org-string">"!!!"</span>))
+           '(<span class="org-string">"strawberries"</span> <span class="org-string">"bananas"</span> <span class="org-string">"grapes"</span>))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; ("I just love STRAWBERRIES!!!"</span>
+<span class="org-comment-delimiter">;     </span><span class="org-comment">"I just love BANANAS!!!"</span>
+<span class="org-comment-delimiter">;     </span><span class="org-comment">"I just love GRAPES!!!")</span>
+</pre> </div>  <p> <code>map</code> 每次都会多做一点活，把结果攒成一个列表。但要是我们只想用 <code>display</code> 把对某种食物的热爱打到屏幕上，并不在乎之后再对这些数据做什么呢？那可以用 <code>for-each</code>，它的结构和 <code>map</code> 一样，但不构造结果：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">for-each</span> (<span class="org-keyword">lambda</span> (str)
+                  (display
+                   (string-append <span class="org-string">"I just love "</span>
+                                  (string-upcase str)
+                                  <span class="org-string">"!!!\n"</span>)))
+                '(<span class="org-string">"ice cream"</span> <span class="org-string">"fudge"</span> <span class="org-string">"cookies"</span>))
+<span class="org-comment-delimiter">; </span><span class="org-comment">prints:</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love ICE CREAM!!!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love FUDGE!!!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love COOKIES!!!</span>
+</pre> </div>  <div class="org-center"> <p> <b>注意！</b>本小节接下来的内容，乃至整个 Scheme 教程余下的部分，都超出了理解我们论文「The Heart of Spritely」正文所需的程度！不过，它会大大加深初学者对 Scheme 的理解。</p> </div>  <p> Scheme 有一个让人意外的性质：迭代其实是用递归定义的！</p>  <p> 我们的意思是这样。我们可以自己定义一个 <code>for-each</code> 版本：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> (<span class="org-function-name">for-each</span> proc lst)
+  (<span class="org-keyword">if</span> (eq? lst '())  <span class="org-comment-delimiter">; </span><span class="org-comment">End of the list?</span>
+      'done          <span class="org-comment-delimiter">; </span><span class="org-comment">We're done, so simply return "done"</span>
+      (<span class="org-keyword">let</span> ((item (car lst)))  <span class="org-comment-delimiter">; </span><span class="org-comment">Otherwise... let's fetch this item</span>
+        (proc item)            <span class="org-comment-delimiter">; </span><span class="org-comment">Call the procedure with this item</span>
+        (<span class="org-keyword">for-each</span> proc (cdr lst)))))  <span class="org-comment-delimiter">; </span><span class="org-comment">Iterate with the remaining work</span>
+</pre> </div>  <p> 这会把 <code>lst</code> 里的每一项依次交给 <code>proc</code>，直到项用完。如果你写过别的编程语言，大概会以为这种设计一不小心就会「爆栈」。但 Scheme 很聪明：它看得出，一旦走到最后一行，当前这个 <code>for-each</code> 里就没有别的活要干了……也就是说，<code>for-each</code> 调用自己的地方，处在「尾位置」。正因如此，Scheme 可以省掉在栈上分配新帧，带着新分配的变量直接「跳」回 <code>for-each</code> 的开头。这叫作<code>尾调用消除</code>。在 Scheme 里，所有迭代设施其实都是这样用递归定义的。</p>  <p> 也可以写出树递归的过程。下面这个过程会造一棵二叉树（有点进阶，没看懂也不要紧）：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> (<span class="org-function-name">build-tree</span> depth)
+  (<span class="org-keyword">if</span> (= depth 0)
+      '(0)
+      (list depth
+            (build-tree (- depth 1))
+            (build-tree (- depth 1)))))
+</pre> </div>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (build-tree 3)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (3 (2 (1 (0)</span>
+<span class="org-comment-delimiter">;             </span><span class="org-comment">(0))</span>
+<span class="org-comment-delimiter">;          </span><span class="org-comment">(1 (0)</span>
+<span class="org-comment-delimiter">;             </span><span class="org-comment">(0)))</span>
+<span class="org-comment-delimiter">;       </span><span class="org-comment">(2 (1 (0)</span>
+<span class="org-comment-delimiter">;             </span><span class="org-comment">(0))</span>
+<span class="org-comment-delimiter">;          </span><span class="org-comment">(1 (0)</span>
+<span class="org-comment-delimiter">;             </span><span class="org-comment">(0))))</span>
+</pre> </div>  <p> 或者画出来更清楚：</p>  <div class="org-src-container"> <pre class="src src-text">       3
+      / \
+     /   \
+    2     2
+   / \   / \
+  1  1   1  1
+ /\  /\ /\  /\
+0 0 0 0 0 0 0 0
+</pre> </div>  <p> 不过，和 <code>for-each</code> 不同，<code>build-tree</code> <i>没有</i>在尾位置调用自己。按现在这个写法，想不在栈上留下待办的活、直接「跳」到过程开头，是做不到的：还有活要干，<code>list</code> 正等着自己的结果。所以，和 <code>for-each</code> 不一样，<code>build-tree</code> 是递归的，但不是迭代的。</p>  <p> 末了，来点顺手的写法。下面有两个 <code>let</code> 的变体，写递归和迭代过程时都用得上。第一个是 <code>letrec</code>，它让过程可以调用、引用自己，也可以引用 <code>letrec</code> 里定义的其它过程，不必管定义的先后顺序：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">letrec</span> ((alice
+                (<span class="org-keyword">lambda</span> (first?)
+                  (report-status <span class="org-string">"Alice"</span> first?)
+                  (<span class="org-keyword">if</span> first? (bob #f))))
+               (bob
+                (<span class="org-keyword">lambda</span> (first?)
+                  (report-status <span class="org-string">"Bob"</span> first?)
+                  (<span class="org-keyword">if</span> first? (alice #f))))
+               (report-status
+                (<span class="org-keyword">lambda</span> (name first?)
+                  (display
+                   (string-append name <span class="org-string">" is "</span>
+                                  (<span class="org-keyword">if</span> first?
+                                      <span class="org-string">"first"</span>
+                                      <span class="org-string">"second"</span>)
+                                  <span class="org-string">"!\n"</span>)))))
+        (alice #t)
+        (display <span class="org-string">"-----\n"</span>)
+        (bob #t))
+<span class="org-comment-delimiter">; </span><span class="org-comment">prints:</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">Alice is first!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">Bob is second!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">-----</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">Bob is first!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">Alice is second!</span>
+</pre> </div>  <p> 第二个有用的抽象，是<i>命名 let</i> 这种 <code>let</code> 变体，第一个参数的位置上放着用于循环的名字标识符：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">let</span> <span class="org-function-name">loop</span> ((words '(<span class="org-string">"carrot"</span> <span class="org-string">"potato"</span> <span class="org-string">"pea"</span> <span class="org-string">"celery"</span>))
+                 (num-words 0)
+                 (num-chars 0))
+        (<span class="org-keyword">if</span> (eq? words '())
+            (format #f <span class="org-string">"We found ~a words and ~a chars!"</span>
+                    num-words num-chars)
+            (loop (cdr words)
+                  (+ num-words 1)
+                  (+ num-chars (string-length (car words))))))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "We found 4 words and 21 chars!"</span>
+</pre> </div>  <p> <i>命名 let</i> 做的事，就是定义这个有名的过程（这里叫 <code>loop</code>），然后拿 <code>let</code> 的初始绑定立刻调用它。这个过程在 <code>let</code> 的体里就能用，方便写递归（或许还有迭代）调用。</p> </div> </div>
+<div id="outline-container-scheme-effects" class="outline-2"> <h2 id="scheme-effects"><span class="section-number-2">10.</span> 变更、赋值与其他副作用</h2> <div class="outline-text-2" id="text-scheme-effects"> <p> 本节是为了内容完整才收进来的。其中大部分内容，Goblins 都提供了另一种做法，我们会在接近结尾时讨论。</p>  <p> Scheme 自带一种重新赋值变量的当前值的办法，用的是 <code>set!</code>：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">chest</span> 'sword)
+REPL&gt; chest
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; sword</span>
+REPL&gt; (set! chest 'gold)
+REPL&gt; chest
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; gold</span>
+</pre> </div>  <p> 这甚至能和<a href="#scheme-closure">闭包</a>里展示的技巧结合起来。比如下面这个对象，它从一个初始数 <code>n</code> 开始倒数，数到零之后就一直返回零。</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">make-countdown</span> n)
+        (<span class="org-keyword">lambda</span> ()
+          (<span class="org-keyword">define</span> <span class="org-function-name">last-n</span> n)
+          (<span class="org-keyword">if</span> (zero? n)
+              0
+              (<span class="org-keyword">begin</span>
+                (set! n (- n 1))
+                last-n))))
+REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">cdown</span> (make-countdown 3))
+REPL&gt; (cdown)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 3</span>
+REPL&gt; (cdown)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 2</span>
+REPL&gt; (cdown)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 1</span>
+REPL&gt; (cdown)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 0</span>
+REPL&gt; (cdown)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 0</span>
+</pre> </div>  <p> 这个例子有几处值得说一说：</p>  <ul class="org-ul"> <li>我们把时间与变化带进了计算。在赋值这类副作用出现之前，用同样的参数调用同一个过程，结果永远相同。但在上面的例子里，<code>cdown</code> 的回应会随时间改变（而且调用时根本没有传给它任何参数）。</li> <li>因为第一次调用过程时要显示初始的那个数，所以我们得先把 <code>last-n</code> 存下来，<i>之后</i>才能用 <code>set!</code> 改动 <code>n</code>。这个顺序要是弄反了，就会引入一个 bug：上面的例子里，<code>cdown</code> 会从 <code>2</code> 开始，而不是从 <code>3</code> 开始。</li> <li>这里我们还见到一个新语法：<code>begin</code>。<code>begin</code> 按顺序执行若干个表达式，返回最后一个表达式的值。</li> </ul>  <p> 最后这一点有意思。在引入副作用（比如上面演示的赋值、往屏幕上输出、往文件或数据库里写日志等等）之前，<code>begin</code> 没有任何存在的理由。要理解这一点，回想本教程开头演示的<i>代入法</i>：</p>  <div class="org-src-container"> <pre class="src src-scheme">(* (- 8 (/ 30 5)) 21)   <span class="org-comment-delimiter">; </span><span class="org-comment">beginning expression</span>
+(* (- 8 6) 21)          <span class="org-comment-delimiter">; </span><span class="org-comment">simplify: (/ 30 5) =&gt; 6</span>
+(* 2 21)                <span class="org-comment-delimiter">; </span><span class="org-comment">simplify: (- 8 6)  =&gt; 2</span>
+42                      <span class="org-comment-delimiter">; </span><span class="org-comment">simplify: (* 2 21) =&gt; 42</span>
+</pre> </div>  <p> 在没有副作用之前，调用每一个过程都是为了算出程序新的一部分。但 <code>if</code> 的每个分支只求值一个表达式，所以我们得有个办法把<i>备选</i>分支排成序列，这样才能先 <code>set!</code> 再返回一个值。<sup><a id="fnr.cond-begin" class="footref" href="#fn.cond-begin" role="doc-backlink">15</a></sup> 也就是说，<i>纯函数式</i>的程序本来就是为了接收一串输入，然后精确算出一个值，每次都算出同一个值。整个求值过程从上到下就是一串干净的代入。（换言之，在引入时间之前，我们的程序是完全<i>确定的</i>。）</p>  <p> 可是，一旦引入<i>变更</i>与<i>副作用</i>，我们就把一个强大又危险的新构造带进了程序：时间。我们的程序不再是<i>纯函数式</i>的，时间让它们变得<i>命令式</i>：先做这个，再做那个。时间就是变化，而变化需要一串按顺序发生的事件，光靠代入不够。有了时间，同样的程序和过程配上同样的输入，输出就不一定相同。我们拿一个没有时间的世界，换来了一个有变化的世界。</p>  <p> 尽管要小心，变化有时还是需要的。我们活在一个有时间、有变化的世界里，程序也常常如此。Scheme 对观察时间和变化有一套（不太统一的）命名约定：加一个 <code>!</code> 后缀，就像我们在 <code>set!</code> 里见到的。这个 <code>!</code> 可以看成一种警告，仿佛使用者在喊：这里可能发生变更。（不过 Scheme 的运行时并不保证这个后缀的有无能说明任何变更方面的问题。）</p>  <p> 然而，<code>set!</code> 并不是标准（和非标准）Scheme 里唯一的变更形式。<sup><a id="fnr.set-vs-w7-cells" class="footref" href="#fn.set-vs-w7-cells" role="doc-backlink">16</a></sup> 另一个例子是可变的向量和 <code>vector-set!</code>：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">vec</span> (vector 'a 'b 'c))
+REPL&gt; vec
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #(a b c)</span>
+REPL&gt; (vector-ref vec 1)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; b</span>
+REPL&gt; (vector-set! vec 1 'boop)
+REPL&gt; (vector-ref vec 1)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; boop</span>
+REPL&gt; vec
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #(a boop c)</span>
+</pre> </div>  <p> 这两个例子看起来都像变更。不过本教程里我们已经见过另一种副作用，就是 <code>display</code>，它往屏幕上写东西。实际上，<code>display</code> 本身就建立在<i>端口</i>这个概念上，端口是 Scheme 里从输入设备读取、向输出设备写入的机制。</p>  <p> 这些做法都带着和 <code>set!</code> 一样的挑战。简单说，一旦把环境里的时间引进来，程序就不再是超越时间的了。但事实是，我们没法把时间和变化<i>全部</i>从计算机里清掉，下面这段套起来的引文就说明了这一点：</p>  <blockquote> <p> 知名函数式程序员 Simon Peyton Jones 有句爱说的话：「没有副作用，你能做的就只是按一下按钮，然后看着盒子热上一阵子。」（严格说来这话不对，因为连盒子变热都是副作用。）</p>  <p> ——摘自 Conrad Barski, M.D. 所著的 <i>Land of Lisp</i> </p> </blockquote>  <p> 正如 Simon 和 Conrad 指出的，函数式编程的难点在于：副作用可能有危险，但从某种意义上说，用户真正在意的恰恰就是副作用。要让计算机有用，总得在某个时刻从使用者那里读入输入，再把输出交回去，而这些天生就带副作用。就连用一台繁忙计算机散出的热量给房子取暖，也是副作用。总有个时刻，我们得走进纯粹的数学乐园，再走出来。<sup><a id="fnr.monads-etc" class="footref" href="#fn.monads-etc" role="doc-backlink">17</a></sup> </p> </div> </div>
+<div id="outline-container-scheme-extensibility" class="outline-2"> <h2 id="scheme-extensibility"><span class="section-number-2">11.</span> Scheme 的可扩展性（以及一般意义上的 Lisp）</h2> <div class="outline-text-2" id="text-scheme-extensibility"> <p> 假设我们想要一点新语法。比如条件满足时，想按顺序跑好几段代码。可以这样写：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">if</span> (our-test)
+    (<span class="org-keyword">begin</span>
+      (do-thing-1)
+      (do-thing-2)))
+</pre> </div>  <p> 但这样有点丑。要不专门为这个目的造个新语法？</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">when</span> (our-test)
+  (do-thing-1)
+  (do-thing-2))
+</pre> </div>  <p> <code>when</code> 没法写成函数，因为除非 <code>(our-test)</code> 通过，我们并不想执行 <code>(do-thing-1)</code> 或 <code>(do-thing-2)</code>。我们需要新语法。</p>  <p> 这个新语法能自己造吗？记得我们可以「用 Lisp 写 Lisp」，答案似乎是可以：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">when</span> test . body)
+        `(<span class="org-keyword">if</span> ,test
+             ,(cons 'begin body)))
+REPL&gt; (<span class="org-keyword">when</span> '(our-test)
+        '(do-thing-1)
+        '(do-thing-2))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (if (our-test)</span>
+<span class="org-comment-delimiter">;        </span><span class="org-comment">(begin</span>
+<span class="org-comment-delimiter">;          </span><span class="org-comment">(do-thing-1)</span>
+<span class="org-comment-delimiter">;          </span><span class="org-comment">(do-thing-2)))</span>
+</pre> </div>  <p> 这确实构造出了合适的语法！也顺便证明了我们那句话：Lisp 能「写出会写代码的代码」，这话不假。<sup><a id="fnr.homoiconic" class="footref" href="#fn.homoiconic" role="doc-backlink">18</a></sup> </p>  <p> 不过，这个初步的尝试有两个明显的问题：</p> <ul class="org-ul"> <li>传给 <code>when</code> 的每个参数我们都得先引用一次。这么做很烦人。</li> <li><code>when</code> 并没有真的运行它的代码，只是返回了代码应该展开成的那个<i>被引用的结构</i>。</li> </ul>  <p> 不过，只要改一处，我们的过程就能变成「宏」：一种供编译器展开代码的特殊过程。要做的事就这些：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define-macro</span> (<span class="org-variable-name">when</span> test . body)
+  `(<span class="org-keyword">if</span> ,test
+       ,(cons 'begin body)))
+</pre> </div>  <p> 我们要做的只是把 <code>define</code> 改名成 <code>define-macro</code>！现在 Scheme 知道该用它来展开代码了。这样我们就能定义新的语法形式。</p>  <p> <code>define-macro</code> 把 Lisp 与 Scheme 的宏在做什么摆得很清楚：它们在结构上操作。像这样手工拼出一个列表结构，正是 Common Lisp 里宏的工作方式。不过这并非 Scheme 写宏的通用做法。Scheme 的宏长得倒是很像：</p>  <div class="org-src-container"> <pre class="src src-scheme">(define-syntax-rule (<span class="org-keyword">when</span> test body ...)
+  (<span class="org-keyword">if</span> test
+      (<span class="org-keyword">begin</span> body ...)))
+</pre> </div>  <p> <code>define-syntax-rule</code> 用<i>模式匹配</i>来实现宏。<code>define-syntax-rule</code> 的第一个参数描述使用者将要输入的模式，第二个参数描述将要展开成的模板。<sup><a id="fnr.other-macro-builders" class="footref" href="#fn.other-macro-builders" role="doc-backlink">19</a></sup> 我们还能注意到，<code>body ...</code> 在模式和模板里都出现了；模式里的 <code>...</code> 省略号表示会从使用者的输入里捕获多个表达式，模板里的 <code>...</code> 则表示重复发生在哪里。可以看出，有这套机制就不必手工引用；Scheme 会替我们巧妙地处理。</p>  <p> 说到底，Scheme 版的语法定义在底层怎么工作，不如 <code>define-macro</code> 版那么一目了然。可语法变换系统里有个绕不开的问题，叫<i>卫生性</i>：一个语法形式 / 宏不该往它展开成的那个形式的主体里塞进意料之外的临时标识符。本入门读物不去掰扯这场争论，但 Common Lisp 和 Scheme 的宏都有各自的重大取舍：Scheme 更有可能真正做到「卫生的」，写简单的语法形式更容易，写复杂的形式更难，底层怎么工作也更不直观。正因为如此，虽然你在 Scheme 里多半永远用不上 <code>define-macro</code> 这条路，它仍然是理解「会写代码的代码」背后想法的一个好用途径。</p>  <p> 既然知道了按 Scheme 的路子怎么造新语法，那就看看能不能让日子比以前好过些。回头看看前面用 <code>for-each</code> 的那段：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">for-each</span> (<span class="org-keyword">lambda</span> (str)
+                  (display
+                   (string-append <span class="org-string">"I just love "</span>
+                                  (string-upcase str)
+                                  <span class="org-string">"!!!\n"</span>)))
+                '(<span class="org-string">"strawberries"</span> <span class="org-string">"bananas"</span> <span class="org-string">"grapes"</span>))
+<span class="org-comment-delimiter">; </span><span class="org-comment">prints:</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love STRAWBERRIES!!!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love BANANAS!!!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love GRAPES!!!</span>
+</pre> </div>  <p> 能用，但麻烦得没必要。那个 <code>lambda</code> 就是多余的细节！加一小段新语法定义就能收拾干净：</p>  <div class="org-src-container"> <pre class="src src-scheme">(define-syntax-rule (for (item lst) body ...)
+  (<span class="org-keyword">for-each</span> (<span class="org-keyword">lambda</span> (item)
+              body ...)
+            lst))
+</pre> </div>  <p> 试试看：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (for (str '(<span class="org-string">"strawberries"</span> <span class="org-string">"bananas"</span> <span class="org-string">"grapes"</span>))
+        (display
+         (string-append <span class="org-string">"I just love "</span>
+                        (string-upcase str)
+                        <span class="org-string">"!!!\n"</span>)))
+<span class="org-comment-delimiter">; </span><span class="org-comment">prints:</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love STRAWBERRIES!!!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love BANANAS!!!</span>
+<span class="org-comment-delimiter">;   </span><span class="org-comment">I just love GRAPES!!!</span>
+</pre> </div>  <p> 成了！这样读起来容易多了。<sup><a id="fnr.c-style-for" class="footref" href="#fn.c-style-for" role="doc-backlink">20</a></sup> </p>  <p> 不必就此打住。Spritely Goblins 里的 <code>methods</code> 特性就是一个宏的例子。下面是简化版：</p>  <div class="org-src-container"> <pre class="src src-scheme">(define-syntax-rule (methods ((method-id method-args ...)
+                              body ...) ...)
+  (<span class="org-keyword">lambda</span> (method . args)
+    (<span class="org-keyword">letrec</span> ((method-id
+              (<span class="org-keyword">lambda</span> (method-args ...)
+                body ...)) ...)
+      (<span class="org-keyword">cond</span>
+       ((eq? method (quote method-id))
+        (apply method-id args)) ...
+       (<span class="org-keyword">else</span>
+        (error <span class="org-string">"No such method:"</span> method))))))
+</pre> </div>  <p> 这里能同时看到两件事：Scheme 风格的模式匹配写出来多有表现力；以及省略号（<code>...</code>）叠了好几层时，要看清代码展开器怎么琢磨出该怎样拆解，多少有点费劲。</p>  <p> 先不管这个，看一个用法的例子：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> (<span class="org-function-name">make-enemy</span> name hp)
+        (methods
+         ((get-name)
+          name)
+         ((damage-me weapon hp-lost)
+          (<span class="org-keyword">cond</span>
+           ((dead?)
+            (format #t <span class="org-string">"Poor ~a is already dead!\n"</span> name))
+           (<span class="org-keyword">else</span>
+            (set! hp (- hp hp-lost))
+            (format #t <span class="org-string">"You attack ~a, doing ~a damage!\n"</span>
+                    name hp-lost))))
+         ((dead?)
+          (&lt;= hp 0))))
+REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">hobgob</span>
+        (make-enemy <span class="org-string">"Hobgoblin"</span> 25))
+REPL&gt; (hobgob 'get-name)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; "Hobgoblin"</span>
+REPL&gt; (hobgob 'dead?)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; (hobgob 'damage-me <span class="org-string">"club"</span> 10)
+<span class="org-comment-delimiter">; </span><span class="org-comment">prints: You attack Hobgoblin, doing 10 damage!</span>
+REPL&gt; (hobgob 'damage-me <span class="org-string">"sword"</span> 20)
+<span class="org-comment-delimiter">; </span><span class="org-comment">prints: You attack Hobgoblin, doing 20 damage!</span>
+REPL&gt; (hobgob 'damage-me <span class="org-string">"pickle"</span> 2)
+<span class="org-comment-delimiter">; </span><span class="org-comment">prints: Poor Hobgoblin is already dead!</span>
+REPL&gt; (hobgob 'dead?)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+</pre> </div>  <p> 我们还能走得更远。可以给 Scheme 加上<a href="http://minikanren.org/">逻辑编程</a>，可以<a href="https://wingolog.org/archives/2011/08/30/the-gnu-extension-language">加上模式匹配</a>，等等等等。实际上，下一小节里我们就会用到 Guile 标准库自带的一个模式匹配系统。</p>  <p> 因为 Lisp/Scheme 在语法上可扩展，高级的编程语言特性能作为库来实现，而不必做成完全独立的子语言。多个问题领域可以合进同一个系统。因此我们说，Lisp 语系里的语言支持<i>可组合的领域特定语言</i>。</p>  <p> 这也是一种解放。在别的编程语言里，用户得在语言实现者面前祈祷，求某个特性能赶上下一个官方版本；同样的特性到了 Lisp/Scheme 用户手里，也许只是几行简单的小代码。</p>  <p> 这才是真正的力量。不过还有更多。下一节我们要把 Scheme 本身打开，用少得惊人的代码去配置它、试验它的底层机制。</p> </div> </div>
+<div id="outline-container-scheme-in-scheme" class="outline-2"> <h2 id="scheme-in-scheme"><span class="section-number-2">12.</span> 用 Scheme 写 Scheme</h2> <div class="outline-text-2" id="text-scheme-in-scheme"> <p> 这是一个用 Scheme 写成的、能真正运行的 Scheme 实现：</p>  <div class="org-src-container"> <pre class="src src-scheme">(use-modules (ice-9 match))
+
+(<span class="org-keyword">define</span> (<span class="org-function-name">env-lookup</span> env name)
+  (match (assoc name env)
+    ((_key . val)
+     val)
+    (_
+     (error <span class="org-string">"Variable unbound:"</span> name))))
+
+(<span class="org-keyword">define</span> (<span class="org-function-name">extend-env</span> env names vals)
+  (<span class="org-keyword">if</span> (eq? names '())
+      env
+      (cons (cons (car names) (car vals))
+            (extend-env env (cdr names) (cdr vals)))))
+
+(<span class="org-keyword">define</span> (<span class="org-function-name">evaluate</span> expr env)
+  (match expr
+    <span class="org-comment-delimiter">;; </span><span class="org-comment">Support builtin types</span>
+    ((<span class="org-keyword">or</span> #t #f (? number?))
+     expr)
+    <span class="org-comment-delimiter">;; </span><span class="org-comment">Quoting</span>
+    (('quote quoted-expr)
+     quoted-expr)
+    <span class="org-comment-delimiter">;; </span><span class="org-comment">Variable lookup</span>
+    ((? symbol? name)
+     (env-lookup env name))
+    <span class="org-comment-delimiter">;; </span><span class="org-comment">Conditionals</span>
+    (('if test consequent alternate)
+     (<span class="org-keyword">if</span> (evaluate test env)
+         (evaluate consequent env)
+         (evaluate alternate env)))
+    <span class="org-comment-delimiter">;; </span><span class="org-comment">Lambdas (Procedures)</span>
+    (('lambda (args ...) body)
+     (<span class="org-keyword">lambda</span> (. vals)
+       (evaluate body (extend-env env args vals))))
+    <span class="org-comment-delimiter">;; </span><span class="org-comment">Procedure Invocation (Application)</span>
+    ((proc-expr arg-exprs ...)
+     (apply (evaluate proc-expr env)
+            (<span class="org-keyword">map</span> (<span class="org-keyword">lambda</span> (arg-expr)
+                   (evaluate arg-expr env))
+                 arg-exprs)))))
+</pre> </div>  <p> 去掉注释、空行，还有开头那行模式匹配的导入（不是必需，但很方便），这就只有 30 行代码。这个求值器虽然简陋，却足够完整，能算出我们能想到的任何东西。（你甚至可以在这个求值器之上，再写一个类似的 Scheme 求值器！）<sup><a id="fnr.metacircular" class="footref" href="#fn.metacircular" role="doc-backlink">21</a></sup> </p>  <p> 我们的求值器接收两个参数：一个 Scheme 表达式 <code>expr</code>，一个环境 <code>env</code>。Scheme 那种 Lisp 式的结构在这里帮了大忙：我们已经学过，可以轻松把整段代码引用起来。（确实，这正是我们接下来要做的事。）第二个参数 <code>env</code> 是一个关联列表，把名字（符号）映射到与之关联的过程。</p>  <p> 眼见为实。我们来做点简单算术，往默认环境里传入几个能做数学运算的过程：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> <span class="org-function-name">math-env</span>
+  `((+ . ,+)
+    (- . ,-)
+    (* . ,*)
+    (/ . ,/)))
+</pre> </div>  <p> 可以看到，我们最早写的那个「代入法」示例，在这个环境里跑得好好的：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (evaluate '(* (- 8 (/ 30 5)) 21)
+                math-env)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 42</span>
+</pre> </div>  <p> 你瞧，这跟我们在自己程序里算出来的答案一模一样！</p>  <p> 我们也可以造一个 lambda，再应用它。来造一个能把数字平方的：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (evaluate '((<span class="org-keyword">lambda</span> (x)
+                    (* x x))
+                  4)
+                math-env)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 16</span>
+</pre> </div>  <p> 不错，完美运转。</p>  <p> 再来点更高级的。只提供两个操作符 <code>+</code> 和 <code>=</code>，我们就能算出斐波那契数列：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">fib-program</span>
+        '((<span class="org-keyword">lambda</span> (prog arg)   <span class="org-comment-delimiter">; </span><span class="org-comment">boot</span>
+            (prog prog arg))
+          (<span class="org-keyword">lambda</span> (fib n)      <span class="org-comment-delimiter">; </span><span class="org-comment">main program</span>
+            (<span class="org-keyword">if</span> (= n 0)
+                0
+                (<span class="org-keyword">if</span> (= n 1)
+                    1
+                    (+ (fib fib (+ n -1))
+                       (fib fib (+ n -2))))))
+          10))                 <span class="org-comment-delimiter">; </span><span class="org-comment">argument</span>
+REPL&gt; (<span class="org-keyword">define</span> <span class="org-function-name">fib-env</span>
+        `((+ . ,+)
+          (= . ,=)))
+REPL&gt; (evaluate fib-program fib-env)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 55</span>
+</pre> </div>  <p> 这看起来像魔法。但它真的能跑！求值器确实在做底层的计算，用的只是加法（正数和负数都适用）和数值相等检查这两类过程，而这些都是我们提供的。</p>  <p> 主程序需要能调用自己，所以第一个过程（标记为 <code>boot</code>）接收一个程序和一个参数，再用自己和那个参数去调用这个程序。<sup><a id="fnr.cheap-y" class="footref" href="#fn.cheap-y" role="doc-backlink">22</a></sup> 第二个过程（标记为 <code>main program</code>）把自己作为参数 <code>fib</code>（由我们的 boot 过程提供），同时也接收参数 <code>n</code>（同样由 boot 过程提供）……它居然跑通了！我们的求值器就这样递归地构建出斐波那契数列。</p>  <p> 我们的求值器也不难理解。下面一段一段拆开看。</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> (<span class="org-function-name">env-lookup</span> env name)
+  (match (assoc name env)
+    ((_key . val)
+     val)
+    (_
+     (error <span class="org-string">"Variable unbound:"</span> name))))
+</pre> </div>  <p> 这个不难。我们把环境定义成关联列表，所以 <code>env-lookup</code> 要做的就是在列表里找匹配的名字。较新的条目会先被找到，也就是说，同一个名字若在更深的作用域里定义，就会<i>遮蔽</i>父作用域。看用法就明白了：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (env-lookup '((foo . newer-foo)
+                    (bar . bar)
+                    (foo . older-foo))
+                  'foo)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 'newer-foo</span>
+</pre> </div>  <p> 下一个是个工具过程：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> (<span class="org-function-name">extend-env</span> env names vals)
+  (<span class="org-keyword">if</span> (eq? names '())
+      env
+      (cons (cons (car names) (car vals))
+            (extend-env env (cdr names) (cdr vals)))))
+</pre> </div>  <p> <code>extend-env</code> 接收一个环境、一个名字列表，以及一个与之一一对应的值列表。这是个便利工具，后面定义过程时会用到。同样，看用法就明白了：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (extend-env '((foo . foo-val))
+                  '(bar quux)
+                  '(bar-val quux-val))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; ((bar . bar-val)</span>
+<span class="org-comment-delimiter">;     </span><span class="org-comment">(quux . quux-val)</span>
+<span class="org-comment-delimiter">;     </span><span class="org-comment">(foo . foo-val))</span>
+</pre> </div>  <p> 现在进入求值器本身。<code>evaluate</code> 的外壳长这样：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define</span> (<span class="org-function-name">evaluate</span> expr env)
+  (match expr
+    (<span class="org-type">&lt;MATCH-PATTERN&gt;</span>
+     <span class="org-type">&lt;MATCH-BODY&gt;</span> ...) ...))
+</pre> </div>  <p> <code>evaluate</code> 接收两个参数：</p> <ul class="org-ul"> <li><code>expr</code>：要求值的表达式</li> <li><code>env</code>：对表达式求值时所在的环境</li> </ul>  <p> 至于 <code>evaluate</code> 的主体部分，我们根据 <code>expr</code> 匹配上哪个模式，分派不同的处理。我们用的是 <code>match</code>，来自 <a href="https://www.gnu.org/software/guile/manual/html_node/Pattern-Matching.html">Guile 的模式匹配语法</a>（就是开头导入模块带进来的）。简单说，一旦某个 <code>&lt;MATCH-PATTERN&gt;</code> 匹配成功，就不再往下找别的模式，直接对 <code>&lt;MATCH-BODY&gt;</code> 求值（匹配时可能已经根据 <code>&lt;MATCH-PATTERN&gt;</code> 建好了绑定）。</p>  <p> 那么现在，要做的就是挨个看我们支持的每个模式。第一个很简单：</p>  <div class="org-src-container"> <pre class="src src-scheme"><span class="org-comment-delimiter">;; </span><span class="org-comment">Support builtin types</span>
+((<span class="org-keyword">or</span> #t #f (? number?))
+ expr)
+</pre> </div>  <p> 这里的 <code>or</code> 表示，它包含的任意一个模式匹配上都算数。前两个正是 Scheme 自身的真值与假值。以 <code>?</code> 符号开头的括号表示要拿一个谓词去试匹配，这里是 <code>number?</code>。只要其中任意一个匹配，我们就把正在匹配的那个 <code>expr</code> 原样返回……布尔值和数字直接从底层的 Scheme 实现借来用。</p>  <p> 也就是说，上面的模式让下面这些都能求值：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (evaluate #t '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+REPL&gt; (evaluate #f '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; (evaluate 33 '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 33</span>
+REPL&gt; (evaluate -2/3 '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; -2/3</span>
+</pre> </div>  <p> 这很简单！下一个同样简单：</p>  <div class="org-src-container"> <pre class="src src-scheme"><span class="org-comment-delimiter">;; </span><span class="org-comment">Quoting</span>
+(('quote quoted-expr)
+ quoted-expr)
+</pre> </div>  <p> 回想一下，<code>'foo</code> 只是 <code>(quote foo)</code> 的简写，同样，<code>'(1 2 3)</code> 是 <code>(quote (1 2 3))</code> 的简写。这个模式找的，是以 <code>'quote</code> 符号开头、第二个元素是被引用表达式的列表。</p>  <p> 同样，上面的模式能支撑这些：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (evaluate ''foo '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; foo</span>
+REPL&gt; (evaluate ''(1 2 3) '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (1 2 3)</span>
+REPL&gt; (evaluate (quote (quote (1 2 3))) '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (1 2 3)</span>
+</pre> </div>  <p> 最后两条结果相同。注意我们引用了两次：一次是把整个要运行的程序引用起来，一次是在被引用的程序内部，表示想引用某个表达式。</p>  <p> 到目前为止都顺利。下一个仍然相当简单：</p>  <div class="org-src-container"> <pre class="src src-scheme"><span class="org-comment-delimiter">;; </span><span class="org-comment">Variable lookup</span>
+((? symbol? name)
+ (env-lookup env name))
+</pre> </div>  <p> 其中的 <code>(? symbol? name)</code> 这一段，把 <code>name</code> 绑定到匹配上的那部分。（这里 <code>name</code> 绑的值跟被匹配的 <code>expr</code> 相同，只是这样可读性好一点。）</p>  <p> 至于主体……嗨，这简单得很！<code>env-lookup</code> 怎么工作，前面已经看过了。所以，看到一个符号（当然不是被引用的符号，那种已经处理过了），就去环境里查它对应的值。</p>  <p> 上面这个模式也确实管用：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (evaluate 'x '((x . 33)))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 33</span>
+</pre> </div>  <p> 不过，它同样支撑我们通过 lambda 应用定义出来的变量查找：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (evaluate '((<span class="org-keyword">lambda</span> (x) x) 33) '())
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 33</span>
+</pre> </div>  <p> 当然，我们还没讲到 <code>lambda</code>！不过已经不远了。</p>  <p> 下一个是条件表达式，结果也相当简单：</p>  <div class="org-src-container"> <pre class="src src-scheme"><span class="org-comment-delimiter">;; </span><span class="org-comment">Conditionals</span>
+(('if test consequent alternate)
+ (<span class="org-keyword">if</span> (evaluate test env)
+     (evaluate consequent env)
+     (evaluate alternate env)))
+</pre> </div>  <p> 也就是说，以 <code>'if</code> 符号开头的列表会被匹配，<code>'if</code> 后面的三个子表达式分别绑定到匹配主体里的变量 <code>test</code>、<code>consequent</code> 和 <code>alternate</code>。我们借用底层 Scheme 的 <code>if</code>：先对 <code>test</code> 在当前环境 <code>env</code> 里求值（注意这是递归！），再由宿主 Scheme 的 <code>if</code> 决定是对 <code>consequent</code> 求值，还是对 <code>alternate</code> 求值——两者都在 <code>env</code> 里进行，同样还是递归调用 <code>evaluate</code>。</p>  <p> 好，现在该造过程了。这一段稍微复杂一点，但终究也没那么复杂：</p>  <div class="org-src-container"> <pre class="src src-scheme"><span class="org-comment-delimiter">;; </span><span class="org-comment">Lambdas (Procedures)</span>
+(('lambda (args ...) body)
+ (<span class="org-keyword">lambda</span> (. vals)
+   (evaluate body (extend-env env args vals))))
+</pre> </div>  <p> 这里的模式找的是以 <code>'lambda</code> 开头的列表：第二个成员是参数集合，主体部分被捕获为——嗯，<code>body</code>。然后我们返回一个过程，等收到同样数量的参数就能求值。<sup><a id="fnr.arity-mismatch" class="footref" href="#fn.arity-mismatch" role="doc-backlink">23</a></sup> 返回的这个过程，其内部主体会递归调用 <code>evaluate</code>，求值对象是当前匹配的 lambda 的 <code>body</code> 表达式，只不过环境换成了新扩展出来的：把 <code>args</code> 里的名字和过程调用传进来的 <code>vals</code> 绑定到一起。<sup><a id="fnr.lexical-scope-happens-here" class="footref" href="#fn.lexical-scope-happens-here" role="doc-backlink">24</a></sup> </p>  <p> 上面的模式还支撑这些：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; ((evaluate '(<span class="org-keyword">lambda</span> (x y) x) '())
+       'first 'second)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; first</span>
+REPL&gt; ((evaluate '(<span class="org-keyword">lambda</span> (x y) y) '())
+       'first 'second)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; second</span>
+</pre> </div>  <p> 只剩最后一块了……过程应用！</p>  <div class="org-src-container"> <pre class="src src-scheme"><span class="org-comment-delimiter">;; </span><span class="org-comment">Procedure Invocation (Application)</span>
+((proc-expr arg-exprs ...)
+ (apply (evaluate proc-expr env)
+        (<span class="org-keyword">map</span> (<span class="org-keyword">lambda</span> (arg-expr)
+               (evaluate arg-expr env))
+             arg-exprs)))
+</pre> </div>  <p> 这就是拼图中通用过程应用的那一块！到这一步，模式会匹配任何含一项或多项的列表，并断定这一定意味着把过程应用到参数上。我们对代表待求值过程的 <code>proc-expr</code> 求值，递归调用 <code>evaluate</code>，用的还是当前环境 <code>env</code>。同时，我们把传给这个过程的每个参数表达式 <code>arg-expr</code> 收集起来，对每一个都递归调用 <code>evaluate</code>，用的还是当前环境 <code>env</code><sup><a id="fnr.oh-thats-why-metacircular" class="footref" href="#fn.oh-thats-why-metacircular" role="doc-backlink">25</a></sup>。</p>  <p> 上面的模式同样能跑出这个结果：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (evaluate '(* (- 8 (/ 30 5)) 21)
+                math-env)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; 42</span>
+</pre> </div>  <p> 所有部件拼在一起，我们手里的能力足以算出斐波那契数列，也足以解决任何想得到的可计算问题！</p>  <p> 公道地说，它确实借用了 Scheme 底层能力的一部分，但没有看上去那么多……肯定比许多建立在其他语言之上的语言借得少（比如 Clojure 从 Java 借的，肯定、肯定比这多；几乎任何流行语言从 C 标准库借的，也一样）。<sup><a id="fnr.lisp-read" class="footref" href="#fn.lisp-read" role="doc-backlink">26</a></sup> 它也还没完整到能实现任何一份 Scheme 标准。但不用额外花太多功夫，我们就能走到那一步，用来做演示已经足够。再说，我们还能<i>选择</i>给这门语言多少能力——只要改改代码求值所用的初始环境。</p>  <p> <b>它还是一门能力安全的语言！</b>除了可能陷入死循环、把内存或 CPU 吃光之外，这门语言做不了什么特别危险的事。不过，我们可以决定给它多少能力。愿意的话，我们可以提供一个带可变单元的环境，或者一个能访问文件系统的环境。选择权在我们手里。</p>  <p> 只需小小的改动，我们的求值器就能以各种奇妙的方式工作。我们可以加入新语法。我们可以加入用来添加新语法的新语法（宏）！我们可以改变求值顺序，可以加入静态类型分析，能做的事很多。</p>  <p> 我们保证过，你会从这份教程里学会 Scheme。如果你读到了这里，你得到的远不止这些：你不再只是 Scheme 的使用者，而是 Scheme 的建造者。力量属于你！<sup><a id="fnr.more-reading" class="footref" href="#fn.more-reading" role="doc-backlink">27</a></sup> </p> </div> </div>
+<div id="footnotes"> <h2 class="footnotes">脚注</h2> <div id="text-footnotes">  <div class="footdef"><sup><a id="fn.rnrs" class="footnum" href="#fnr.rnrs" role="doc-backlink">1</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> R5RS 是「Revised(5) Report on the Algorithmic Language Scheme」的缩写，也就是 Scheme 这门算法语言的第五次修订报告。它不是 Scheme 唯一的版本，但它很薄、干净、也极简。某些方面，它可能小过头了：R5RS Scheme 的各种实现以互不兼容著称，实际用起库来更是如此，其中一个不小的原因在于 R5RS 压根没规定库系统！即便如此，R5RS 仍然短而好读。如果你喜欢这份文档，我们建议你读一读 R5RS（或者 R7RS-small，那是一份只稍微长一点、互兼容性更好的现代 Scheme 报告）。</p></div></div>  <div class="footdef"><sup><a id="fn.scheme-and-non-programmers" class="footnum" href="#fnr.scheme-and-non-programmers" role="doc-backlink">2</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 一般来说，Scheme/Lisp 程序员用的编辑器会替他们管好括号，读代码时大家主要看缩进，而不是看括号怎么分组。换句话说，Lisp 程序员通常压根不花什么时间琢磨括号。</p>  <p class="footpara"> 不过，大多数编程语言<i>并不</i>用这样的语法，所以有经验的程序员有时会觉得这种带括号的 Lisp 风格语法很吓人。（一般来说，完全没学过编程的学生学传统 Lisp 语法，反而比不熟悉 Lisp 的老手更轻松。）</p>  <p class="footpara"> 我们办编程入门工作坊时发现，头一回学编程的学生一旦动手写起来，并不觉得 Lisp 语法吓人；有经验的程序员反倒觉得吓人，因为他们熟悉大多数别的语言，乍一看 Lisp 语法就显得很陌生。我们还发现，同时教 Scheme（通过 Racket）和 Python 时，很多完全没有编程背景的学生（工作坊面向的是文科背景的学生）明确表示更偏爱带括号的 Lisp 语法，因为它清楚，有了合适的编辑器支持，写和调试也都更省力（Racket 的新手友好 IDE DrRacket 让这件事很容易）。关于这个现象，可以看看演讲 <a href="https://fosdem.org/2022/schedule/event/lispforeveryone/">Lisp but Beautiful; Lisp for Everyone</a>。</p></div></div>  <div class="footdef"><sup><a id="fn.more-lets" class="footnum" href="#fnr.more-lets" role="doc-backlink">3</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 还有 <code>letrec</code>，它允许各个绑定递归地互相引用（或引用自身）。理论上 <code>let*</code> 和 <code>letrec</code> 都有一些开销，但足够先进的编译器能看出它们什么时候等价于 <code>let</code>，并做相应优化。假如从零开始设计 Scheme，或许更合理的做法是只留一个 <code>let</code>，把 <code>let*</code> 和 <code>letrec</code> 都吸收进来。唉，历史就是历史。</p></div></div>  <div class="footdef"><sup><a id="fn.dot-notation-cons-related" class="footnum" href="#fnr.dot-notation-cons-related" role="doc-backlink">4</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 这种表示法与 <code>cons</code> 单元的设计直接相关，我们会在<a href="#scheme-lists-and-cons">列表与 cons</a> 里多讲一些。</p></div></div>  <div class="footdef"><sup><a id="fn.string-huh" class="footnum" href="#fnr.string-huh" role="doc-backlink">5</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 在 Scheme 里，用来测试真伪的过程叫<i>谓词</i>。这有点容易混淆：自然语言和数学里<i>谓词</i>的定义更宽，凡是表明某种关系的东西都算。严格说来，返回布尔值的测试确实表明了与这次测试有关的一种关系，所以这么叫不算错，但读者若带着别的背景来，可能会觉得反直觉。</p>  <p class="footpara"> Scheme 的<i>谓词</i>传统上带一个 <code>?</code> 后缀。<code>?</code> 后缀习惯上读作「huh?」，于是也就念成 string-huh?。在另一些 Lisp 里，用 <code>-p</code> 后缀，作用跟 Scheme 里的 <code>?</code> 一样。</p></div></div>  <div class="footdef"><sup><a id="fn.when" class="footnum" href="#fnr.when" role="doc-backlink">6</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 在标准 Scheme 里，严格来说 <code>&lt;ALTERNATE&gt;</code> 不是必需的。不过有一个单独的过程叫 <code>when</code>，很多 Scheme 默认提供，形式是：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">when</span> <span class="org-type">&lt;TEST&gt;</span>
+  <span class="org-type">&lt;BODY&gt;</span> ...)
+</pre> </div>  <p class="footpara"> 在 <i>Racket</i> 里，不带 <code>&lt;ALTERNATE&gt;</code> 的 <code>if</code>（也就是「单臂 <code>if</code>」）是不允许的；即便在 <i>Racket</i> 之外，这种场合也更推荐 <code>when</code>。这也是因为在<i>纯函数式编程语言</i>里，不存在「调用一个条件表达式、其中一种可能性不返回任何有用的东西」这回事。换句话说，用 <code>when</code>（或「单臂 <code>if</code>」）只可能是为了<i>副作用</i>。因此，把这两种情况区分开，对读者来说是有用的观察。关于 <code>when</code>，包括怎么自己写一个，我们会在 <a href="#scheme-extensibility">Scheme 的可扩展性（以及一般意义上的 Lisp）</a>里再谈。</p></div></div>  <div class="footdef"><sup><a id="fn.prefix-vs-infix" class="footnum" href="#fnr.prefix-vs-infix" role="doc-backlink">7</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 平心而论，这里正是 Lisp 的前缀表示法不如中缀写法的地方：大于、小于写成尖括号，本身就带着直观的大小提示。有些 Scheme 支持 <a href="https://srfi.schemers.org/srfi-105/srfi-105.html">SRFI-105: Curly infix expressions</a>，读起来轻松一点。对比一下：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (&gt; 8 9)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; (&lt; 8 9)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+REPL&gt; (&gt; 8 8)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; (&gt;= 8 8)
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+</pre> </div>  <p class="footpara"> 换成中缀写法：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; {8 &gt; 9}
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; {8 &lt; 9}
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+REPL&gt; {8 &gt; 8}
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #f</span>
+REPL&gt; {8 &gt;= 8}
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #t</span>
+</pre> </div></div></div>  <div class="footdef"><sup><a id="fn.cond-or-if" class="footnum" href="#fnr.cond-or-if" role="doc-backlink">8</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 我们会在 <a href="#scheme-extensibility">Scheme 的可扩展性（以及一般意义上的 Lisp）</a>里看到，Scheme 允许我们实现新的语法形式。一个 Scheme 实现只需要一种原始的条件语法形式，因为 <code>if</code> 可以写成 <code>cond</code> 的简化版，而 <code>cond</code> 可以写成一串嵌套的 <code>if</code>。</p></div></div>  <div class="footdef"><sup><a id="fn.equality-is-a-tough-subject" class="footnum" href="#fnr.equality-is-a-tough-subject" role="doc-backlink">9</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 计算机科学里最轻描淡写的一条脚注，出现在 Gerald Jay Sussman 与 Alexey Radul 的 <a href="https://dspace.mit.edu/handle/1721.1/44215">The Art of the Propagator</a> 里，它只写了一句：</p>  <blockquote> <p> 相等是个难缠的话题</p> </blockquote></div></div>  <div class="footdef"><sup><a id="fn.other-compound-types" class="footnum" href="#fnr.other-compound-types" role="doc-backlink">10</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> <i>Scheme</i> 还内置支持<i>向量</i>。向量像列表，好处是访问时间为常数，但不太适合函数式编程，因为不容易往它前面添加新元素。许多 <i>Scheme</i> 语言还支持并提供其他有意思的数据类型，包括哈希表和用户自定义的记录。</p></div></div>  <div class="footdef"><sup><a id="fn.cons-car-cdr-historical-reasons" class="footnum" href="#fnr.cons-car-cdr-historical-reasons" role="doc-backlink">11</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> <code>cons</code> 这个名字望文知义，指的是「构造」一个点对；而 <code>car</code> 和 <code>cdr</code> 纯粹是 Lisp 第一次实现留下的历史细节，前者指「地址寄存器的内容」，后者指「减量寄存器的内容」。一个术语能活这么久，真让人感慨，好坏不论。</p>  <p class="footpara"> 想看些有意思的 Lisp 历史，可以看：</p>  <ul class="org-ul"> <li><a href="http://jmc.stanford.edu/articles/lisp.html">History of Lisp</a>，John McCarthy 著</li> <li><a href="https://www.dreamsongs.com/Files/Hopl2.pdf">The Evolution of Lisp</a>，Guy L. Steele 与 Richard P. Gabriel 著</li> <li><a href="https://www.softwarepreservation.org/projects/LISP/">History of LISP</a>，Paul McJones 著</li> </ul></div></div>  <div class="footdef"><sup><a id="fn.first-and-rest" class="footnum" href="#fnr.first-and-rest" role="doc-backlink">12</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 既然 <code>car</code> 和 <code>cdr</code> 是这么「历史的细节」，总让人想给它们换个更好的名字。如果只用列表，<code>first</code> 和 <code>rest</code> 是很好的别名：</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (first '(a b c))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; a</span>
+REPL&gt; (rest '(a b c))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; (b c)</span>
+REPL&gt; (first (rest '(a b c)))
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; b</span>
+</pre> </div>  <p class="footpara"> 不过，对 <code>(cons 'a 'b)</code> 这种单纯是点对的 cons 单元来说，这就不太说得通了&#x2026;&#x2026; <code>rest</code> 返回的是单个元素，而不是一个序列。于是就这样，<code>car</code> 和 <code>cdr</code> 这两个名字继续活着。</p></div></div>  <div class="footdef"><sup><a id="fn.little-schemer" class="footnum" href="#fnr.little-schemer" role="doc-backlink">13</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 关于 <code>cons</code> 这位「了不起的家伙」，还有很多可讲；至于怎么培养对递归的直觉，去读 <a href="https://mitpress.mit.edu/books/little-schemer-fourth-edition">The Little Schemer</a> 吧。</p></div></div>  <div class="footdef"><sup><a id="fn.why-not-lambda" class="footnum" href="#fnr.why-not-lambda" role="doc-backlink">14</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 在 make-goldilocks 过程里，我们写了一个内层的具名过程。这里用 lambda 表达式，技术上挑不出错，但 <code>(make-goldilocks 10 30)</code> 隐式返回的那个过程会是匿名的，就更难看出它究竟在做什么。</p>  <div class="org-src-container"> <pre class="src src-scheme">REPL&gt; (make-goldilocks 10 30) <span class="org-comment-delimiter">;; </span><span class="org-comment">using lambda</span>
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #&lt;procedure 78d86f615b80 at &lt;unknown port&gt;:27:2 (n)&gt;</span>
+REPL&gt; (make-goldilocks 10 30) <span class="org-comment-delimiter">;; </span><span class="org-comment">using define</span>
+<span class="org-comment-delimiter">; </span><span class="org-comment">=&gt; #&lt;procedure goldilocks (n)&gt;</span>
+</pre> </div></div></div>  <div class="footdef"><sup><a id="fn.cond-begin" class="footnum" href="#fnr.cond-begin" role="doc-backlink">15</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 严格说来，<code>cond</code> 的 <code>&lt;THEN-BODY&gt;</code> / <code>&lt;ELSE-BODY&gt;</code> 部分确实允许放多个表达式，不过我们可以把它看成 <code>cond</code> 被写成了内含 <code>begin</code> 的样子。</p></div></div>  <div class="footdef"><sup><a id="fn.set-vs-w7-cells" class="footnum" href="#fnr.set-vs-w7-cells" role="doc-backlink">16</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> <code>set!</code> 属于环境权限，随手就能用，这会给那些本该被限制住的 Scheme 程序添麻烦。有兴趣的读者不妨看看 Scheme 的 <i>W7</i> 变体里的另一套做法，见 <a href="http://mumble.net/~jar/pubs/secureos/secureos.html">A Security Kernel Based on the Lambda Calculus</a>。</p></div></div>  <div class="footdef"><sup><a id="fn.monads-etc" class="footnum" href="#fnr.monads-etc" role="doc-backlink">17</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 函数式程序员有时用一个巧妙的技巧解决这个问题，叫<i>单子</i>。本教程不打算讲单子，但可以把它想成一种巧妙而显式的处理时间的方式：把一束状态穿进一个本来无状态的程序。这能带来巨大的能力：时间存在，但以确定的方式存在，程序员于是成了时间领主。不过代价也有：它把管道暴露到了程序员面前。</p>  <p class="footpara"> Goblins 走了另一条路，见 <a href="https://spritely.institute/static/papers/spritely-core.html#turns-are-cheap-transactions">Turns are cheap transactions</a> 与 <a href="https://spritely.institute/static/papers/spritely-core.html#time-travel-distributed-debugging">Time-travel distributed debugging</a>。把变更的本质收拢在轮次里面，程序员就获得了穿越时间的能力。再加上<i>语言层面的安全性</i>特性（见 <a href="https://spritely.institute/static/papers/spritely-core.html#application-library-safety">Application safety, library safety, and beyond</a>），就能保证执行完全确定、完全受限。做到这些的办法，是把变更管理的细节抽象掉，让用户不必去想它们；Goblins 核心内核会替用户处理好。这些会在以后的论文里详细展开。</p></div></div>  <div class="footdef"><sup><a id="fn.homoiconic" class="footnum" href="#fnr.homoiconic" role="doc-backlink">18</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> Lisp 的<i>抽象语法树</i>，用的就是用户平时编程所用的那些数据结构；而在<i>表层语法</i>里，它又直接以这些结构呈现，所以它被称为<i>同像的</i>。<i>同像性</i>是 Lisp 最有辨识度的特点之一，它的可扩展性大半由此而来。</p></div></div>  <div class="footdef"><sup><a id="fn.other-macro-builders" class="footnum" href="#fnr.other-macro-builders" role="doc-backlink">19</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 其实，<code>define-syntax-rule</code> 本身就是语法糖。下面两种写法等价：</p>  <div class="org-src-container"> <pre class="src src-scheme">(define-syntax-rule (<span class="org-keyword">when</span> test body ...)
+  (<span class="org-keyword">if</span> test
+      (<span class="org-keyword">begin</span> body ...)))
+
+(<span class="org-keyword">define-syntax</span> <span class="org-variable-name">when</span>
+  (<span class="org-keyword">syntax-rules</span> ()
+    ((<span class="org-keyword">when</span> test body ...)
+     (<span class="org-keyword">if</span> test
+         (<span class="org-keyword">begin</span> body ...)))))
+</pre> </div>  <p class="footpara"> 确实，我们可以用 <code>define-syntax</code> 和 <code>syntax-rules</code> 搭出 <code>define-syntax-rule</code>：</p>  <div class="org-src-container"> <pre class="src src-scheme">(<span class="org-keyword">define-syntax</span> <span class="org-variable-name">define-syntax-rule</span>
+  (<span class="org-keyword">syntax-rules</span> ()
+    ((define-syntax-rule (id pattern ...) template)
+     (<span class="org-keyword">define-syntax</span> <span class="org-variable-name">id</span>
+       (<span class="org-keyword">syntax-rules</span> ()
+         ((id pattern ...)
+          template))))))
+</pre> </div>  <p class="footpara"> 大多数 Scheme 里还有一整个动物园的别的语法变换形式，其中不少在各 Scheme 实现之间各不相同，不过 <code>define-syntax</code> 和 <code>syntax-rules</code> 属于 Scheme 标准。</p></div></div>  <div class="footdef"><sup><a id="fn.c-style-for" class="footnum" href="#fnr.c-style-for" role="doc-backlink">20</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 给读者的一个有趣练习：试着实现一个 C 风格的 for 循环！</p>  <p class="footpara"> C 版本长这样：</p>  <div class="org-src-container"> <pre class="src src-c"><span class="org-comment-delimiter">// </span><span class="org-comment">C's version of for:</span>
+<span class="org-comment-delimiter">//   </span><span class="org-comment">for ( init; condition; increment ) {</span>
+<span class="org-comment-delimiter">//      </span><span class="org-comment">statement(s);</span>
+<span class="org-comment-delimiter">//   </span><span class="org-comment">}</span>
+<span class="org-keyword">for</span> (i = 0; i &lt; 10; i = i + 2) {
+  printf(<span class="org-string">"i is: %d\n"</span>, i);
+}
+</pre> </div>  <p class="footpara"> 试着让下面这段跑起来：</p>  <div class="org-src-container"> <pre class="src src-scheme">(for ((i 0) (&lt; i 10) (+ i 2))
+  (display (string-append <span class="org-string">"i is: "</span> (number-&gt;string i) <span class="org-string">"\n"</span>)))
+</pre> </div></div></div>  <div class="footdef"><sup><a id="fn.metacircular" class="footnum" href="#fnr.metacircular" role="doc-backlink">21</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 在一门相似的宿主语言之上实现一门语言，这个想法叫「元循环求值器」。它在计算机科学研究人员当中很流行，因为不必把整个系统重造一遍，就能探索编程语言设计的各种变体。</p></div></div>  <div class="footdef"><sup><a id="fn.cheap-y" class="footnum" href="#fnr.cheap-y" role="doc-backlink">22</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 这是个相当精巧的例子，里面还藏着一个有意思的难题：我们实现的 Fibonacci 是自递归的！但自递归通常要用 <code>letrec</code> 这类特性，我们并没有提供。为了绕过去，主程序（第二个过程）经由第一个过程传给了它自己。所以注释里把第一个过程叫「boot」。</p>  <p class="footpara"> 这算得上是 <a href="https://en.wikipedia.org/wiki/Fixed-point_combinator#Y_combinator">Y 组合子</a>自举技巧的一个廉价版本。（不，不是那家做创业孵化器的公司，不过现在你能明白那个组织为什么叫这个名字了。）Y 组合子玩的是同一套把戏，只是更一般。从很多角度看，像我们上面写的这种求值器，跟 Y 颇有共同之处。<a href="https://dreamsongs.com/Files/WhyOfY.pdf">The Why of Y</a> 是一篇可爱又简洁的文章，讲 Y 组合子，以及怎样从实际需要出发把它推导出来，跟我们上面演示的情形很像。<a href="https://mitpress.mit.edu/books/little-schemer-fourth-edition">The Little Schemer</a> 也在它愉快的旅程末尾写了类似上面的元循环求值器，并探讨了怎么推出 Y 组合子。</p></div></div>  <div class="footdef"><sup><a id="fn.arity-mismatch" class="footnum" href="#fnr.arity-mismatch" role="doc-backlink">23</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 如果用户用错误的参数个数调用这个过程，会报错，但报的错没什么用。试着想想怎么给它一个更好的报错。（提示：如果 <code>args</code> 和 <code>vals</code> 的 <code>length</code> 不一样，那就是出问题了！）</p></div></div>  <div class="footdef"><sup><a id="fn.lexical-scope-happens-here" class="footnum" href="#fnr.lexical-scope-happens-here" role="doc-backlink">24</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 词法作用域与动态作用域的分野，就落在这里。被扩展的环境不是调用者的环境，而是这个 lambda 被定义时所在的那个先前表达式的环境&#x2026;&#x2026; <code>closures</code> 一节里描述的功能，就是这样实现的。</p>  <p class="footpara"> 某种意义上，「词法作用域」是在过程的书面定义里显式定下的，是能力安全的，并且保留了「你没有它，就用不了它」这一性质。「动态作用域」则是「作用域由调用者定义」（以及调用者的调用者，一直上溯到当前调用的整个栈），它是隐式的，而且也是「环境式」的，连环境权限意义上的环境性都算在内，这让动态作用域背上更严重的安全问题（而且并非巧合，它更像访问控制列表系统）。</p></div></div>  <div class="footdef"><sup><a id="fn.oh-thats-why-metacircular" class="footnum" href="#fnr.oh-thats-why-metacircular" role="doc-backlink">25</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 啊哈！现在能明白「元循环」是什么意思了！下面这幅 ASCII 画，致敬的是 <a href="https://mitp-content-server.mit.edu/books/content/sectbyfn/books_pres_0/6515/sicp.zip/index.html">SICP</a> 里出现的元循环图像：</p>  <div class="org-src-container"> <pre class="src src-text">\'.
+ \ '.                      .-****-.
+  \  \                    *       _*
+  _L__L_           _     * EVAL .'  *
+  //~ ~           / /    *.___.'    *
+  G   &gt;           //     '.   APPLY.'
+  / \\\\-------.,//        *.____.*
+ / ' \\\______ |;3
+|   \ \\      \//
+</pre> </div>  <p class="footpara"> 看看最后两个 match 子句（过程与应用），再看它们怎么配合，就清楚了。eval 调用 apply，apply 调用 eval，eval 又调用 apply，apply 又调用 eval，直到抵达一个「不动点」（我们的计算得出结果）！果然元循环。</p></div></div>  <div class="footdef"><sup><a id="fn.lisp-read" class="footnum" href="#fnr.lisp-read" role="doc-backlink">26</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 多亏 <code>quote</code> 的威力，我们写解释器时可以不必解析文本语法：要做的只是把数据结构引用起来！许多讲编程语言设计的教科书其实过度关注编程语言的文本解析，让人误以为语言结构的重要部分跟<i>表层语法</i>有关，但本质从来不是这样。想得到的每一种编程语言范式，都能用 Scheme 使用的这种简单符号表达式表示出来。代码和数据并没有看上去离得那么远。</p>  <p class="footpara"> 当然，若想把它变成一门实用的编程语言，我们总得能从磁盘上的源文件里读程序。<code>read</code> 是 Scheme 的标准配备（其实几乎所有 Lisp 都有），所以这件事一般已经有人替我们做好了。不过，在 Scheme 里实现 <code>read</code> 也不难，代码量跟我们实现 <code>evaluate</code> 差不多。</p></div></div>  <div class="footdef"><sup><a id="fn.more-reading" class="footnum" href="#fnr.more-reading" role="doc-backlink">27</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara"> 你不仅走到了最后一节，还读到了最后一条脚注！到这一步，我们只能认为你对这类东西是真有热情，那就再给你多些资源：</p>  <ul class="org-ul"> <li>想进一步了解求值器（比如我们上面写的这个）的工作方式及其历史，可以看 William Byrd 那场了不起的演讲：<a href="https://www.youtube.com/watch?v=OyfBQmvr2Hc">The Most Beautiful Program Ever Written</a>。</li>  <li><a href="https://mitp-content-server.mit.edu/books/content/sectbyfn/books_pres_0/6515/sicp.zip/full-text/book/book.html">Structure and Interpretation of Computer Programs</a>（也叫 SICP，或「巫师书」）几乎把我们这里讲过的一切都做了扩充，还包括怎么搭事件循环、简单的约束求解器、像这样的求值器、逻辑编程求值器，以及编译到更高效的机器码。想理解计算的本质，没有比钻研 SICP 更好的办法。学它的一个好办法，是在读原文和<a href="https://www.youtube.com/watch?v=-J_xL4IGhJA&amp;list=PLE18841CABEA24090">看 1980 年代那套讲座</a>之间来回切换。SICP 有纸质书，有方便在 Emacs 里读的「info」手册，也有 HTML 版；但如果你打算在浏览器里读 SICP，我们强烈推荐<a href="https://sarabander.github.io/sicp/html/">这个版本</a>。</li>  <li><a href="https://mitpress.mit.edu/books/little-schemer-fourth-edition">The Little Schemer</a> 是本好玩的书，用对话体写成。里面有很多有用的课，气质古怪又像谜题，通篇插图也很讨喜。这个系列还有不少后续的书，把别的计算机科学主题也挖得很深。</li>  <li><a href="https://mitpress.mit.edu/books/software-design-flexibility">Software Design for Flexibility</a> 把 SICP 的许多想法接过来，在此基础上继续往前推。很多方面可以把它看成 SICP 真正的续篇。</li>  <li>更别说光是<i>用</i> Scheme 或其他 Lisp，本身就是了解它们的好办法。给 <a href="https://spritely.institute">Spritely</a> 或 <a href="https://guix.gnu.org/">Guix</a> 做贡献，是把这些本事派上用场的两条好路子！</li> </ul>  <p class="footpara"> 祝你旅途愉快！</p></div></div>   </div> </div>
+    </article>
+
+    <footer class="page-footer">
+      <p>本页是 <a href="https://files.spritely.institute/papers/scheme-primer.html">A Scheme Primer</a> 的中文译本，作者为 Christine Lemmer-Webber 与 Spritely Institute。原文以 Apache 2.0 与 CC BY 4.0 双许可发布，译文按 CC BY 4.0 署名共享，版权归原作者所有。</p>
+      <p>译文改动了什么：正文按中文表达习惯重写；代码块保留英文原文，包括注释与程序输出，方便对照实际运行结果；脚注全部译出。译文与原文如有出入，以原文为准。</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc-side a'));
+  if (!links.length || !('IntersectionObserver' in window)) return;
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  var targets = Object.keys(byId)
+    .map(function (id) { return document.getElementById(id); })
+    .filter(Boolean);
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      links.forEach(function (a) { a.classList.remove('active'); });
+      var link = byId[entry.target.id];
+      if (link) link.classList.add('active');
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  targets.forEach(function (t) { observer.observe(t); });
+})();
+</script>
+</body>
+</html>
