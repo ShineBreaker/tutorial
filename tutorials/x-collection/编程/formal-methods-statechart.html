@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>形式化方法的边界，以及 /statechart skill</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<main class="wrap">
+<nav class="crumb"><a href="../../index.html">中文教程合集</a> / <a href="../index.html">X 收藏教程</a> / 形式化方法的边界，以及 /statechart skill</nav>
+<h1>形式化方法的边界，以及 /statechart skill</h1>
+<div class="meta">
+<p>作者：lauren（<a href="https://x.com/poteto">@poteto</a>）</p>
+<p>整理来源：X 收藏，同时出现在点赞中</p>
+<p>原帖：<a href="https://x.com/poteto/status/2118416074601545968">https://x.com/poteto/status/2118416074601545968</a></p>
+<p>发布：2026-11-05 15:52（America/Fortaleza）</p>
+<p>类型：长帖笔记</p>
+</div>
+
+<div class="article">
+<p>while i&#x27;m quite bullish on formal methods, i think it&#x27;s worth tempering expectations and doing your own research on it (disclaimer: i am not an expert in it). it cannot guarantee your code is bug free, only that it matches the spec under certain assumptions, and the specs come from what people want, not math. as long as we build software for humans, nothing can prove that your spec is right, only you can judge.</p>
+<p>i created the /statechart skill in pstack primarily because it helps make the state machines implicit in your code more obvious and legible to you, so you can shrink the review surface and review the work at a higher level: does it actually match your intent and goal? i used this skill a ton while building my game <a href="https://t.co/sa18sM28uD,">https://t.co/sa18sM28uD,</a> below you can see the statechart for story mode where i was able to find many bugs with it.</p>
+<p>in that sense, i think model checking (eg TLA+ with TLC) is quite useful for understanding and checking properties of your system e2e, and you don&#x27;t have to write tons of new verification code for it. the spec isn&#x27;t your actual code so there&#x27;s always a risk of drift, but so far i&#x27;ve had good experiences finding actual bugs with it. i tend to pair it with empirical verification (running the code) also to confirm it&#x27;s real</p>
+<p>other types of formal verification like proving theorems (eg Lean, Dafny), bounded model checking (eg CBMC, Kani) etc have their own tradeoffs. proofs cover every possible input, but only for the properties specified, and it takes a lot more code/work. bounded model checking can run on your actual code, which avoids drift, but it only checks up to a certain number of steps, so it&#x27;s better at finding bugs than proving there aren&#x27;t any</p>
+<p>so i think in the near-medium term you&#x27;ll still need to layer your codebase: constraints and guardrails (types, lint rules, api design, refactoring), empirical verification (tests, evals, real usage), and formal verification for the parts that really need it. none of these catch everything on their own, but layered  together, they catch a lot more and shrink what&#x27;s left for you to review</p>
+<p>but also maybe in the limit, the bitter lesson will prevail and flawless code will just be printed out perfectly every time with no bugs. even in that scenario, /statechart still seems very helpful in confirming that the agent understood your intent correctly. give it a try if you haven&#x27;t already!</p>
+<p><a href="https://t.co/9erGZLOzxO">https://t.co/9erGZLOzxO</a></p>
+</div>
+<footer>整理自 X 收藏 / 点赞，正文保持原文，未作改写。</footer>
+</main>
+</body>
+</html>

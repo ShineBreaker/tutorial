@@ -1,0 +1,94 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --fg: #1c1e21;
+  --muted: #5c6470;
+  --card-bg: #ffffff;
+  --border: #dde1e6;
+  --accent: #0969da;
+  --accent-soft: rgba(9, 105, 218, 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171a;
+    --fg: #e6e8eb;
+    --muted: #9aa4b0;
+    --card-bg: #1e2227;
+    --border: #2d333b;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88, 166, 255, 0.1);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  line-height: 1.7;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3.5rem;
+}
+.wrap.wide { max-width: 62rem; }
+nav.crumb {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0 0 1.25rem;
+}
+nav.crumb a { color: var(--accent); text-decoration: none; }
+nav.crumb a:hover { text-decoration: underline; }
+h1 { margin: 0 0 0.75rem; font-size: 1.625rem; line-height: 1.3; }
+h2 { margin: 2rem 0 0.75rem; font-size: 1.2rem; }
+h3 { margin: 1.25rem 0 0.5rem; font-size: 1.05rem; }
+.meta, .lead, footer, .muted { color: var(--muted); }
+.meta {
+  margin: 0 0 1.5rem;
+  padding: 0.9rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+.meta p { margin: 0.15rem 0; }
+.meta a { color: var(--accent); }
+.article p { margin: 0 0 1rem; }
+.article a { color: var(--accent); overflow-wrap: anywhere; }
+.note {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.cards a, .cards .item {
+  display: block;
+  padding: 1rem 1.15rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  text-decoration: none;
+  color: inherit;
+}
+.cards a:hover { border-color: var(--accent); }
+.cards h3 { margin: 0 0 0.35rem; font-size: 1.02rem; color: var(--accent); }
+.cards p { margin: 0; font-size: 0.875rem; color: var(--muted); }
+.tag {
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+footer { margin-top: 2.5rem; font-size: 0.8125rem; }

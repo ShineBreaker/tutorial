@@ -4,7 +4,7 @@
 
 ## 概述
 
-中文教程静态站仓库：收录《Claude Code 教程》《Master Emacs in 21 Days》《Mastering Emacs 中文精读》《编辑器迁移手册》《Scheme 入门》等多套网页教程，目标是整理为 GitHub Pages 单站发布（各教程挂站点子路径），并配备 GitHub Actions CI。
+中文教程静态站仓库：收录《Claude Code 教程》《Master Emacs in 21 Days》《Mastering Emacs 中文精读》《编辑器迁移手册》《Scheme 入门》以及《X 收藏教程》等多套网页教程，目标是整理为 GitHub Pages 单站发布（各教程挂站点子路径），并配备 GitHub Actions CI。
 
 ## 协作约定
 
@@ -14,7 +14,7 @@
 
 ## 站点维护
 
-- 目录布局与各教程成品来源：所有教程位于 `tutorials/` 下。`tutorials/claude-code-tutorial/` 与 `tutorials/master-emacs-in-21-days/` 目录本身即为成品，直接托管；`tutorials/mastering-emacs-zh/` 为源码，需用 `tutorials/mastering-emacs-zh/tools/build.py` 构建出 `dist/` 单文件成品再托管；`tutorials/migration-guide.html` 与 `tutorials/scheme-primer-zh.html` 为单文件成品。
+- 目录布局与各教程成品来源：所有教程位于 `tutorials/` 下。`tutorials/claude-code-tutorial/` 与 `tutorials/master-emacs-in-21-days/` 目录本身即为成品，直接托管；`tutorials/mastering-emacs-zh/` 为源码，需用 `tutorials/mastering-emacs-zh/tools/build.py` 构建出 `dist/` 单文件成品再托管；`tutorials/migration-guide.html` 与 `tutorials/scheme-primer-zh.html` 为单文件成品。`tutorials/x-collection/` 为从 X 收藏与点赞整理的长文笔记，目录内 Markdown 与静态 HTML 均为成品，直接托管。
 - `tutorials/scheme-primer-zh.html` 是 Spritely Institute《A Scheme Primer》的中文译本：正文译为中文，代码块保留英文原文（含注释与输出）以便对照运行结果；12 章与 27 条脚注的编号、锚点与原文一一对应，改译文时不要打乱。
 - 改动教程后必须跑 `python3 scripts/assemble.py && python3 scripts/check_links.py`，两项都通过才算完成。
 - 新增教程：把教程放进 `tutorials/`，并在 `scripts/assemble.py` 的映射与根落地页 `index.html` 各加一项。
