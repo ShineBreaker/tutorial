@@ -18,7 +18,7 @@
 
   <h4><kbd>C</kbd><kbd>h</kbd> 家族：Emacs 的搜索引擎</h4>
 
-  <p><kbd>C</kbd><kbd>h</kbd> 本身不是一个命令，而是一个<strong>前缀键</strong>。按住 <kbd>C</kbd><kbd>h</kbd> 再按一个字母，就会打开不同的「帮助窗口」。这些字母不是随便挑的，记住它们有个诀窍：<strong>字母就是你要查的东西的第一个字母</strong>。</p>
+  <p><kbd>C</kbd><kbd>h</kbd> 本身是一个<strong>前缀键</strong>，而非完整命令。按住 <kbd>C</kbd><kbd>h</kbd> 再按一个字母，就会打开不同的「帮助窗口」。这些字母不是随便挑的，记住它们有个诀窍：<strong>字母就是你要查的东西的第一个字母</strong>。</p>
 
   <ul>
     <li><code>f</code> = <strong>f</strong>unction，查函数。</li>
@@ -312,7 +312,7 @@
 
   <p>这个设计比原书描述的还要多一层兜底：<strong>万一找不到项目怎么办？</strong>Emacs 32 的 <code>project-current</code> 文档字符串把这里的分寸讲得很清楚：<code>project-current</code> 的第二个参数叫 <code>MAYBE-PROMPT</code>，<strong>它不给（或者给 <code>nil</code>）时找不到项目就返回 <code>nil</code>；给了真值才会去问你要不要用当前目录当项目</strong>（问的方式由 <code>project-prompter</code> 决定），而<strong>你确认了却还是找不到版本控制根，它才返回一个「transient（临时）project」</strong>——一个以当前目录为根、包含该目录下所有文件（除了 <code>vc-directory-exclusion-list</code> 和 <code>grep-find-ignored-files</code> 里匹配的那些）的临时项目。</p>
 
-  <p>换句话说：<strong>只要你在一个目录里，<code>C-x p</code> 就能用。</strong>这一点对初学者很重要——你不需要先「创建一个项目」，不需要写任何配置文件，不需要装任何包。原因就在这里：下面那条 <code>C-x p</code> 命令几乎都是用 <code>(project-current t)</code> 调的（<code>t</code> 就是「找不到就问我」），你答了「就用这儿」，它就给你造一个临时项目继续干。</p>
+  <p>也就是说，<strong>只要你在一个目录里，<code>C-x p</code> 就能用。</strong>这一点对初学者很重要——你不需要先「创建一个项目」，不需要写任何配置文件，不需要装任何包。原因就在这里：下面那条 <code>C-x p</code> 命令几乎都是用 <code>(project-current t)</code> 调的（<code>t</code> 就是「找不到就问我」），你答了「就用这儿」，它就给你造一个临时项目继续干。</p>
 
   <div class="callout note"><b>要点</b><p>Emacs 32 里，「怎么找项目」这套规则挂在<strong>钩子</strong>（hook，一个变量，里面装着一串函数；Emacs 触发某个事件时会挨个调用它们）<code>project-find-functions</code> 上：<code>project-current</code> 内部用 <code>run-hook-with-args-until-success</code> 逐个试，直到某个函数返回项目为止。第三方包可以往这个钩子里加自己的识别规则（比如按 <code>package.json</code>、<code>pyproject.toml</code> 认项目）。</p></div>
 
@@ -404,7 +404,7 @@
 
   <pre class="term"><code>(elisp-flymake-byte-compile elisp-flymake-checkdoc t)</code></pre>
 
-  <p>也就是说，即便不开 Eglot，<strong>Emacs Lisp 文件也会被自动做字节编译检查和文档字符串检查</strong>。这些默认是从 <code>elisp-mode.el</code> 的 <code>emacs-lisp-mode-hook</code> 注册进去的（见 <code>elisp-mode.el</code> 第 774–776 行两处 <code>add-hook</code>）。<strong>注意一个反直觉的点：Eglot 一旦在这个项目里跑起来，它不是把这个列表<em>追加</em>，而是整个替换成 <code>(eglot-flymake-backend)</code></strong>（<code>eglot.el</code> 第 2450 行）——所以你在用了 Eglot 的会话里查，看到的就只剩语言服务器这一条了。<code>flymake-diagnostic-functions</code> 本身是一个<strong>特殊钩子</strong>（special hook，一个「往里加一个函数，就等于加一条检查规则」的钩子）——它的文档字符串第一句就是 <em>「Special hook of Flymake backends that check a buffer.」</em>。想给别的语言加编译检查，往这个钩子里加函数就行。</p>
+  <p>也就是说，即便不开 Eglot，<strong>Emacs Lisp 文件也会被自动做字节编译检查和文档字符串检查</strong>。这些默认是从 <code>elisp-mode.el</code> 的 <code>emacs-lisp-mode-hook</code> 注册进去的（见 <code>elisp-mode.el</code> 第 774–776 行两处 <code>add-hook</code>）。<strong>注意一个反直觉的点：Eglot 一旦在这个项目里跑起来，它会把这个列表整个替换成 <code>(eglot-flymake-backend)</code>，而非<em>追加</em></strong>（<code>eglot.el</code> 第 2450 行）——所以你在用了 Eglot 的会话里查，看到的就只剩语言服务器这一条了。<code>flymake-diagnostic-functions</code> 本身是一个<strong>特殊钩子</strong>（special hook，一个「往里加一个函数，就等于加一条检查规则」的钩子）——它的文档字符串第一句就是 <em>「Special hook of Flymake backends that check a buffer.」</em>。想给别的语言加编译检查，往这个钩子里加函数就行。</p>
 
   <h4>怎么用</h4>
 
@@ -435,7 +435,7 @@
   <p>还有一组键不在这个缓冲区里，但和它配套：<strong>next-error</strong> 系列命令用于「在出错列表之间来回走」，包括从别处跳回来。它在 Emacs 32 里绑在 <kbd>C</kbd><kbd>x</kbd> <kbd>`</kbd>（反引号键）、<kbd>M</kbd><kbd>g</kbd> <kbd>n</kbd> 和 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 上（<code>where-is-internal</code> 返回的就是这三个键序列）。它的文档字符串里有个细节很实用：<strong>只按 <kbd>C</kbd><kbd>u</kbd>（不带数字）当前缀，会重新解析整个错误缓冲区并跳回第一条错误</strong>。</p>
 
   <details class="deep"><summary>进阶：<code>next-error</code> 的「同一套机制」原理</summary>
-  <p><code>next-error</code> 不是一个功能，而是一套<strong>通用协议</strong>。任何缓冲区只要设置好 <code>next-error-function</code> 这个 buffer-local 变量，告诉 Emacs「我的第 N 条消息对应源文件的哪个位置」，<code>next-error</code> 就能在它里面跳。</p>
+  <p><code>next-error</code> 是一套<strong>通用协议</strong>，而非单一功能。任何缓冲区只要设置好 <code>next-error-function</code> 这个 buffer-local 变量，告诉 Emacs「我的第 N 条消息对应源文件的哪个位置」，<code>next-error</code> 就能在它里面跳。</p>
   <p>今天内建的用户里，除了 <code>compilation-mode</code>，还有：</p>
   <ul>
     <li><strong><code>*Warnings*</code> 缓冲区今天<em>不</em>走这套协议</strong>（这一点原书写的时候还不是这样，别照抄）。我在 Emacs 32 上实测：<code>*Warnings*</code> 只是个 <code>special-mode</code> 缓冲区，<code>next-error-function</code> 是 <code>nil</code>；当年的 <kbd>M</kbd><kbd>x</kbd> <code>list-errors</code> 命令也<strong>已经不存在</strong>——<code>where-is-internal</code>、<code>apropos</code>、整个 <code>lisp</code> 目录、Emacs 32 手册全文，四处都查不到这个符号。警告里带的位置跳转要靠警告自带的按钮，不能靠 <kbd>M</kbd><kbd>n</kbd>。</li>
@@ -539,7 +539,7 @@ M-: (list my-hook2 (default-value 'my-hook2))
 
   <p>这一节要更新原书最明确。Emacs 29.1 起，<strong>Eglot</strong>（Emacs 内建的 LSP 客户端）已经随 Emacs 分发。版本关系的证据就写在 <code>eglot.el</code> 里——它把这张对应表挂在 <code>customize-package-emacs-version-alist</code> 上：<code>(Eglot ("1.12" . "29.1") ("1.12" . "29.2") ("1.12" . "29.3") ("1.12.29" . "29.4") ("1.17.30" . "30.1") ("1.24.31" . "31.1"))</code>，即 Eglot 1.12 从 Emacs 29.1 开始随发行版分发，到 Emacs 31.1 是 1.24（我查到的本机 Emacs 32.0.50 里内嵌的正是 1.24）。它一启动，就把 <code>eglot-xref-backend</code> 挂到 <code>xref-backend-functions</code> 钩子上（我读了 <code>eglot.el</code> 第 2442 行确认）。</p>
 
-  <p>所以真实情况是：<strong>你按的还是 <kbd>M</kbd><kbd>.</kbd>，但背后干活的已经不是 xref 自带的后端，而是你的语言服务器。</strong>这才是「统一前端」设计的兑现——<code>xref.el</code> 在这里的角色和 LSP 出现之前完全一样。</p>
+  <p>所以真实情况是：<strong>你按的还是 <kbd>M</kbd><kbd>.</kbd>，但背后干活的已经是你的语言服务器，不再是 xref 自带的后端。</strong>这才是「统一前端」设计的兑现——<code>xref.el</code> 在这里的角色和 LSP 出现之前完全一样。</p>
 
   <p>还有一件值得知道的事：<strong>Eglot 用 <code>project.el</code> 来找项目根目录</strong>。它的源码里直接调用 <code>project-root</code> 来确定 LSP 的工作区。所以上一节那套 <code>C-x p</code> 体系不只是方便你自己浏览文件——它是 Eglot 能不能正常工作的地基。你在一个不是版本控制仓库的裸目录里打开代码，Eglot 就会去找「transient project」，行为可能不如预期。</p>
 

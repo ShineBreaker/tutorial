@@ -368,7 +368,7 @@ cat $PREFIX/var/log/sv/emacsd/current</code></pre>
 
   <div class="callout warn">
     <b>易错</b>
-    <p><strong>不要为了「在 iPad 上装 Emacs」而把 iPad 越狱或做不透明的重签名分发。</strong>理由不是安全洁癖，而是收益为零：你折腾一整天换来的还是 <code>emacs-ipad</code> 那个终端网格界面，外加一个每 7 天就要重签一次、随时可能失效的安装包。<strong>iPadOS 沙箱禁止任何子进程</strong>（上面引用过原文），这条不会因为你越狱就自动消失——真要真正自由，得回到 15.1 的路线 C 那类「自己编译一份带完整后端的 Emacs」的思路，而那在 Linux 和 Windows 上是顺手的事，在 iPad 上不是。</p>
+    <p><strong>不要为了「在 iPad 上装 Emacs」而把 iPad 越狱或做不透明的重签名分发。</strong>理由很直接：收益为零。你折腾一整天换来的还是 <code>emacs-ipad</code> 那个终端网格界面，外加一个每 7 天就要重签一次、随时可能失效的安装包。<strong>iPadOS 沙箱禁止任何子进程</strong>（上面引用过原文），这条不会因为你越狱就自动消失——真要真正自由，得回到 15.1 的路线 C 那类「自己编译一份带完整后端的 Emacs」的思路，而那在 Linux 和 Windows 上是顺手的事，在 iPad 上不是。</p>
     <p>如果你只是想「在 iPad 上读自己写的 Org 笔记」，那根本不需要 Emacs：用一个支持 Markdown/Org 的笔记 App 就够了。为了一个编辑器的图标去改变一台设备的安全模型，是本末倒置。</p>
   </div>
 
@@ -611,7 +611,7 @@ M-x emacs-version RET        ; 这个是真命令，回显 GNU Emacs 32.0.50 (bu
   <div class="drill" data-answer="手册里查不到">
     <p class="drill-q"><b>练习 12</b>　有人推荐你在 Cygwin 里装 Emacs，说「这样路径和 Linux 一样，最省心」。这个说法有什么问题？</p>
     <button class="drill-btn" type="button">显示答案</button>
-    <div class="drill-a"><p>问题在于：<strong>Cygwin 不是 Emacs 参考手册覆盖的平台。</strong>我在 Emacs 32 的完整参考手册 <code>emacs.info</code> 里搜 <code>cygwin</code>、<code>msys</code>、<code>mingw</code>，命中数是 <strong>0</strong>；它的平台附录只有 macOS/GNUstep、Haiku、Android、Microsoft Windows/MS-DOS 四个。所以「省心」的前提不成立——遇到问题你查不到官方参考文档，而且 Windows 原生构建那些特有的坑（CRLF 转换、四个可执行文件的区别、同会话不能混用图形与文本窗口）在 Cygwin 上要么不存在要么表现不同，因为 Cygwin 自己提供 POSIX 层。<strong>公平地说，Cygwin 在《GNU Emacs 常见问题》（<code>emacs-faq</code>）里是有专门一节的</strong>，但那是另一本手册、只覆盖安装与常见故障，键位与默认行为这些日常要查的东西仍然无从查证。真正省心的做法是 WSL。</p></div>
+    <div class="drill-a"><p>问题在于，<strong>Cygwin 不是 Emacs 参考手册覆盖的平台。</strong>我在 Emacs 32 的完整参考手册 <code>emacs.info</code> 里搜 <code>cygwin</code>、<code>msys</code>、<code>mingw</code>，命中数是 <strong>0</strong>；它的平台附录只有 macOS/GNUstep、Haiku、Android、Microsoft Windows/MS-DOS 四个。所以「省心」的前提不成立——遇到问题你查不到官方参考文档，而且 Windows 原生构建那些特有的坑（CRLF 转换、四个可执行文件的区别、同会话不能混用图形与文本窗口）在 Cygwin 上要么不存在要么表现不同，因为 Cygwin 自己提供 POSIX 层。<strong>公平地说，Cygwin 在《GNU Emacs 常见问题》（<code>emacs-faq</code>）里是有专门一节的</strong>，但那是另一本手册、只覆盖安装与常见故障，键位与默认行为这些日常要查的东西仍然无从查证。真正省心的做法是 WSL。</p></div>
   </div>
 
   <h3>15.5 无鼠标与可访问性</h3>
@@ -683,7 +683,7 @@ M-x emacs-version RET        ; 这个是真命令，回显 GNU Emacs 32.0.50 (bu
 
   <ul>
     <li><strong><kbd>C</kbd><kbd>g</kbd></strong>（<code>keyboard-quit</code>，我实测绑定成立）：按下的瞬间就把 <code>quit-flag</code> 置 <code>t</code>，Elisp 在各个检查点发现它就中止。<strong>它只能掐断「Emacs 自己在跑的东西」，掐不断「Emacs 在等操作系统」的东西。</strong>NFS 挂死就是手册点名的那一类。</li>
-    <li><strong><kbd>C</kbd><kbd>g</kbd> 连按两下</strong>：这是<strong>紧急逃生（emergency escape）</strong>，只在<strong>文本终端</strong>上有效。它不是 Emacs 的命令，而是终端层面的逃生阀：Emacs 卡得来不及处理第一个 <kbd>C</kbd><kbd>g</kbd> 时，第二个直接把你从 Emacs 里拽出来。手册说：恢复之后 Emacs 会问两个问题——「Auto-save?（y or n）」和「Abort (and dump core)?（y or n）」。答 <code>y</code> 就立刻把开了自动保存的缓冲区存盘；答 <code>n</code> 就能带着原状态继续；两个都答 <code>n</code> 的话，若 Emacs 其实只是慢而非卡死，会回到原来的状态。手册还提醒：<strong>这个功能只在文本终端上存在</strong>，图形界面下你可以直接用鼠标切走或者杀进程。MS-DOS 上要用两次 <kbd>C</kbd><kbd>&lt;Break&gt;</kbd> 代替 <kbd>C</kbd><kbd>g</kbd>。</li>
+    <li><strong><kbd>C</kbd><kbd>g</kbd> 连按两下</strong>：这是<strong>紧急逃生（emergency escape）</strong>，只在<strong>文本终端</strong>上有效。它是终端层面的逃生阀，不是 Emacs 的命令：Emacs 卡得来不及处理第一个 <kbd>C</kbd><kbd>g</kbd> 时，第二个直接把你从 Emacs 里拽出来。手册说：恢复之后 Emacs 会问两个问题——「Auto-save?（y or n）」和「Abort (and dump core)?（y or n）」。答 <code>y</code> 就立刻把开了自动保存的缓冲区存盘；答 <code>n</code> 就能带着原状态继续；两个都答 <code>n</code> 的话，若 Emacs 其实只是慢而非卡死，会回到原来的状态。手册还提醒：<strong>这个功能只在文本终端上存在</strong>，图形界面下你可以直接用鼠标切走或者杀进程。MS-DOS 上要用两次 <kbd>C</kbd><kbd>&lt;Break&gt;</kbd> 代替 <kbd>C</kbd><kbd>g</kbd>。</li>
     <li><strong><kbd>C</kbd><kbd>]</kbd></strong>（<code>abort-recursive-edit</code>，实测存在）和 <kbd>M</kbd><kbd>-</kbd> <kbd>x</kbd> <code>top-level</code>（实测存在）：<strong>用来逃出「多层嵌套的提问」</strong>——比如你在搜索里又打开了另一个搜索。<kbd>C</kbd><kbd>]</kbd> 一次退一层，<code>top-level</code> 一次退所有层。它们的区别在手册里说得很清楚：<kbd>C</kbd><kbd>]</kbd> 是普通按键，<strong>只在 Emacs 准备好接受命令时才生效</strong>，所以它<strong>停不了一个正在运行的命令</strong>；而 <kbd>C</kbd><kbd>g</kbd> 是那种「一按就置标志」的东西，能打断运行中的命令。</li>
   </ul>
 
@@ -719,7 +719,7 @@ M-x emacs-version RET        ; 这个是真命令，回显 GNU Emacs 32.0.50 (bu
   <ol>
     <li>在随 Emacs 32.0.50 安装的全部 <code>etc/NEWS</code>、<code>etc/NEWS.31</code>、<code>etc/NEWS.30</code> 里搜索 <code>screen reader</code> 与 <code>screen-reader</code>，<strong>命中数是 0</strong>。</li>
     <li>在整棵 <code>lisp/</code> 源码树里不区分大小写地搜索 <code>screen reader</code>，<strong>只有一个文件命中</strong>——<code>lisp/net/shr.el</code>，那是把网页转成 Emacs 能读的文本的工具，跟可访问性无关。</li>
-    <li>（修正）在完整的 32.0.50 手册 <code>emacs.info</code> 里搜索 <code>screen reader</code>，<strong>不是 0，而是 3 处命中</strong>——全部集中在 Windows 附录讲 <code>w32-use-visible-system-caret</code> 的那一段。原文说的是：<em>没有屏幕阅读器软件在用时该变量默认为 <code>nil</code>，Emacs 画自己的光标；设成非 <code>nil</code> 就改用系统光标显示位置，「这方便屏幕阅读器软件使用」，而且 Emacs 检测到这类软件时会自动设成非 <code>nil</code>。</em>这仍然是「让屏幕阅读器能读懂光标位置」，<strong>不是</strong> Emacs 提供了屏幕阅读器接口——但我原来写「手册里命中 0」是错的，这里更正。另外手册里 “Accessibility” 有十来处命中，<strong>全都与残障无关</strong>：那是 Emacs 手册 “Information about Files” 下面的 “Testing Accessibility” 节点（测试一个文件是否可读/可写，Elisp 手册里也有同一个节点）；而 “accessible portion” 指的是<strong>窄化（narrowing）之后缓冲区里可见的那一段</strong>，也是完全不同的概念，不要被搜索结果误导。</li>
+    <li>（修正）在完整的 32.0.50 手册 <code>emacs.info</code> 里搜索 <code>screen reader</code>，<strong>实际是 3 处命中，不是 0</strong>——全部集中在 Windows 附录讲 <code>w32-use-visible-system-caret</code> 的那一段。原文说的是：<em>没有屏幕阅读器软件在用时该变量默认为 <code>nil</code>，Emacs 画自己的光标；设成非 <code>nil</code> 就改用系统光标显示位置，「这方便屏幕阅读器软件使用」，而且 Emacs 检测到这类软件时会自动设成非 <code>nil</code>。</em>这仍然是「让屏幕阅读器能读懂光标位置」，<strong>不是</strong> Emacs 提供了屏幕阅读器接口——但我原来写「手册里命中 0」是错的，这里更正。另外手册里 “Accessibility” 有十来处命中，<strong>全都与残障无关</strong>：那是 Emacs 手册 “Information about Files” 下面的 “Testing Accessibility” 节点（测试一个文件是否可读/可写，Elisp 手册里也有同一个节点）；而 “accessible portion” 指的是<strong>窄化（narrowing）之后缓冲区里可见的那一段</strong>，也是完全不同的概念，不要被搜索结果误导。</li>
   </ol>
 
   <div class="callout note">
@@ -906,7 +906,7 @@ M-x emacs-version RET        ; 这个是真命令，回显 GNU Emacs 32.0.50 (bu
     <p>Fontifying very large buffers can take a long time. To avoid large delays when a file is visited, Emacs initially fontifies only the visible portion of a buffer. As you scroll through the buffer, each portion that becomes visible is fontified as soon as it is displayed; this type of Font Lock is called "Just-In-Time" (or "JIT") Lock. You can control how JIT Lock behaves, including telling it to perform fontification while idle, by customizing variables in the customization group <code>jit-lock</code>.</p>
   </blockquote>
 
-  <p>翻译过来：<strong>Emacs 本来就不会给整个文件上色，只给屏幕上看得见的那部分上色，滚到哪儿才给哪儿上。</strong>所以「大文件卡顿」往往不是「打开时卡」，而是「你按住 <kbd>C</kbd><kbd>n</kbd>/<kbd>C</kbd><kbd>p</kbd> 快速滚动时卡」——因为新进入屏幕的那部分要现上色。如果你让它在空闲时预先上色，滚动就顺了，代价是空闲时它在后台干活。相关选项在 <code>jit-lock</code> 这个定制组里，可以用 <kbd>M</kbd><kbd>-</kbd> <kbd>x</kbd> <code>customize-group</code> <kbd>RET</kbd> <code>jit-lock</code> <kbd>RET</kbd> 打开。<strong>本机实测：<code>jit-lock-mode</code> 默认值是 <code>nil</code>。</strong></p>
+  <p>翻译过来：<strong>Emacs 本来就不会给整个文件上色，只给屏幕上看得见的那部分上色，滚到哪儿才给哪儿上。</strong>所以「大文件卡顿」往往发生在「你按住 <kbd>C</kbd><kbd>n</kbd>/<kbd>C</kbd><kbd>p</kbd> 快速滚动时」，而非「打开时」——因为新进入屏幕的那部分要现上色。如果你让它在空闲时预先上色，滚动就顺了，代价是空闲时它在后台干活。相关选项在 <code>jit-lock</code> 这个定制组里，可以用 <kbd>M</kbd><kbd>-</kbd> <kbd>x</kbd> <code>customize-group</code> <kbd>RET</kbd> <code>jit-lock</code> <kbd>RET</kbd> 打开。<strong>本机实测：<code>jit-lock-mode</code> 默认值是 <code>nil</code>。</strong></p>
 
   <h4>远程编辑为什么每一下都慢</h4>
 
@@ -1130,7 +1130,7 @@ emacs -Q -nw</code></pre>
     <li>答 <code>yes</code> 之后，<strong>自动保存的内容会被直接装进这个文件的缓冲区</strong>，不存在「再写到一个临时文件」这一步——老文章里说的那个中间步骤是 Emacs 早期的 <code>recover-file-continue</code>，那个命令在今天的 Emacs 里已经没有了。检查无误之后，按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd> 就把内容写回真正的文件。</li>
   </ol>
 
-  <p><strong>所以正确的心智模型不是「手工合并」，而是「 Emacs 替你把自动保存版本装进缓冲区，你确认或微调后正常保存」。</strong>真要保留旧版本，先把原文件另存一份再动手。</p>
+  <p><strong>所以正确的心智模型是「Emacs 替你把自动保存版本装进缓冲区，你确认或微调后正常保存」，而非「手工合并」。</strong>真要保留旧版本，先把原文件另存一份再动手。</p>
 
   <p>还有一条更省事的路：<kbd>M</kbd><kbd>-</kbd> <kbd>x</kbd> <code>recover-session</code>（我实测存在）能找回被强杀前的整个 Emacs 会话——打开过哪些缓冲区、光标在哪、窗口怎么分的。<strong>但它同样依赖会话文件还在，而且只恢复「会话」不恢复「未保存的文件内容」。</strong></p>
 

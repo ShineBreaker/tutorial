@@ -110,7 +110,7 @@ $ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc</code></pre>
 
   <div class="callout warn">
     <b>易错</b>
-    <p>源码编译最大的坑不是编译本身，而是<strong>它把 Emacs 和系统库焊死在一起</strong>。你的 Emacs 会链接你自己装的 GTK、自己的 harfbuzz、自己的 libgccjit。半年后你升级系统库，Emacs 突然起不来了，而这类「起不来」通常没有清晰的错误信息。所以：<strong>编译完请立刻记下 <code>./configure</code> 的完整命令</strong>，或者干脆把命令行写成一个 <code>build.sh</code> 提交进你的 dotfiles。</p>
+    <p>源码编译最大的坑在于<strong>它把 Emacs 和系统库焊死在一起</strong>，而非编译过程本身。你的 Emacs 会链接你自己装的 GTK、自己的 harfbuzz、自己的 libgccjit。半年后你升级系统库，Emacs 突然起不来了，而这类「起不来」通常没有清晰的错误信息。所以：<strong>编译完请立刻记下 <code>./configure</code> 的完整命令</strong>，或者干脆把命令行写成一个 <code>build.sh</code> 提交进你的 dotfiles。</p>
   </div>
 
   <p>编译完记得验证这两个开关到底生效没有，这是本节最实用的一条检查：</p>
@@ -423,7 +423,7 @@ $ nix profile list            # 看当前 profile 里有什么</code></pre>
     <li><strong><code>default.el</code></strong>。发行版管理员的兜底配置，你可以在自己的 <code>init.el</code> 里用 <code>(setq inhibit-default-init t)</code> 跳过。</li>
   </ol>
 
-  <p><strong>这条顺序是 Emacs 31 之后才这样的，版本差别必须记住。</strong>NEWS.31 有一条：<em>「site-start.el is now loaded before the user's early init file. Previously, the order was early-init.el, site-start.el and then the user's regular init file, but now site-start.el comes first. This allows site administrators to customize things that can normally only be done from early-init.el, such as adding to 'package-directory-list'.」</em>也就是说：<strong>Emacs 29/30 上第 2、3 步是反过来的</strong>（先 <code>early-init.el</code> 再 <code>site-start.el</code>），31 起才对调。对读者个人配置基本没影响，但如果你写过「只在站点环境下生效」的配置，跨版本时会看到不同的结果。</p>
+  <p><strong>这条顺序是 Emacs 31 之后才这样的，版本差别必须记住。</strong>NEWS.31 有一条：<em>「site-start.el is now loaded before the user's early init file. Previously, the order was early-init.el, site-start.el and then the user's regular init file, but now site-start.el comes first. This allows site administrators to customize things that can normally only be done from early-init.el, such as adding to 'package-directory-list'.」</em>也就是说，<strong>Emacs 29/30 上第 2、3 步是反过来的</strong>（先 <code>early-init.el</code> 再 <code>site-start.el</code>），31 起才对调。对读者个人配置基本没影响，但如果你写过「只在站点环境下生效」的配置，跨版本时会看到不同的结果。</p>
 
   <p>前四步的骨架在 <code>lisp/startup.el</code> 的 <code>site-run-file</code> 文档字符串里写得很清楚：<em>「Thus, the run-time load order is: 1. file described in this variable, if non-nil; 2. <code>early-init-file</code>, 3. <code>user-init-file</code>; 4. <code>default.el</code>」</em>。注意它只列了四步——<code>package.el</code> 那一步不在文档字符串里，是 <code>command-line</code> 函数在 <code>site-run-file</code> 与 <code>early-init-file</code> 两次加载之间插进去的一段代码。</p>
 
@@ -598,7 +598,7 @@ Instead of invoking this alias for ‘magit-status’ using
 "M-x magit RET", you should bind a key to ‘magit-status’
 and read the info node ‘(magit)Getting Started’, which
 also contains other useful hints.</code></pre>
-  <p><strong>也就是说：<code>magit</code> 就是 <code>magit-status</code> 的别名</strong>，敲 <kbd>M</kbd><kbd>x</kbd> <code>magit</code> <kbd>RET</kbd> 会打开 Git 状态缓冲区，完全能用。<strong>文档里那句「you should bind a key to <code>magit-status</code>」是 Magit 作者的风格建议</strong>（他希望你给它一个固定键，而不是每次敲 <kbd>M</kbd><kbd>x</kbd>），<strong>不是「这个命令不存在」</strong>。看到这句时不要反向推断。</p>
+  <p><strong>也就是说，<code>magit</code> 就是 <code>magit-status</code> 的别名</strong>，敲 <kbd>M</kbd><kbd>x</kbd> <code>magit</code> <kbd>RET</kbd> 会打开 Git 状态缓冲区，完全能用。<strong>文档里那句「you should bind a key to <code>magit-status</code>」是 Magit 作者的风格建议</strong>（他希望你给它一个固定键，而不是每次敲 <kbd>M</kbd><kbd>x</kbd>），<strong>不是「这个命令不存在」</strong>。看到这句时不要反向推断。</p>
   <p><strong>那 <code>magit-mode</code> 呢？</strong>它也存在，<code>(fboundp 'magit-mode)</code> 同样返回 <code>t</code>——但<strong>角色完全不同</strong>。它的文档字符串是 “Parent major mode from which Magit major modes inherit.”，也就是说<strong>它是 Magit 各种 buffer 模式（<code>magit-status-mode</code>、<code>magit-diff-mode</code> 那些）的父模式</strong>，不是「打开状态缓冲区」的入口。<strong>Magit 4 拿掉的是「用 <code>magit-mode</code> 当全局开关」那种老用法，命令本身没有被删。</strong></p>
   <p><strong>于是这一段应该这么记：</strong>入口是 <code>magit-status</code>（等价写法 <code>magit</code>）和 <code>magit-dispatch</code>（速查菜单，「我现在能干什么」问它）；<code>magit-mode</code> 是模式继承关系，跟入口无关；<code>magit-init</code> 是第三个东西——文档字符串是 “Initialize a Git repository, then show its status.”，<strong>只在你需要在一个新目录里 <code>git init</code> 时才用</strong>，不是「装 Magit」或「初始化 Magit」的命令。</p>
 </div>
@@ -648,7 +648,7 @@ also contains other useful hints.</code></pre>
 
   <h4>7.3 straight.el：直接从 git 仓库装，可在源码上改</h4>
 
-  <p><strong>straight.el</strong> 是一个第三方包管理器（不是包装 package.el，而是完全绕开它）。它的工作方式：<strong>克隆 git 仓库，把文件符号链接（symlink）到 Emacs 的 <code>load-path</code> 里</strong>。</p>
+  <p><strong>straight.el</strong> 是一个第三方包管理器（完全绕开 package.el，而非包装它）。它的工作方式：<strong>克隆 git 仓库，把文件符号链接（symlink）到 Emacs 的 <code>load-path</code> 里</strong>。</p>
 
   <p>它的仓库现在是 <a href="https://github.com/radian-software/straight.el">radian-software/straight.el</a>（<strong>注意：早期的 <code>github.com/rststraight/straight.el</code> 已经 404 了</strong>）。我写作时该仓库是 3030 星、最近推送 2026-09-14，活跃维护中。它有完整的 README，讲清楚了它的定位是「next-generation, purely functional package manager for the Emacs hacker」。</p>
 
@@ -1249,7 +1249,7 @@ wombat</code></pre>
 
   <h3>十一、dotfiles：怎么让配置活过重装系统</h3>
 
-  <p>配置写到第三个月，你就一定会遇到这种情况：系统崩了，或者换机器了，然后发现「我记得我配过那个功能」但想不起来是怎么配的。<strong>把配置放进 git，是解决这个问题的唯一可靠办法</strong>——不是「记得住」，而是「查得到」。</p>
+  <p>配置写到第三个月，你就一定会遇到这种情况：系统崩了，或者换机器了，然后发现「我记得我配过那个功能」但想不起来是怎么配的。<strong>把配置放进 git，是解决这个问题的唯一可靠办法</strong>——价值不在「记得住」，在「查得到」。</p>
 
   <h4>11.1 三件必须忽略的东西</h4>
 

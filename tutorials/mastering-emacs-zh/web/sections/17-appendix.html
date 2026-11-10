@@ -751,7 +751,7 @@
     <table>
       <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
       <tbody>
-        <tr><td><strong>kill</strong>（杀死）</td><td>—</td><td>把文本移走，同时放进 <strong>kill ring</strong>。Emacs 里「删除」不是真删，而是「杀掉并存起来」</td></tr>
+        <tr><td><strong>kill</strong>（杀死）</td><td>—</td><td>把文本移走，同时放进 <strong>kill ring</strong>。Emacs 里「删除」实际是「杀掉并存起来」</td></tr>
         <tr><td><strong>kill ring</strong>（剪贴板环）</td><td>—</td><td>被杀文本的栈。<kbd>M</kbd><kbd>y</kbd>（<code>yank-pop</code>）可以在里面翻旧账</td></tr>
         <tr><td><strong>yank</strong>（粘贴/抽出）</td><td>—</td><td>把 kill ring 顶端的内容插回来。名字来自 Unix 的 <code>yank</code>（拔出来）</td></tr>
         <tr><td><strong>yank-pop</strong></td><td>—</td><td>轮换 kill ring，粘贴上一条被杀文本</td></tr>
@@ -1036,7 +1036,7 @@ xmodmap -e 'keycode 9 = Escape' &gt;&gt; ~/.Xmodmap</code></pre>
 
   <div class="callout tip">
     <b>技巧</b>
-    <p>最有效的自测方式不是看答案，而是<strong>合上书去 <code>*scratch*</code> 里做</strong>。打开一个空缓冲区（<kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 然后输入 <code>*scratch*</code>），敲几行字，把这一章的键位全部试一遍。<code>*scratch*</code> 的内容不会保存到任何文件，放心折腾。</p>
+    <p>最有效的自测方式是<strong>合上书去 <code>*scratch*</code> 里做</strong>，而不是看答案。打开一个空缓冲区（<kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 然后输入 <code>*scratch*</code>），敲几行字，把这一章的键位全部试一遍。<code>*scratch*</code> 的内容不会保存到任何文件，放心折腾。</p>
   </div>
 
   <div class="callout warn">

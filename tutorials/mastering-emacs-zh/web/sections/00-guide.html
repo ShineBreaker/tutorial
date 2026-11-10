@@ -17,7 +17,7 @@
     <li><strong>mode</strong>（模式）：一段绑定好的行为约定。<strong>major mode</strong>（主模式）决定「这份文本是什么类型、编辑时用哪套按键」，比如写 Python 时是 <code>python-mode</code>，写 C 时是 <code>c-ts-mode</code>。<strong>minor mode</strong>（辅模式）是可叠加的小开关，随时能开能关，比如显示行号的 <code>display-line-numbers-mode</code>。一个 buffer 同一时刻只有一个主模式，可以有任意多个辅模式。</li>
   </ul>
 
-  <p>还有一件事必须现在讲清楚，否则你后面会一直困惑：<strong>Emacs 自带一本完整的说明书，而且它就在编辑器里</strong>。它的入口是 <kbd>M</kbd><kbd>x</kbd>（按名字调用任何命令）和 <kbd>C</kbd><kbd>h</kbd> 这一族查询键——后面跟 <kbd>f</kbd>（function）、<kbd>v</kbd>（variable）、<kbd>k</kbd>（key）、<kbd>m</kbd>（mode）分别是查函数、查变量、查按键、查当前模式。这套命名是 1980 年代的遗产，但你要记的不是这四个字母，而是这句：<strong>Emacs 里任何东西都能查，而且查的方式是统一的</strong>。</p>
+  <p>还有一件事必须现在讲清楚，否则你后面会一直困惑：<strong>Emacs 自带一本完整的说明书，而且它就在编辑器里</strong>。它的入口是 <kbd>M</kbd><kbd>x</kbd>（按名字调用任何命令）和 <kbd>C</kbd><kbd>h</kbd> 这一族查询键——后面跟 <kbd>f</kbd>（function）、<kbd>v</kbd>（variable）、<kbd>k</kbd>（key）、<kbd>m</kbd>（mode）分别是查函数、查变量、查按键、查当前模式。这套命名是 1980 年代的遗产，四个字母不必死记，只需记住一句：<strong>Emacs 里任何东西都能查，而且查的方式是统一的</strong>。</p>
 
   <div class="keys">
     <h4>本章按键</h4>
@@ -115,7 +115,7 @@
     </table>
   </div>
 
-  <p>上表沿用了本书统一的按键速查表格式（三列固定表头），但填的不是按键而是「类别 / 名称 / 说明」——按行读即可。</p>
+  <p>上表沿用了本书统一的按键速查表格式（三列固定表头），三列改填「类别 / 名称 / 说明」，按行读即可。</p>
 
   <h4>三个包仓库分别是什么</h4>
 
@@ -223,7 +223,7 @@ GNU Emacs 31.1</code></pre>
 
   <p>这一条本书作者在本机实测过两次，结论是<strong>「全新机器上得到 <code>~/.emacs.d/</code>」</strong>：在 <code>HOME</code> 下没有任何 Emacs 目录时，它就是 <code>~/.emacs.d/</code>；把 <code>~/.config/emacs/</code> 预先建出来，它才变成 <code>~/.config/emacs/</code>。<strong>所以别照抄别的教程里的路径，用上面那个 <kbd>M</kbd><kbd>x</kbd> 查询的结果。</strong></p>
 
-  <div class="callout warn"><b>易错</b><p><strong>贴错文件是最容易犯、也最难自查的错误</strong>：你把七行配置粘进 A 文件，Emacs 重启后读的是 B 文件，于是配置<strong>一条都不生效</strong>，而屏幕上没有任何报错。如果贴完发现「什么都没变」，第一件事不是检查配置内容对不对，而是回到 <code>user-init-file</code> 确认你粘的是不是它指的那个文件。</p></div>
+  <div class="callout warn"><b>易错</b><p><strong>贴错文件是最容易犯、也最难自查的错误</strong>：你把七行配置粘进 A 文件，Emacs 重启后读的是 B 文件，于是配置<strong>一条都不生效</strong>，而屏幕上没有任何报错。如果贴完发现「什么都没变」，先别急着检查配置内容——回到 <code>user-init-file</code>，确认你粘的正是它指向的那个文件。</p></div>
 
   <p>这个文件叫 <strong>init 文件</strong>（初始化文件）。你的所有配置都写在这里，每次启动 Emacs 时它会被读一遍。<strong>这一章能让你把这段代码原样贴进去，然后重启 Emacs 看到效果。</strong>去掉注释，它只有七行，做三件事，每件都能在本书后面找到对应的章节。</p>
 

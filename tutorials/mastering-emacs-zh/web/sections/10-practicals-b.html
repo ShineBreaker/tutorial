@@ -301,7 +301,7 @@ C-x C-f /su::/etc/fstab            RET</code></pre>
 
   <ul>
     <li><strong><kbd>C</kbd><kbd>x</kbd> <kbd>d</kbd>（<code>dired</code>，目录浏览器）</strong>：因为 <code>default-directory</code> 是远程的，列出来的就是远端目录。<strong>甚至可以在两个 Dired 之间复制文件</strong>——一个 <code>dired</code> 缓冲区的 <code>default-directory</code> 是 <code>/ssh:a@h:/x/</code>，另一个是本机 <code>~/y/</code>，在 <code>dired</code> 里按 <kbd>m</kbd> 标记文件、然后在另一个 <code>dired</code> 里按 <kbd>C</kbd>（复制），Tramp 会用 <code>scp</code> 或等价方式把文件搬过去，你完全感觉不到中间有个本地临时文件。</li>
-    <li><strong><kbd>M</kbd><kbd>x</kbd> <code>compile</code>（编译）</strong>：命令会<strong>在远端跑</strong>，输出进本地的 <code>*compilation*</code> 缓冲区。前缀参数在这里有两个<strong>完全不同</strong>的用法，值得当场说清「为什么同一个键敲两次会变成另一件事」。<strong>关键在于：前缀参数不一定是一个数字。</strong>本书作者在 Emacs 32.0.50 的 <code>compile.el</code> 里读到了它的 <code>interactive</code> 声明，是这么写的（变量名照抄源码）：
+    <li><strong><kbd>M</kbd><kbd>x</kbd> <code>compile</code>（编译）</strong>：命令会<strong>在远端跑</strong>，输出进本地的 <code>*compilation*</code> 缓冲区。前缀参数在这里有两个<strong>完全不同</strong>的用法，值得当场说清「为什么同一个键敲两次会变成另一件事」。<strong>关键在于，前缀参数不一定是一个数字。</strong>本书作者在 Emacs 32.0.50 的 <code>compile.el</code> 里读到了它的 <code>interactive</code> 声明，是这么写的（变量名照抄源码）：
 <pre class="el"><code>(interactive
  (list
   (let ((command (eval compile-command)))
@@ -379,7 +379,7 @@ M-&amp; tail -f /var/log/syslog.log RET</code></pre>
 
   <h3>七、性能：Tramp 真正会卡的地方，以及今天怎么调</h3>
 
-  <p>这一节是原书完全没有、但你今天一定会遇到的内容。<strong>Tramp 慢不是因为网络，而是因为它在后台做太多事：</strong>缓存文件属性、加锁、写自动保存文件、检查符号链接、跑版本控制、追踪连接过程。原话是 Tramp 手册 FAQ 里那句「TRAMP does many things in the background…During these operations, TRAMP's responsiveness slows down」。下面按「你看到的症状 → 对策」组织。</p>
+  <p>这一节是原书完全没有、但你今天一定会遇到的内容。<strong>Tramp 慢的根源不在网络，在于它在后台做太多事：</strong>缓存文件属性、加锁、写自动保存文件、检查符号链接、跑版本控制、追踪连接过程。原话是 Tramp 手册 FAQ 里那句「TRAMP does many things in the background…During these operations, TRAMP's responsiveness slows down」。下面按「你看到的症状 → 对策」组织。</p>
 
   <h4>症状 1：打开大文件很慢</h4>
 
@@ -662,7 +662,7 @@ M-&amp; tail -f /var/log/syslog.log RET</code></pre>
   <p><strong>Emacs 里「交给外部浏览器」这件事该由谁做？</strong>答案是 <code>browse-url</code> 这一套（<strong>Browse-URL</strong>，Emacs 内置的 URL 分发器）。原书说 <kbd>M</kbd><kbd>x</kbd> <code>browse-url</code> 会用 <code>browse-url-default-browser</code> 这个变量来「猜」该用哪个浏览器——<strong>这个说法今天要精确一点</strong>：</p>
 
   <ul>
-    <li><code>browse-url-browser-function</code>（<strong>主浏览器分发函数</strong>）才是控制开关，<strong>它的默认值就是 <code>browse-url-default-browser</code></strong>——也就是原书说的那个「按操作系统和已装浏览器猜一个」的内建函数（我实测确认了这个默认值关系：<code>(symbol-value 'browse-url-browser-function)</code> 就是符号 <code>browse-url-default-browser</code>）。<strong>原书说 <kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> 然后输 <code>browse-url-default-browser</code>，这一步今天做不到了</strong>：它不是一个用户选项，而是一个<strong>普通函数</strong>（源码 <code>lisp/net/browse-url.el</code> 里的 <code>(defun browse-url-default-browser (url &amp;rest args) …)</code>），所以你在 Customize 里根本找不到它。要改的是下面那两个变量。想定制「URL 怎么打开」的<strong>整体策略</strong>（比如按域名分流），该改 <code>browse-url-browser-function</code> 和 <code>browse-url-handlers</code>。</li>
+    <li><code>browse-url-browser-function</code>（<strong>主浏览器分发函数</strong>）才是控制开关，<strong>它的默认值就是 <code>browse-url-default-browser</code></strong>——也就是原书说的那个「按操作系统和已装浏览器猜一个」的内建函数（我实测确认了这个默认值关系：<code>(symbol-value 'browse-url-browser-function)</code> 就是符号 <code>browse-url-default-browser</code>）。<strong>原书说 <kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> 然后输 <code>browse-url-default-browser</code>，这一步今天做不到了</strong>：它是一个<strong>普通函数</strong>，不是用户选项（源码 <code>lisp/net/browse-url.el</code> 里的 <code>(defun browse-url-default-browser (url &amp;rest args) …)</code>），所以你在 Customize 里根本找不到它。要改的是下面那两个变量。想定制「URL 怎么打开」的<strong>整体策略</strong>（比如按域名分流），该改 <code>browse-url-browser-function</code> 和 <code>browse-url-handlers</code>。</li>
     <li><code>browse-url-secondary-browser-function</code>（第二选择）默认值也是 <code>browse-url-default-browser</code>；EWW 里那个 <kbd>&amp;</kbd> 键用的就是它。</li>
     <li><code>browse-url-at-point</code> / <code>browse-url-at-mouse</code>（<strong>打开光标处 / 鼠标处的链接</strong>）——这两个才是你真正常用的，值得绑键。</li>
   </ul>
@@ -744,7 +744,7 @@ M-&amp; tail -f /var/log/syslog.log RET</code></pre>
   <div class="drill" data-answer="设成 nil 永不过期（最快）；设成 t 完全不用缓存（最安全但慢）；数字 N 表示缓存值只用 N 秒，默认 10">
     <p class="drill-q"><b>练习 6</b>　<code>remote-file-name-inhibit-cache</code> 这个变量在 Emacs 32.0.50 上的默认值是什么？把它设成 <code>nil</code> 是什么含义（很多人会理解反）？</p>
     <button class="drill-btn" type="button">显示答案</button>
-    <div class="drill-a"><p>实测默认值是 <code>10</code>（数字，单位秒），含义是「缓存的文件属性只用 10 秒，之后重新问远端」。<strong>设成 <code>nil</code> 是「永不过期」</strong>——不是「不用缓存」，而是「一直信缓存」，最快，但远端被 Emacs 之外的东西改了 Emacs 也发现不了。<strong>设成 <code>t</code> 才是「完全不用缓存」</strong>，最安全但最慢。</p></div>
+    <div class="drill-a"><p>实测默认值是 <code>10</code>（数字，单位秒），含义是「缓存的文件属性只用 10 秒，之后重新问远端」。<strong>设成 <code>nil</code> 是「永不过期」</strong>——即「一直信缓存」，最快，但远端被 Emacs 之外的东西改了 Emacs 也发现不了。<strong>设成 <code>t</code> 才是「完全不用缓存」</strong>，最安全但最慢。</p></div>
   </div>
 
   <div class="drill" data-answer="先用 tramp-direct-async-process；开它之后 Magit 还会挂，必须 (setq magit-tramp-pipe-stty-settings 'pty)">

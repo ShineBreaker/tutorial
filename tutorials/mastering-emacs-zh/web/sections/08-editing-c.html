@@ -347,7 +347,7 @@
   </div>
 
   <h3>三、缩进：Emacs 怎么知道该缩进多少</h3>
-  <p>Emacs 的缩进不是「按一个键插入若干空格」，而是<strong>把判断权交给当前 major mode</strong>。每种语言、每个模式有自己的缩进引擎；Emacs 也提供几套通用引擎供新模式继承。</p>
+  <p>Emacs 的缩进<strong>把判断权交给当前 major mode</strong>，不是简单地「按一个键插入若干空格」。每种语言、每个模式有自己的缩进引擎；Emacs 也提供几套通用引擎供新模式继承。</p>
 
   <h4>3.1 <strong>electric indentation</strong>（电缩进）</h4>
   <p>Emacs <strong>24.4 起</strong>，回车就会<strong>自动缩进到与上一行相同的列</strong>，这叫 electric indentation，由 minor mode <code>electric-indent-mode</code> 控制，各语言模式默认开启（我在 <code>emacs-lisp-mode</code> 下读到它是 <code>t</code>）。官方手册的措辞是「This mode is enabled by default」；24.4 的 NEWS 记着「<em>'electric-indent-mode' is now enabled by default</em>」——它不是 Emacs 29 才开的开关，比那早得多，Elisp 24.1 就有了这个模式，24.4 开始默认打开。要按 buffer 单独开关用 <code>M-x electric-indent-local-mode</code>，要全局开关用 <code>M-x electric-indent-mode</code>。</p>

@@ -14,7 +14,7 @@
 
   <h3>一、版本控制：Magit 全流程</h3>
 
-  <p><strong>版本控制</strong>（version control，记录你对文件的每一次改动、并且随时可以回退的系统）你已经在 VS Code 里用过 Git 了。Emacs 自带一套叫 <code>vc</code> 的版本控制框架和它的 Git 后端 <code>vc-git</code>，但今天没人用它——不是因为它坏了，而是因为它设计上假设「你已经知道该敲什么命令」，而不是把 Git 的状态摊开给你看。<strong>Magit</strong>（读作「马吉特」）是 Emacs 社区重写的 Git 前端，核心理念只有一句：<em>把所有 Git 状态放进一个可编辑的文本缓冲区，让它像普通文本一样被搜索、跳转、复制。</em></p>
+  <p><strong>版本控制</strong>（version control，记录你对文件的每一次改动、并且随时可以回退的系统）你已经在 VS Code 里用过 Git 了。Emacs 自带一套叫 <code>vc</code> 的版本控制框架和它的 Git 后端 <code>vc-git</code>，但今天很少有人用它——并非因为它坏了，而是它的设计假设「你已经知道该敲什么命令」，不会把 Git 的状态摊开给你看。<strong>Magit</strong>（读作「马吉特」）是 Emacs 社区重写的 Git 前端，核心理念只有一句：<em>把所有 Git 状态放进一个可编辑的文本缓冲区，让它像普通文本一样被搜索、跳转、复制。</em></p>
 
   <h4>1.1 安装：Magit 需要什么</h4>
 
@@ -244,7 +244,7 @@ magit RET</code></pre>
 
   <p><strong>语法高亮</strong>的原理是：Emacs 把缓冲区切成一个个 <strong>region</strong>（区域），每个区域打一个 <strong>font-lock</strong>（字体锁定）属性指定用什么 face（字体样式）显示。这个「用什么正则切、每个块算什么」的规则表叫 <strong>syntax table</strong>（<code>lisp/emacs-lisp/syntax.el</code>）。</p>
 
-  <p>假如你天天处理一种 Emacs 不认识的格式（比如公司内部的 <code>.tpl</code> 模板），正确做法<strong>不是</strong>硬塞一个不相关的主模式，而是给它写一张专用语法表，再用变量 <code>syntax-propertize-function</code> 挂到 <code>fundamental-mode</code> 上。Emacs 32 的 Elisp 手册里文档化的就是这条路径（<code>doc/lispref/syntax.texi</code>）。完整例子——给一种 <code>"字符串"</code>、<code>&lt;类型&gt;</code> 的格式加高亮：</p>
+  <p>假如你天天处理一种 Emacs 不认识的格式（比如公司内部的 <code>.tpl</code> 模板），正确做法是给它写一张专用语法表，再用变量 <code>syntax-propertize-function</code> 挂到 <code>fundamental-mode</code> 上，而非硬塞一个不相关的主模式。Emacs 32 的 Elisp 手册里文档化的就是这条路径（<code>doc/lispref/syntax.texi</code>）。完整例子——给一种 <code>"字符串"</code>、<code>&lt;类型&gt;</code> 的格式加高亮：</p>
 
   <pre class="el"><code>(defvar myfmt-syntax-table
   (let ((table (make-syntax-table)))
@@ -299,7 +299,7 @@ magit RET</code></pre>
 其它目录:          html-ts-mode  markdown-ts-mode  mhtml-ts-mode
                    toml-ts-mode  yaml-ts-mode</code></pre>
 
-  <p>也就是说：C、C++、Go、Rust、Java、PHP、Ruby、Lua、Elixir、CMake、Dockerfile、JSON、TypeScript、HTML、Markdown、YAML、TOML、MHTML——这 18 种语言<strong>装好 Emacs 就有了</strong>，不用装任何包。<strong>Python 不在内置列表里</strong>（<code>python-ts-mode</code> 还没进 Emacs），JS 的内置模式是 <code>typescript-ts-mode</code>（它同时管 <code>.js</code>）。</p>
+  <p>也就是说，C、C++、Go、Rust、Java、PHP、Ruby、Lua、Elixir、CMake、Dockerfile、JSON、TypeScript、HTML、Markdown、YAML、TOML、MHTML——这 18 种语言<strong>装好 Emacs 就有了</strong>，不用装任何包。<strong>Python 不在内置列表里</strong>（<code>python-ts-mode</code> 还没进 Emacs），JS 的内置模式是 <code>typescript-ts-mode</code>（它同时管 <code>.js</code>）。</p>
 
   <p>要更多语言（Python、OCaml、Haskell、Elisp……）就得装第三方包：</p>
 
@@ -488,7 +488,7 @@ magit RET</code></pre>
 
   <h3>三、文件与项目</h3>
 
-  <p>Emacs 里「打开文件」永远只是 <kbd>C-x</kbd> <kbd>C-f</kbd>。但真实工作不是「打开一个文件」，而是「在三千个文件的项目里快速找到并切换到那一个」。这一节讲三套机制：<code>project.el</code> 管住项目的范围，bookmark / recentf / savehist 记住你去过哪里，consult 把所有「选择一个东西」的界面统一成同一个样子。</p>
+  <p>Emacs 里「打开文件」永远只是 <kbd>C-x</kbd> <kbd>C-f</kbd>。但真实工作往往是「在三千个文件的项目里快速找到并切换到那一个」，远不止「打开一个文件」。这一节讲三套机制：<code>project.el</code> 管住项目的范围，bookmark / recentf / savehist 记住你去过哪里，consult 把所有「选择一个东西」的界面统一成同一个样子。</p>
 
   <h4>3.1 <code>project.el</code>：Emacs 内置的项目管理</h4>
 
@@ -1311,7 +1311,7 @@ V              dired-do-run-mail       对标记文件跑 mail 命令</code></pr
     </table>
   </div>
 
-  <p><strong>comint 的真正价值不是「跑 shell」，而是「跑那些有自己提示符格式的交互程序」。</strong>Emacs 为这些程序都写好了适配：ssh、telnet、gdb（<code>gdb</code> 用 <code>gdb-show-many-args</code>）、Python 的 REPL、R、psql、sqlite3、godot……每个都有自己的 <code>*-mode</code>。在这些会话里，输出就是<strong>普通文本</strong>，所以 <kbd>C-s</kbd> <kbd>C-r</kbd> 增量搜索、<kbd>M-x occur</kbd>、<kbd>isearch</kbd> 全部免费可用。</p>
+  <p><strong>comint 的真正价值在于「跑那些有自己提示符格式的交互程序」，而非单纯「跑 shell」。</strong>Emacs 为这些程序都写好了适配：ssh、telnet、gdb（<code>gdb</code> 用 <code>gdb-show-many-args</code>）、Python 的 REPL、R、psql、sqlite3、godot……每个都有自己的 <code>*-mode</code>。在这些会话里，输出就是<strong>普通文本</strong>，所以 <kbd>C-s</kbd> <kbd>C-r</kbd> 增量搜索、<kbd>M-x occur</kbd>、<kbd>isearch</kbd> 全部免费可用。</p>
 
   <pre class="el"><code>(setq comint-prompt-regexp "^[^#%$]*[#$%] ")
 (setq comint-scroll-show-output-on-input t)

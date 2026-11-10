@@ -25,7 +25,7 @@
 
   <p>名字里的 <strong>query</strong> 就是「提问」的意思：<code>query-replace</code> 会把每一处匹配高亮出来，然后停下来等一个键。<code>replace-string</code> / <code>replace-regexp</code> 是它们的「闷头干活」版本，一次跑完，<em>不能撤销单次替换，只能整体 <kbd>C</kbd><kbd>-</kbd> 撤销</em>。所以除非你写 Elisp 脚本，日常请一律用 <kbd>M</kbd><kbd>%</kbd> 和 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd>。</p>
 
-  <div class="callout warn"><b>易错</b><p><code>replace-regexp</code> 改坏了整个缓冲区之后想反悔？<kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 能把缓冲区<em>整个</em>恢复到替换前的状态——因为整批替换在 undo 列表里属于<strong>同一个命令的一组记录，中间没有撤销边界</strong>（本机实测：替换 5 处之后 <code>buffer-undo-list</code> 里是 5 条连续的删除记录 <code>("a" 10) ("a" 8) ("a" 6) ("a" 4) ("a" 2)</code>，它们之间没有 <code>nil</code> 边界，所以一次 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 全退）。<strong>但只要你紧接着敲了别的编辑命令，这组记录就整体失效了</strong>。这不是 Emacs 特意为难你，而是「一步撤销一整批修改」和「随时插入别的操作」在数据结构上无法同时成立。养成习惯：先想清楚再敲，敲错了立刻 <kbd>C</kbd><kbd>-</kbd>。</p></div>
+  <div class="callout warn"><b>易错</b><p><code>replace-regexp</code> 改坏了整个缓冲区之后想反悔？<kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 能把缓冲区<em>整个</em>恢复到替换前的状态——因为整批替换在 undo 列表里属于<strong>同一个命令的一组记录，中间没有撤销边界</strong>（本机实测：替换 5 处之后 <code>buffer-undo-list</code> 里是 5 条连续的删除记录 <code>("a" 10) ("a" 8) ("a" 6) ("a" 4) ("a" 2)</code>，它们之间没有 <code>nil</code> 边界，所以一次 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 全退）。<strong>但只要你紧接着敲了别的编辑命令，这组记录就整体失效了</strong>。这是数据结构上的客观限制：「一步撤销一整批修改」和「随时插入别的操作」无法同时成立。养成习惯：先想清楚再敲，敲错了立刻 <kbd>C</kbd><kbd>-</kbd>。</p></div>
 
   <p>用 <code>query-replace</code> 时，<strong>顺序是：先问搜索串，再问替换串，最后才开始逐条确认</strong>。按 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 时，本机源码 <code>replace.el</code> 给出的第一个提示串是 <code>Query replace regexp</code>（小输入框自动补上 <code>: </code>）；回车后第二个提示由 <code>(format "%s %s with: " prompt (query-replace-descr from))</code> 拼出来，实际长这样：<code>Query replace regexp Hello with: </code>——<strong>你刚搜的内容就夹在中间</strong>，而且会被预填成初值，所以直接按 <kbd>RET</kbd> 等于「用同样的东西替换」（这不是 bug，敲 <kbd>e</kbd> 就能回去改它）。填完替换串才进入 <code>Replace this occurrence?</code> 的循环。两个输入框之间可以用 <kbd>M</kbd><kbd>s</kbd> <kbd>t</kbd> 来回横跳（命令 <code>query-replace-read-transpose-from-to</code>，本机实测确认它绑在 <code>query-replace-read-map</code> 上）。</p>
 
@@ -235,7 +235,7 @@ That is, upper and lower case chars must match exactly.</code></pre>
     </table>
   </div>
 
-  <p>「词」和「符号」这两个概念不是 Emacs 自己定的，而是由当前 buffer 的<strong>语法表</strong>（syntax table）决定的，因此<strong>随 major mode 变化</strong>。本机用 <code>(looking-at "\_&lt;…\_&gt;")</code> 和 <code>(looking-at "\\&lt;…\\&gt;")</code> 在四种模式下实测同一个字符串「算不算一个符号 / 一个词」，结果很说明问题：</p>
+  <p>「词」和「符号」这两个概念由当前 buffer 的<strong>语法表</strong>（syntax table）定义，因此<strong>随 major mode 变化</strong>。本机用 <code>(looking-at "\_&lt;…\_&gt;")</code> 和 <code>(looking-at "\\&lt;…\\&gt;")</code> 在四种模式下实测同一个字符串「算不算一个符号 / 一个词」，结果很说明问题：</p>
 
   <div class="keys">
     <h4>实测：同一段文本在不同 major mode 下的符号切分</h4>
@@ -496,7 +496,7 @@ print(GREETING_STRING)█
     </table>
   </div>
 
-  <p>这张表抄自 Emacs 32.0.50 源码 <code>rect.el</code> 里的 <code>defvar-keymap rectangle-mark-mode-map</code> 定义。注意后四行在源码里写作 <code>&lt;remap&gt;</code>——<strong>它们不是新增的键位，而是把已有命令「劫持」到矩形逻辑上</strong>。所以你在模式里按 <kbd>M</kbd><kbd>n</kbd>、<kbd>C</kbd><kbd>v</kbd> 还是 <kbd>C</kbd><kbd>n</kbd>，只要这个键平常调用的正是 <code>next-line</code>，此刻就会变成「矩形下扩一行」。（正因为是 remap，它们没法用 <code>lookup-key</code> 直接查出来，我是照源码列表写的。）这些劫持在模式一退出时自动失效——所以不用刻意记，用的时候发现「<kbd>M</kbd><kbd>n</kbd> 行为怪了」就是了。</p>
+  <p>这张表抄自 Emacs 32.0.50 源码 <code>rect.el</code> 里的 <code>defvar-keymap rectangle-mark-mode-map</code> 定义。注意后四行在源码里写作 <code>&lt;remap&gt;</code>——<strong>它们的作用是把已有命令「劫持」到矩形逻辑上，并非新增键位</strong>。所以你在模式里按 <kbd>M</kbd><kbd>n</kbd>、<kbd>C</kbd><kbd>v</kbd> 还是 <kbd>C</kbd><kbd>n</kbd>，只要这个键平常调用的正是 <code>next-line</code>，此刻就会变成「矩形下扩一行」。（正因为是 remap，它们没法用 <code>lookup-key</code> 直接查出来，我是照源码列表写的。）这些劫持在模式一退出时自动失效——所以不用刻意记，用的时候发现「<kbd>M</kbd><kbd>n</kbd> 行为怪了」就是了。</p>
 
   <div class="callout warn"><b>易错</b><p><strong>不要用 <kbd>C</kbd><kbd>SPC</kbd> 代替 <kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd>。</strong>在今天的 Emacs 里 <kbd>C</kbd><kbd>SPC</kbd> 是 <code>set-mark-command</code>（设置标记），<em>不是</em>矩形标记模式——我本机实测 <code>(lookup-key global-map (kbd "C-SPC"))</code> 的结果是 <code>set-mark-command</code>，而 Emacs 源码 <code>bindings.el</code> 里对应的那行上面还留着一句注释：<em>“Many people are used to typing C-SPC and getting C-@.”</em>（很多人习惯敲 <kbd>C</kbd><kbd>SPC</kbd> 却得到 <kbd>C</kbd><kbd>@</kbd>。）这是个有历史包袱的键，<strong>图形界面和终端下它都是设置标记</strong>；只有少数模式会改绑（比如 Calendar、Dired、ERC、Ido），所以更别把它当全局键位依赖。<strong>顺带澄清一个常见误会</strong>：<code>point-to-register</code>（把 point 存进寄存器）绑的是 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>SPC</kbd>，不是裸的 <kbd>C</kbd><kbd>SPC</kbd>。矩形标记模式的键<strong>只有</strong> <kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd>。</p></div>
 
@@ -778,7 +778,7 @@ All the world's a stage, █
       <li><strong>用两轮替换。</strong>先用一个宽泛的模式改掉全部，再回头修边角。</li>
     </ol>
     <p>Emacs <em>确实</em>有硬编码的特殊断言（原书提到「except specific, hard coded constructs」），数量很有限，而且全都是<strong>零宽</strong>的——它们只看「我此刻站在哪」，从不往前／往后<em>读</em>字符，所以仍然不是 look-ahead：<code>\`</code>（只匹配缓冲区开头）、<code>\'</code>（只匹配缓冲区末尾）、<code>\=</code>（只匹配光标当前位置）、<code>\b</code>（词首或词尾）、<code>\B</code>（词首词尾之外）、以及 <code>\&lt;</code> <code>\&gt;</code> / <code>\_&lt;</code> <code>\_&gt;</code> 这两组词与符号边界。本机实测：缓冲区内容为 <code>foo\nbar</code> 时，<code>re-search-forward</code> 扫 <code>\`</code>、<code>\'</code>、<code>\=</code> 分别命中第 1、8、1 位，而 Perl 习惯的 <code>`</code>、<code>'</code>（不带反斜杠）和 <code>\G</code> <strong>一个都匹配不到</strong>——它们在 Emacs 里只是普通字面字符。<strong>行首行尾的锚点是 <code>^</code> 和 <code>$</code>（不带反斜杠）</strong>，这一点和 PCRE 正好相反，是本章最容易记混的地方之一。</p>
-    <p>另一类 Emacs 特有构造带<strong>双下划线前缀</strong>（<code>\_&lt;</code>、<code>\_&gt;</code>、<code>\s-</code>、<code>\sw</code> …），那不是断言，而是语法类匹配——见 2.3 节。</p>
+    <p>另一类 Emacs 特有构造带<strong>双下划线前缀</strong>（<code>\_&lt;</code>、<code>\_&gt;</code>、<code>\s-</code>、<code>\sw</code> …），那是语法类匹配，不是断言——见 2.3 节。</p>
     <p>反过来说，Emacs 独有的<strong>语法类</strong>（<code>\s-</code>、<code>\sw</code>、<code>\s_</code>、<code>\s"</code>、<code>\s(</code> …）是 PCRE 完全没有的，而且直接绑定到 Emacs 的语法表——<strong>「在当前语言的语境里理解文本」这件事，Emacs 正则比 PCRE 强</strong>。这才是它当年被选中的原因。</p>
   </details>
 

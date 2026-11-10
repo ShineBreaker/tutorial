@@ -217,7 +217,7 @@
   <div class="callout note"><b>要点</b><p><strong>这个输出里有三个数字，含义各不相同，混起来读是最常见的困惑来源：</strong></p>
     <ul>
       <li>最前面的 <code>2 matches for "gamma"</code> —— <strong>一共匹配到几行</strong>。它是统计，跟 <code>*temp*</code> 是两回事。</li>
-      <li><code>in buffer: *temp*</code> —— <strong>被搜的那个缓冲区叫什么</strong>。<code>occur</code> 默认只搜<strong>当前这一个</strong>，所以这里出现的<strong>不是你的文件名，而是你碰巧正待着的那个缓冲区名</strong>。如果你在一个叫 <code>notes.txt</code> 的文件里按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>，这里就会写 <code>notes.txt</code>。</li>
+      <li><code>in buffer: *temp*</code> —— <strong>被搜的那个缓冲区叫什么</strong>。<code>occur</code> 默认只搜<strong>当前这一个</strong>，所以这里出现的<strong>是你碰巧正待着的那个缓冲区名，而非文件名</strong>。如果你在一个叫 <code>notes.txt</code> 的文件里按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>，这里就会写 <code>notes.txt</code>。</li>
       <li>每行行首那个 <code>2:</code> 和 <code>3:</code> —— <strong>这一行在源缓冲区里是第几行</strong>。<code>2:delta gamma</code> 的意思是「源缓冲区第 2 行，内容是 <code>delta gamma</code>」。<strong>把这个行号和左边源缓冲区对照着看</strong>：源缓冲区第 1 行 <code>alpha beta</code> 不含 <code>gamma</code>，所以没出现在清单里；第 2、3 行含了，于是清单里就是它们的行号。</li>
     </ul>
     <p><strong>所以「为什么不是我的文件名」和「为什么不是全部行」这两个问题，答案都在上面第三条里。</strong></p>
@@ -254,7 +254,7 @@
 
   <p>在 <code>*Occur*</code> 里按 <kbd>e</kbd>，只读属性被去掉，你可以<strong>像编辑普通文本一样直接改这些匹配行</strong>；改完按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd>（<code>occur-cease-edit</code>），改动会<strong>同步写回原来的缓冲区</strong>。</p>
 
-  <p>这个功能的价值不在于「改几行字」，而在于<strong>你能一边看着全局清单一边批量修改</strong>。比如一个配置错误出现在 30 个不同文件里，你在 <code>*Occur*</code> 里逐个跳过去改、改完提交，全程不用在 30 个窗口之间来回切。再配合键盘宏（第 8 章）或 <code>query-replace</code>（第 7 章）威力更大。</p>
+  <p>这个功能真正的价值在于<strong>你能一边看着全局清单一边批量修改</strong>，而不止是改几行字。比如一个配置错误出现在 30 个不同文件里，你在 <code>*Occur*</code> 里逐个跳过去改、改完提交，全程不用在 30 个窗口之间来回切。再配合键盘宏（第 8 章）或 <code>query-replace</code>（第 7 章）威力更大。</p>
 
   <div class="callout tip"><b>技巧</b><p>在 <code>*Occur*</code> 里按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd> 打开 <code>next-error-follow-minor-mode</code>，之后每次用 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 在匹配间跳时，另一窗口会跟着实时显示对应行的上下文——这样你连 <code>*Occur*</code> 都不用看，直接在源文件窗口里审阅。</p></div>
 
@@ -424,7 +424,7 @@
 
   <div class="callout note"><b>要点</b><p><strong>「替换」具体替换了什么，读者最需要知道这一点，因为它决定了你该怎么排查。</strong>指的是<strong>迷你缓冲区（minibuffer）的行为</strong>：Helm 自己接管它，于是 <kbd>M-x</kbd> <kbd>RET</kbd>、<kbd>C-x</kbd> <kbd>C</kbd><kbd>f</kbd>、<code>M-x</code> 这些本来要弹出一个输入框的动作，全都会先弹出 Helm 那个大候选窗口。<strong>Emacs 自己的补全引擎（<code>completion-styles</code>、<code>vertico-mode</code>）被绕过了，不是被增强。</strong></p>
     <p><strong>而 consult 不会碰 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd>、<kbd>M</kbd><kbd>TAB</kbd>、<kbd>C</kbd><kbd>s</kbd>、<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 这些内置键。</strong>本书作者在本机 Emacs 32.0.50 上把装好的 <code>consult 3.6</code> 整个目录 <code>grep -rl "C-M-i"</code> 过一遍，<strong>零命中</strong>——也就是说 consult 作者根本没碰过这个键。<strong>所以「被窗口管理器抢了 <kbd>M</kbd><kbd>TAB</kbd> 就换 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd>」和「会不会和 consult 打架」是两个不相干的问题</strong>：前者是键盘硬件问题，后者是包之间的问题，<kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> 两边都不沾。</p>
-    <p>真正会互相干扰的，是 <code>helm-mode</code>、<code>ivy-mode</code>、<code>selectrum-mode</code>、<code>ido-mode</code>、<code>ido-ubiquitous-mode</code> 这几个——<strong>consult 的 README 在排错清单里明确把这几个列为「遇到 bug 必须先关掉」</strong>。也就是说：<strong>consult 和这些是替代关系，和 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> 这种内置键位不是。</strong></p>
+    <p>真正会互相干扰的，是 <code>helm-mode</code>、<code>ivy-mode</code>、<code>selectrum-mode</code>、<code>ido-mode</code>、<code>ido-ubiquitous-mode</code> 这几个——<strong>consult 的 README 在排错清单里明确把这几个列为「遇到 bug 必须先关掉」</strong>。也就是说，<strong>consult 和这些是替代关系，和 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> 这种内置键位不是。</strong></p>
   </div>
 
   <p><strong>建议</strong>：不要新装 Helm——照着原书 p.170–175 装，你会得到一个能用、但会跟现代 Emacs 的其他部分持续摩擦的方案。已经装了也不必恐慌，它不跟内置功能冲突，只是你得记住它那一整套键位和命令名（下面折叠区里完整保留了）。</p>

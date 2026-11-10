@@ -91,8 +91,8 @@ export default {
     {
       type: 'callout',
       tone: 'warn',
-      title: '权限不是 agent 的减速带，而是它的方向盘',
-      html: '<p>很多人以为权限系统只是「防呆」。实际上它同时影响三件事：用户体验（ask 多少次）、并发性能（能不能并行跑）、以及 agent 的自主程度（哪些事它敢自己做）。设计工具时，<code>isReadOnly</code> / <code>isConcurrencySafe</code> 这两个声明值得像写 schema 一样认真。</p>',
+      title: '权限边界直接决定了 Agent 的自主度与性能',
+      html: '<p>权限系统不仅承担安全防线的职责，还同时制约着三个关键维度：交互体验（用户确认频次）、调度性能（能否安全并行）以及 Agent 的自主执行深度。在设计工具时，<code>isReadOnly</code> 与 <code>isConcurrencySafe</code> 这两项元数据声明值得与参数 schema 同样审慎对待。</p>',
     },
     {
       type: 'quiz',

@@ -747,11 +747,11 @@ mark.hit.cur{outline:2px solid var(--accent);outline-offset:1px}
 <li class="nav-item" data-stage="进阶"><a href="#ch-09-practicals-a" data-target="ch-09-practicals-a"><span class="nav-stage">进阶</span><span class="nav-title">九、实用篇（一）：自助探索、项目管理、交叉引用</span><span class="nav-lead">前面八章教你的都是「怎么做」：怎么移动、怎么编辑。这一章教你一件更根本的事——怎么自己找到答案。Emacs 的键位有上千个、命令有上万条，任何一本书都列不完；但 Ch 这一个键就能把整个 Emacs 的说明书摊开在你面前。读完这一节，你就能自己查清任何一个陌生功能，并把 Emacs 从「别人的工具」调成「你的工具」。这一章还会交代 Emacs 30/31/32 的现状：项目用 project.el，跳定义统一走 xref（背后多半是 Eglot 那个语言服务器），而 compilation-mode 虽然在「跳编译错误」这件事上被 Eglot 分走了一半，仍然是核心内建、仍然值得会；看日志则有一套专门的手法。</span><span class="nav-meta">45 分钟</span></a></li>
 <li class="nav-item" data-stage="精通"><a href="#ch-10-practicals-b" data-target="ch-10-practicals-b"><span class="nav-stage">精通</span><span class="nav-title">十、实用篇（二）：Tramp 远程编辑与 EWW 浏览器</span><span class="nav-lead">这一章讲两件看起来不相干、实际都是「把 Emacs 的边界推出去」的事。Tramp（Transparent Remote (file) Access, Multiple Protocol，内置的透明远程文件访问包，中文可译作「透明远程访问」）让你在服务器上直接编辑文件、跑编译、翻目录，用的还是同一个 Emacs、同一套键位、同一个配置；EWW（Emacs Web Wowser，内置的极简网页浏览器）让你不离开 Emacs 就能读一页文档、搜一下午的资料。读完这一节你会得到三样东西：一是 Tramp 那条 /method:user@host:/path 路径语法的完整读法（sudo、多跳、换用户都包含在内）；二是知道 default-directory 这个变量为什么是 Tramp 全部魔法的枢纽——理解它，你就理解了 Emacs 的文件系统抽象；三是关于「Tramp 到底卡在哪、今天怎么调」和「EWW 今天还值不值得学」的诚实答案。这一章还会交代 Emacs 30/31/32 的现状：原书写于 Emacs 26–30 时代，它给的 C-x r l 打开书签列表、M-s M-w 在 EWW 内搜索这两条今天都已经不是原来那回事了，正文里会逐条标出来。</span><span class="nav-meta">55 分钟</span></a></li>
 <li class="nav-item" data-stage="进阶"><a href="#ch-11-practicals-c" data-target="ch-11-practicals-c"><span class="nav-stage">进阶</span><span class="nav-title">十一、实用篇（三）：Dired、编译与 Shell</span><span class="nav-lead">这一章讲 Emacs 的第三重身份：如果 C-x C-f 打开的是文件，C-x d 打开的就是整个文件系统。你会学会在 Dired 缓冲区里标记、成批重命名、批量删除、跨目录操作，然后用 M-!、M-x compile 和三种内置 shell 把 Emacs 接到命令行上。读完你能把 90% 的 ls / mv / make / grep 杂活从终端搬进 Emacs，并且知道今天该选 shell、eshell 还是 vterm。</span><span class="nav-meta">60 分钟</span></a></li>
-<li class="nav-item" data-stage="精通"><a href="#ch-12-elisp" data-target="ch-12-elisp"><span class="nav-stage">精通</span><span class="nav-title">十二、Emacs Lisp 编程入门</span><span class="nav-lead">这一章的目标很具体：让你从「能把别人的配置复制进 init.el」升级到「能读懂它、能改它、能自己写十来行」。读完你会知道该在哪里敲代码、*scratch* 为什么是关键工具、配置文件到底在什么时刻被执行，以及列表、符号、闭包、正则、`condition-case`、字节编译、Edebug 这些东西在实践中各解决什么问题。</span><span class="nav-meta">75 分钟</span></a></li>
+<li class="nav-item" data-stage="精通"><a href="#ch-12-elisp" data-target="ch-12-elisp"><span class="nav-stage">精通</span><span class="nav-title">十二、Emacs Lisp 编程入门</span><span class="nav-lead">这一章的目标很明确——让你从「能把别人的配置复制进 init.el」升级到「能读懂它、能改它、能自己写十来行」。读完你会知道该在哪里敲代码、*scratch* 为什么是关键工具、配置文件到底在什么时刻被执行，以及列表、符号、闭包、正则、`condition-case`、字节编译、Edebug 这些东西在实践中各解决什么问题。</span><span class="nav-meta">75 分钟</span></a></li>
 <li class="nav-item" data-stage="精通"><a href="#ch-13-setup" data-target="ch-13-setup"><span class="nav-stage">精通</span><span class="nav-title">十三、现代安装与配置工程</span><span class="nav-lead">前十二章讲的是「Emacs 里面怎么用」。这一章讲外面那一层：在哪个平台装、装哪个版本、配置文件放哪、包从哪来、启动为什么慢、坏了怎么救。读完你手里会有一套能长期用、能搬到第二台机器、坏了能在五分钟内定位问题的 Emacs 环境。</span><span class="nav-meta">85 分钟</span></a></li>
 <li class="nav-item" data-stage="精通"><a href="#ch-14-workflow" data-target="ch-14-workflow"><span class="nav-stage">精通</span><span class="nav-title">十四、现代工作流实战</span><span class="nav-lead">前面十三章把 Emacs 的「内功」讲完了：移动、编辑、Elisp、配置。这一章讲「干活」——你在真实项目里每天要用的六件事：用 Magit 提交代码、用 LSP 补全和调试、用 project.el 管住一个大项目、用 Dired 和书签在文件间穿梭、用 Org-mode 管待办和数据、把 Emacs 接进 shell 与外部工具。读完你能配出一套能替代 VS Code 日常开发的工作流，并且知道每一块该用内置的、该用第三方的、以及它们的代价是什么。</span><span class="nav-meta">55 分钟</span></a></li>
 <li class="nav-item" data-stage="精通"><a href="#ch-15-mobile" data-target="ch-15-mobile"><span class="nav-stage">精通</span><span class="nav-title">十五、移动端与特殊场景</span><span class="nav-lead">这一章不讲按键，讲的是「换地方」。你要把已经练熟的肌肉记忆搬到三类地方：一是没有桌面 Linux 的设备（手机、平板）、二是 Windows、三是「不用鼠标」和「文件特别大」这种会打断你工作流的场合。读完你会得到三样东西：一份能照着敲的 Android 与 Windows 装机步骤、一份诚实的 iPad 可行性评估（结论多半是「别在 iPad 上做主力」）、以及一本随身排障手册——Emacs 起不来、启动即报错、卡死的时候照着做就能救回来。</span><span class="nav-meta">45 分钟</span></a></li>
-<li class="nav-item" data-stage="精通"><a href="#ch-16-conclusion" data-target="ch-16-conclusion"><span class="nav-stage">精通</span><span class="nav-title">十六、结语与延伸资源</span><span class="nav-lead">这一章是全书的「下一站地图」。你要学会的不是新的按键，而是向 Emacs 提问的方法——这是唯一能让你脱离本书继续前进的能力。读完你会知道：原书列的那些第三方包在 2026 年还剩哪些、当代 Emacs 生态的标准答案是什么、你的 Emacs 到底是哪个版本以及这几个版本之间改了什么、官方手册怎么查、社区去哪儿问问题，以及一条四周就能走完的学习路线。</span><span class="nav-meta">35 分钟</span></a></li>
+<li class="nav-item" data-stage="精通"><a href="#ch-16-conclusion" data-target="ch-16-conclusion"><span class="nav-stage">精通</span><span class="nav-title">十六、结语与延伸资源</span><span class="nav-lead">这一章是全书的「下一站地图」，教你的核心能力是向 Emacs 提问的方法——这是唯一能让你脱离本书继续前进的能力。读完你会知道：原书列的那些第三方包在 2026 年还剩哪些、当代 Emacs 生态的标准答案是什么、你的 Emacs 到底是哪个版本以及这几个版本之间改了什么、官方手册怎么查、社区去哪儿问问题，以及一条四周就能走完的学习路线。</span><span class="nav-meta">35 分钟</span></a></li>
 <li class="nav-item" data-stage="精通"><a href="#ch-17-appendix" data-target="ch-17-appendix"><span class="nav-stage">精通</span><span class="nav-title">十七、附录：速查表与排障手册</span><span class="nav-lead">这一章不做叙述，只做三件事：把全书出现过的按键收拢成一张可搜索、可折叠的总表；把出问题时该按哪几个键写成一张排障表；把会卡住你的术语列成中英对照表。此外还补两节：怎么把 Caps Lock 改成 Control（X11、Wayland、macOS、Windows 四套现行做法），以及前面每一章的练习该怎么用、怎么自测。表里的按键与命令名在本机 Emacs 32.0.50 上用 emacs --batch -Q 逐条查过绑定关系，版本归属则比对同一套 Emacs 自带的官方手册（emacs.info、elisp.info）与 NEWS.28/29/30/31；凡是本机实测不出来的（比如 macOS 的 hidutil、esc-delay 这类本机构建里就没有的变量），正文里会写明依据来自哪份官方文档，或者直接标注「本机查不到，请自己核实」。</span><span class="nav-meta">40 分钟</span></a></li>
     </ul>
   </nav>
@@ -776,7 +776,7 @@ mark.hit.cur{outline:2px solid var(--accent);outline-offset:1px}
     <li><strong>mode</strong>（模式）：一段绑定好的行为约定。<strong>major mode</strong>（主模式）决定「这份文本是什么类型、编辑时用哪套按键」，比如写 Python 时是 <code>python-mode</code>，写 C 时是 <code>c-ts-mode</code>。<strong>minor mode</strong>（辅模式）是可叠加的小开关，随时能开能关，比如显示行号的 <code>display-line-numbers-mode</code>。一个 buffer 同一时刻只有一个主模式，可以有任意多个辅模式。</li>
   </ul>
 
-  <p>还有一件事必须现在讲清楚，否则你后面会一直困惑：<strong>Emacs 自带一本完整的说明书，而且它就在编辑器里</strong>。它的入口是 <kbd>M</kbd><kbd>x</kbd>（按名字调用任何命令）和 <kbd>C</kbd><kbd>h</kbd> 这一族查询键——后面跟 <kbd>f</kbd>（function）、<kbd>v</kbd>（variable）、<kbd>k</kbd>（key）、<kbd>m</kbd>（mode）分别是查函数、查变量、查按键、查当前模式。这套命名是 1980 年代的遗产，但你要记的不是这四个字母，而是这句：<strong>Emacs 里任何东西都能查，而且查的方式是统一的</strong>。</p>
+  <p>还有一件事必须现在讲清楚，否则你后面会一直困惑：<strong>Emacs 自带一本完整的说明书，而且它就在编辑器里</strong>。它的入口是 <kbd>M</kbd><kbd>x</kbd>（按名字调用任何命令）和 <kbd>C</kbd><kbd>h</kbd> 这一族查询键——后面跟 <kbd>f</kbd>（function）、<kbd>v</kbd>（variable）、<kbd>k</kbd>（key）、<kbd>m</kbd>（mode）分别是查函数、查变量、查按键、查当前模式。这套命名是 1980 年代的遗产，四个字母不必死记，只需记住一句：<strong>Emacs 里任何东西都能查，而且查的方式是统一的</strong>。</p>
 
   <div class="keys">
     <h4>本章按键</h4>
@@ -874,7 +874,7 @@ mark.hit.cur{outline:2px solid var(--accent);outline-offset:1px}
     </table>
   </div>
 
-  <p>上表沿用了本书统一的按键速查表格式（三列固定表头），但填的不是按键而是「类别 / 名称 / 说明」——按行读即可。</p>
+  <p>上表沿用了本书统一的按键速查表格式（三列固定表头），三列改填「类别 / 名称 / 说明」，按行读即可。</p>
 
   <h4>三个包仓库分别是什么</h4>
 
@@ -982,7 +982,7 @@ GNU Emacs 31.1</code></pre>
 
   <p>这一条本书作者在本机实测过两次，结论是<strong>「全新机器上得到 <code>~/.emacs.d/</code>」</strong>：在 <code>HOME</code> 下没有任何 Emacs 目录时，它就是 <code>~/.emacs.d/</code>；把 <code>~/.config/emacs/</code> 预先建出来，它才变成 <code>~/.config/emacs/</code>。<strong>所以别照抄别的教程里的路径，用上面那个 <kbd>M</kbd><kbd>x</kbd> 查询的结果。</strong></p>
 
-  <div class="callout warn"><b>易错</b><p><strong>贴错文件是最容易犯、也最难自查的错误</strong>：你把七行配置粘进 A 文件，Emacs 重启后读的是 B 文件，于是配置<strong>一条都不生效</strong>，而屏幕上没有任何报错。如果贴完发现「什么都没变」，第一件事不是检查配置内容对不对，而是回到 <code>user-init-file</code> 确认你粘的是不是它指的那个文件。</p></div>
+  <div class="callout warn"><b>易错</b><p><strong>贴错文件是最容易犯、也最难自查的错误</strong>：你把七行配置粘进 A 文件，Emacs 重启后读的是 B 文件，于是配置<strong>一条都不生效</strong>，而屏幕上没有任何报错。如果贴完发现「什么都没变」，先别急着检查配置内容——回到 <code>user-init-file</code>，确认你粘的正是它指向的那个文件。</p></div>
 
   <p>这个文件叫 <strong>init 文件</strong>（初始化文件）。你的所有配置都写在这里，每次启动 Emacs 时它会被读一遍。<strong>这一章能让你把这段代码原样贴进去，然后重启 Emacs 看到效果。</strong>去掉注释，它只有七行，做三件事，每件都能在本书后面找到对应的章节。</p>
 
@@ -1623,7 +1623,7 @@ M-x lisp-interaction-mode RET   变成一个可以求值 Elisp 的地方</code><
 
   <p>需要解释一下为什么会有 <code>.emacs.d</code> 这个「带点的目录」：Emacs 启动时会往你的用户目录里写好几个文件（package 下载的包、桌面文件、最近访问列表、各种自动保存文件），全堆在 <code>~</code> 下面太乱了，于是约定把它们收进一个隐藏目录 <code>~/.emacs.d/</code>。后来 freedesktop 的 XDG 目录规范普及，Emacs 27.1 起改用 <code>~/.config/emacs/</code>。Emacs 32 的官方手册里有一节叫「How Emacs Finds Your Init File」，上面这些规则都能在那一节查到。</p>
 
-  <div class="callout warn"><b>易错</b><p><strong>Emacs 选哪个目录，有一条容易被忽略的优先级规则</strong>（Emacs 27.1 的 NEWS 与 32 的手册都写得很明确）：如果 <code>~/.emacs.d</code> 或 <code>~/.emacs</code> 或 <code>~/.emacs.el</code> <em>已经存在</em>，Emacs 就会用 <code>~/.emacs.d/</code>，<strong>即使 <code>~/.config/emacs/</code> 存在也一样</strong>。换句话说：<strong>你必须先把老的 <code>~/.emacs.d</code> 和 <code>~/.emacs</code> 删掉或改名，XDG 目录才会生效。</strong>如果 <code>~/.emacs.d</code> 不存在、Emacs 又决定用它（因为 XDG 目录也不存在），Emacs 会替你建出来；反过来，<code>$XDG_CONFIG_HOME/emacs</code> 永远不会被 Emacs 自动创建。你以为自己在改 <code>~/.config/emacs/init.el</code> 却毫无效果，多半就是踩了这一条。</p></div>
+  <div class="callout warn"><b>易错</b><p><strong>Emacs 选哪个目录，有一条容易被忽略的优先级规则</strong>（Emacs 27.1 的 NEWS 与 32 的手册都写得很明确）：如果 <code>~/.emacs.d</code> 或 <code>~/.emacs</code> 或 <code>~/.emacs.el</code> <em>已经存在</em>，Emacs 就会用 <code>~/.emacs.d/</code>，<strong>即使 <code>~/.config/emacs/</code> 存在也一样</strong>。也就是说，<strong>你必须先把老的 <code>~/.emacs.d</code> 和 <code>~/.emacs</code> 删掉或改名，XDG 目录才会生效。</strong>如果 <code>~/.emacs.d</code> 不存在、Emacs 又决定用它（因为 XDG 目录也不存在），Emacs 会替你建出来；反过来，<code>$XDG_CONFIG_HOME/emacs</code> 永远不会被 Emacs 自动创建。你以为自己在改 <code>~/.config/emacs/init.el</code> 却毫无效果，多半就是踩了这一条。</p></div>
 
   <p>Emacs 选定的那个目录，会被写进 <strong><code>user-emacs-directory</code></strong> 变量。<strong>它在这台机器上到底是什么，取决于你的 <code>HOME</code> 里已经有什么，不是固定值。</strong>所以别照抄任何人的路径，按 <kbd>M</kbd><kbd>x</kbd> 查这一个变量就够了——它一定是你这台机器真正会用的那个目录：</p>
 
@@ -2119,7 +2119,7 @@ $ systemctl --user start emacs</code></pre>
   <details class="deep">
     <summary>进阶：把 Caps Lock 改成 Control，以及自定义键盘</summary>
     <p>你已经知道 <kbd>C</kbd><kbd>-</kbd> 在 Emacs 里有多常用。但对大多数人来说，键盘左下角那个 <kbd>Ctrl</kbd> 是个<strong>很不舒服的位置</strong>——要用无名小指去够，还得把手掌撑开。Emacs 用户的「左小指痛」（作者戏称 Emacs pinky）就是这么来的。</p>
-    <p><strong>原书给出的头号建议是：把 Caps Lock 这个键重新映射成 Control，然后完全不用左下角那个原始的 Ctrl。</strong>大写锁定键离手指更近、发力更顺，改造之后 <kbd>C</kbd><kbd>-</kbd> 组合会舒服得多。</p>
+    <p><strong>原书给出的头号建议，是把 Caps Lock 这个键重新映射成 Control，然后完全不用左下角那个原始的 Ctrl。</strong>大写锁定键离手指更近、发力更顺，改造之后 <kbd>C</kbd><kbd>-</kbd> 组合会舒服得多。</p>
     <p>这么建议是有历史原因的：当年的 <strong>Space Cadet</strong> 键盘（大名鼎鼎的 MIT 人工智能实验室键盘）上，<strong>Control 键占据的正是今天 Caps Lock 的位置</strong>。也就是说 Emacs 最早的键位设计里，Ctrl 本来就在那儿，是后来的 PC 键盘把 Ctrl 挪到了左下角。把它映射回去，等于把 Emacs 还原回它设计时最顺手的布局。这个习惯在 Emacs 之外也有用，所以值得养成。</p>
     <h4>怎么改</h4>
     <ul>
@@ -2195,7 +2195,7 @@ $ systemctl --user start emacs</code></pre>
 
   <h4>尖括号写法</h4>
 
-  <p>有些键没有对应的字母，文档里写成尖括号包着的样子：<code>&lt;tab&gt;</code>、<code>&lt;f1&gt;</code>、<code>&lt;return&gt;</code>、<code>&lt;escape&gt;</code>、<code>&lt;left&gt;</code>、<code>&lt;f12&gt;</code>。它们指的不是字符本身，而是键盘上那个有名字的键。</p>
+  <p>有些键没有对应的字母，文档里写成尖括号包着的样子：<code>&lt;tab&gt;</code>、<code>&lt;f1&gt;</code>、<code>&lt;return&gt;</code>、<code>&lt;escape&gt;</code>、<code>&lt;left&gt;</code>、<code>&lt;f12&gt;</code>。它们指键盘上那个有名字的按键，而非字符本身。</p>
 
   <p>唯一的坑是：<strong>不要把 <code>&lt;tab&gt;</code> 跟字母 T、A、B 搞混</strong>。文档里写 <code>C-q</code> 才是「先按 Ctrl 再按 q」；写 <code>&lt;tab&gt;</code> 是指键盘上那个 Tab 键——虽然它在某些键盘上确实挨着 Q。</p>
 
@@ -2383,7 +2383,7 @@ $ systemctl --user start emacs</code></pre>
 
   <ul>
     <li><strong><kbd>M</kbd><kbd>x</kbd> <code>help-command</code></strong>——<strong>这个永远管用</strong>，因为 <kbd>M</kbd><kbd>x</kbd> 只依赖 Meta 键。本节表格里 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 的功能，写成 <kbd>M</kbd><kbd>x</kbd> <code>describe-mode</code> <kbd>RET</kbd> 效果完全一样（本章后面所有表格你都可以这样替换）。</li>
-    <li><strong><kbd>F1</kbd></strong>——Emacs 的帮助键表里确实把 <kbd>F1</kbd> 也绑成了帮助菜单，但<strong>它是否在你的终端里真的绑上了，取决于终端的 terminfo 和你的 Emacs 构建</strong>。本书作者在 32.0.50 上实测，<kbd>C</kbd><kbd>h</kbd> 绑的是 <code>help-command</code>，而 <kbd>F1</kbd> 在裸 Emacs 里<strong>没有全局绑定</strong>。<strong>结论：别把 <kbd>F1</kbd> 当成保底方案</strong>，先试一下，敲了没反应就用上面那条。</li>
+    <li><strong><kbd>F1</kbd></strong>——Emacs 的帮助键表里确实把 <kbd>F1</kbd> 也绑成了帮助菜单，但<strong>它是否在你的终端里真的绑上了，取决于终端的 terminfo 和你的 Emacs 构建</strong>。本书作者在 32.0.50 上实测，<kbd>C</kbd><kbd>h</kbd> 绑的是 <code>help-command</code>，而 <kbd>F1</kbd> 在裸 Emacs 里<strong>没有全局绑定</strong>。<strong>所以别把 <kbd>F1</kbd> 当成保底方案</strong>，先试一下，敲了没反应就用上面那条。</li>
     <li><strong><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>h</kbd></strong>——如果 <kbd>C</kbd><kbd>h</kbd> 能发出来但你不想每次都记具体字母，按两下 <kbd>C</kbd><kbd>h</kbd>（<code>help-for-help</code>）会弹出一个<strong>列出全部帮助子命令的菜单</strong>，用方向键选、回车执行。</li>
   </ul>
 
@@ -2850,7 +2850,7 @@ $ systemctl --user start emacs</code></pre>
 
   <ul>
     <li><strong>buffer</strong>（缓冲区）：一段正在编辑的文本。它<strong>不等于文件</strong>。文件只是 buffer 的一种「落脚点」；Emacs 自己生成的临时文本（帮助、编译日志、shell 输出、抓取网页）也是 buffer，只不过没有对应文件。你在 VS Code 里关掉一个标签页，那个 tab 就是一个 buffer。</li>
-    <li><strong>window</strong>（窗口）：frame 里面的一块显示区域，负责显示<strong>某一个 buffer</strong>。这是初学者误解最深的一个词——它不是操作系统的窗口，而是 frame 内部的「一块格子」。</li>
+    <li><strong>window</strong>（窗口）：frame 里面的一块显示区域，负责显示<strong>某一个 buffer</strong>。这是初学者误解最深的一个词——它指 frame 内部的「一块格子」，而非操作系统的窗口。</li>
     <li><strong>frame</strong>（框架）：你在操作系统任务栏里看到、可以拖动、可以最小化的那个<strong>窗口</strong>。别人说的「打开一个新窗口」，在 Emacs 里必须说成「打开一个新 frame」。</li>
   </ul>
 
@@ -3208,7 +3208,7 @@ End:</code></pre>
 
   <div class="callout tip">
     <b>技巧</b>
-    <p>把 <kbd>M</kbd><kbd>x</kbd> <code>ibuffer</code> 绑成默认的 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd>，是回报率最高的一处配置。原书给的写法是 <code>(global-set-key [remap list-buffers] 'ibuffer)</code>——这里的 <code>remap</code> 意思是「不是新增按键，而是把 <code>list-buffers</code> 这个命令本身换成 <code>ibuffer</code>」，所以 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 依然按，但弹出来的界面可以边打字边过滤、实时排序。</p>
+    <p>把 <kbd>M</kbd><kbd>x</kbd> <code>ibuffer</code> 绑成默认的 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd>，是回报率最高的一处配置。原书给的写法是 <code>(global-set-key [remap list-buffers] 'ibuffer)</code>——这里的 <code>remap</code> 意思是「不新增按键，直接把 <code>list-buffers</code> 这个命令本身换成 <code>ibuffer</code>」，所以 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 依然按，但弹出来的界面可以边打字边过滤、实时排序。</p>
   </div>
 
   <div class="drill" data-answer="C-x C-b 换成 ibuffer：写 (global-set-key [remap list-buffers] 'ibuffer)；Emacs 32 的 fido-mode 已并入 icomplete，不用装包">
@@ -3363,7 +3363,7 @@ End:</code></pre>
 
   <h3>八、窗口管理：五个键就能用，会用之后再谈技巧</h3>
 
-  <p>原书在这里放了一句很实在的话：窗口管理其实不复杂，复杂的不是按键，而是<strong>接受「window 随用随建」这个前提</strong>。下面这五个键就是全部的日常需求：</p>
+  <p>原书在这里放了一句很实在的话：窗口管理其实不复杂，难点不在按键，在于<strong>接受「window 随用随建」这个前提</strong>。下面这五个键就是全部的日常需求：</p>
 
   <div class="keys">
     <h4>窗口管理五键（本机 Emacs 32.0.50 实测绑定）</h4>
@@ -3510,7 +3510,7 @@ End:</code></pre>
 
   <h4>今天的实际情况：frame 体系比原书写的时候更不好用</h4>
 
-  <p>原书写这段时对 frame 的评价就已经偏保守了：所有 frame 共享同一个 Emacs 会话，管理起来「有点别扭」，作者建议「试试看合不合手」。<strong>这个评价在今天的 Wayland 和 macOS 上更成立了</strong>，原因不是 Emacs 的代码退化了，而是桌面环境变了。下面是我在本机能核实的部分——引用全部来自本机安装的 Emacs 32.0.50 手册和 <code>etc/NEWS.*</code> 原文。</p>
+  <p>原书写这段时对 frame 的评价就已经偏保守了：所有 frame 共享同一个 Emacs 会话，管理起来「有点别扭」，作者建议「试试看合不合手」。<strong>这个评价在今天的 Wayland 和 macOS 上更成立了</strong>，原因在于桌面环境变了，Emacs 的代码并没有退化。下面是我在本机能核实的部分——引用全部来自本机安装的 Emacs 32.0.50 手册和 <code>etc/NEWS.*</code> 原文。</p>
 
   <div class="callout warn">
     <b>易错</b>
@@ -4820,7 +4820,7 @@ paragraph-separate  "[ \t]*$"     ; 只作分隔（本身不算段落内容）</
   <div class="callout note"><b>要点</b><p><strong>这个输出里有三个数字，含义各不相同，混起来读是最常见的困惑来源：</strong></p>
     <ul>
       <li>最前面的 <code>2 matches for "gamma"</code> —— <strong>一共匹配到几行</strong>。它是统计，跟 <code>*temp*</code> 是两回事。</li>
-      <li><code>in buffer: *temp*</code> —— <strong>被搜的那个缓冲区叫什么</strong>。<code>occur</code> 默认只搜<strong>当前这一个</strong>，所以这里出现的<strong>不是你的文件名，而是你碰巧正待着的那个缓冲区名</strong>。如果你在一个叫 <code>notes.txt</code> 的文件里按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>，这里就会写 <code>notes.txt</code>。</li>
+      <li><code>in buffer: *temp*</code> —— <strong>被搜的那个缓冲区叫什么</strong>。<code>occur</code> 默认只搜<strong>当前这一个</strong>，所以这里出现的<strong>是你碰巧正待着的那个缓冲区名，而非文件名</strong>。如果你在一个叫 <code>notes.txt</code> 的文件里按 <kbd>M</kbd><kbd>s</kbd> <kbd>o</kbd>，这里就会写 <code>notes.txt</code>。</li>
       <li>每行行首那个 <code>2:</code> 和 <code>3:</code> —— <strong>这一行在源缓冲区里是第几行</strong>。<code>2:delta gamma</code> 的意思是「源缓冲区第 2 行，内容是 <code>delta gamma</code>」。<strong>把这个行号和左边源缓冲区对照着看</strong>：源缓冲区第 1 行 <code>alpha beta</code> 不含 <code>gamma</code>，所以没出现在清单里；第 2、3 行含了，于是清单里就是它们的行号。</li>
     </ul>
     <p><strong>所以「为什么不是我的文件名」和「为什么不是全部行」这两个问题，答案都在上面第三条里。</strong></p>
@@ -4857,7 +4857,7 @@ paragraph-separate  "[ \t]*$"     ; 只作分隔（本身不算段落内容）</
 
   <p>在 <code>*Occur*</code> 里按 <kbd>e</kbd>，只读属性被去掉，你可以<strong>像编辑普通文本一样直接改这些匹配行</strong>；改完按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>c</kbd>（<code>occur-cease-edit</code>），改动会<strong>同步写回原来的缓冲区</strong>。</p>
 
-  <p>这个功能的价值不在于「改几行字」，而在于<strong>你能一边看着全局清单一边批量修改</strong>。比如一个配置错误出现在 30 个不同文件里，你在 <code>*Occur*</code> 里逐个跳过去改、改完提交，全程不用在 30 个窗口之间来回切。再配合键盘宏（第 8 章）或 <code>query-replace</code>（第 7 章）威力更大。</p>
+  <p>这个功能真正的价值在于<strong>你能一边看着全局清单一边批量修改</strong>，而不止是改几行字。比如一个配置错误出现在 30 个不同文件里，你在 <code>*Occur*</code> 里逐个跳过去改、改完提交，全程不用在 30 个窗口之间来回切。再配合键盘宏（第 8 章）或 <code>query-replace</code>（第 7 章）威力更大。</p>
 
   <div class="callout tip"><b>技巧</b><p>在 <code>*Occur*</code> 里按 <kbd>C</kbd><kbd>c</kbd> <kbd>C</kbd><kbd>f</kbd> 打开 <code>next-error-follow-minor-mode</code>，之后每次用 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 在匹配间跳时，另一窗口会跟着实时显示对应行的上下文——这样你连 <code>*Occur*</code> 都不用看，直接在源文件窗口里审阅。</p></div>
 
@@ -5027,7 +5027,7 @@ paragraph-separate  "[ \t]*$"     ; 只作分隔（本身不算段落内容）</
 
   <div class="callout note"><b>要点</b><p><strong>「替换」具体替换了什么，读者最需要知道这一点，因为它决定了你该怎么排查。</strong>指的是<strong>迷你缓冲区（minibuffer）的行为</strong>：Helm 自己接管它，于是 <kbd>M-x</kbd> <kbd>RET</kbd>、<kbd>C-x</kbd> <kbd>C</kbd><kbd>f</kbd>、<code>M-x</code> 这些本来要弹出一个输入框的动作，全都会先弹出 Helm 那个大候选窗口。<strong>Emacs 自己的补全引擎（<code>completion-styles</code>、<code>vertico-mode</code>）被绕过了，不是被增强。</strong></p>
     <p><strong>而 consult 不会碰 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd>、<kbd>M</kbd><kbd>TAB</kbd>、<kbd>C</kbd><kbd>s</kbd>、<kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 这些内置键。</strong>本书作者在本机 Emacs 32.0.50 上把装好的 <code>consult 3.6</code> 整个目录 <code>grep -rl "C-M-i"</code> 过一遍，<strong>零命中</strong>——也就是说 consult 作者根本没碰过这个键。<strong>所以「被窗口管理器抢了 <kbd>M</kbd><kbd>TAB</kbd> 就换 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd>」和「会不会和 consult 打架」是两个不相干的问题</strong>：前者是键盘硬件问题，后者是包之间的问题，<kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> 两边都不沾。</p>
-    <p>真正会互相干扰的，是 <code>helm-mode</code>、<code>ivy-mode</code>、<code>selectrum-mode</code>、<code>ido-mode</code>、<code>ido-ubiquitous-mode</code> 这几个——<strong>consult 的 README 在排错清单里明确把这几个列为「遇到 bug 必须先关掉」</strong>。也就是说：<strong>consult 和这些是替代关系，和 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> 这种内置键位不是。</strong></p>
+    <p>真正会互相干扰的，是 <code>helm-mode</code>、<code>ivy-mode</code>、<code>selectrum-mode</code>、<code>ido-mode</code>、<code>ido-ubiquitous-mode</code> 这几个——<strong>consult 的 README 在排错清单里明确把这几个列为「遇到 bug 必须先关掉」</strong>。也就是说，<strong>consult 和这些是替代关系，和 <kbd>C</kbd><kbd>M</kbd><kbd>i</kbd> 这种内置键位不是。</strong></p>
   </div>
 
   <p><strong>建议</strong>：不要新装 Helm——照着原书 p.170–175 装，你会得到一个能用、但会跟现代 Emacs 的其他部分持续摩擦的方案。已经装了也不必恐慌，它不跟内置功能冲突，只是你得记住它那一整套键位和命令名（下面折叠区里完整保留了）。</p>
@@ -5355,12 +5355,12 @@ s = make_upper_case(█)
 
   <p>原因在源码里写得很清楚。<code>delete-char</code> 的交互规格是 <code>(interactive "p\nP")</code>：第一个 <code>p</code> 读「数字前缀」当删除个数，第二个 <code>P</code> 读「原始前缀参数」。它的文档字符串写着：<em>“If called interactively, a numeric prefix argument specifies N, and KILLFLAG is also set if a prefix argument is used.”</em>（交互调用时数字前缀决定删几个；<strong>只要你给了任何前缀参数，KILLFLAG 就为真，命令就变成 kill</strong>。）</p>
 
-  <div class="callout warn"><b>易错</b><p>这意味着 <kbd>M</kbd> <kbd>5</kbd> <kbd>C</kbd><kbd>d</kbd> 不是「删 5 个字符」，而是「<strong>kill</strong> 5 个字符进 kill ring」。Emacs 32 的手册在「Deletion」一节只写了「带数字参数时删除指定数量的字符」，没提这个 kill 副作用，但源码文档字符串和实际行为都是 kill。习惯上你几乎不会用数字 <kbd>C</kbd><kbd>d</kbd>，所以平时碰不到；一旦要，就当它是 kill 用。同一条规则适用于 <code>delete-forward-char</code> 和 <code>delete-backward-char</code>（键盘上的 <kbd>Delete</kbd> 键和 <kbd>Backspace</kbd>），它们还多了两项能力：有激活的选区时删的是整个选区（由变量 <code>delete-active-region</code> 控制，默认 <code>t</code>），以及尊重 <code>overwrite-mode</code>（覆写模式）。Emacs 32 的 <code>delete-char</code> 文档字符串也正因如此才说「交互使用请优先选 <code>delete-forward-char</code>」。</p></div>
+  <div class="callout warn"><b>易错</b><p>这意味着 <kbd>M</kbd> <kbd>5</kbd> <kbd>C</kbd><kbd>d</kbd> 的实际效果是「<strong>kill</strong> 5 个字符进 kill ring」，而非单纯的「删 5 个字符」。Emacs 32 的手册在「Deletion」一节只写了「带数字参数时删除指定数量的字符」，没提这个 kill 副作用，但源码文档字符串和实际行为都是 kill。习惯上你几乎不会用数字 <kbd>C</kbd><kbd>d</kbd>，所以平时碰不到；一旦要，就当它是 kill 用。同一条规则适用于 <code>delete-forward-char</code> 和 <code>delete-backward-char</code>（键盘上的 <kbd>Delete</kbd> 键和 <kbd>Backspace</kbd>），它们还多了两项能力：有激活的选区时删的是整个选区（由变量 <code>delete-active-region</code> 控制，默认 <code>t</code>），以及尊重 <code>overwrite-mode</code>（覆写模式）。Emacs 32 的 <code>delete-char</code> 文档字符串也正因如此才说「交互使用请优先选 <code>delete-forward-char</code>」。</p></div>
 
   <h4>1.5 五条规则：把 kill ring 用对</h4>
 
   <ol>
-    <li><strong>连续 kill 会追加成一块。</strong>只有当上一个命令也是 kill 命令时，新的 kill 才接到顶部那块上。敲三次 <kbd>M</kbd><kbd>d</kbd> 连续杀三个词，kill ring 里是<strong>一整块</strong> <code>"one two three"</code>，下一次 <kbd>C</kbd><kbd>y</kbd> 一次全贴出来。</li>
+    <li><strong>连续 kill 会追加成一块。</strong>只有上一个命令也是 kill 命令时，新的 kill 才接到顶部那块上。敲三次 <kbd>M</kbd><kbd>d</kbd> 连续杀三个词，kill ring 里是<strong>一整块</strong> <code>"one two three"</code>，下一次 <kbd>C</kbd><kbd>y</kbd> 一次全贴出来。</li>
     <li><strong>中间插了别的命令，就另起一块。</strong>同样是 <kbd>M</kbd><kbd>d</kbd> 三次，中间按一个 <kbd>C</kbd><kbd>n</kbd> 换行，再三次，kill ring 里是新的一块，上一块还在下面——随时 <kbd>M</kbd><kbd>y</kbd> 退回去拿。</li>
     <li><strong>容量有限但很大，而且是全局的。</strong>由 <code>kill-ring-max</code> 决定（默认 120），满了才挤掉最旧的，跨文件都能取。想看里面堆了什么，按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输入 <code>kill-ring</code>。</li>
     <li><strong>kill 就是删除，所以别把 kill ring 当宝贝。</strong>你杀掉的垃圾文本、试错的片段全在里面。它是临时仓库，不是保险箱。</li>
@@ -5487,7 +5487,7 @@ names = {
 
   <h4>3.3 <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd>：交换两个表达式</h4>
 
-  <p>原理和 <kbd>M</kbd><kbd>t</kbd> 完全平行，只是边界由 <kbd>C</kbd><kbd>M</kbd><kbd>f</kbd>（<code>forward-sexp</code>）来定。Lisp 代码里最直观（实测确认）：<code>(/ (+ 2 n)█(* 4 n))</code> → <code>(/ (* 4 n) (+ 2 n)█)</code>。如果当前位置没有平衡表达式，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 会退化成按词转置（<code>Hello,█World!</code> → <code>World, Hello█!</code>）；而当一个词和一个表达式混在一起时，它照样按表达式的边界来：<code>Hello,█(insert name here)!</code> → <code>(insert name here), Hello█!</code>。</p>
+  <p>原理和 <kbd>M</kbd><kbd>t</kbd> 完全平行，只是边界由 <kbd>C</kbd><kbd>M</kbd><kbd>f</kbd>（<code>forward-sexp</code>）来定。Lisp 代码里最直观（实测确认）：<code>(/ (+ 2 n)█(* 4 n))</code> → <code>(/ (* 4 n) (+ 2 n)█)</code>。如果当前位置没有平衡表达式，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 会退化成按词转置（<code>Hello,█World!</code> → <code>World, Hello█!</code>）；一个词和一个表达式混在一起时，它照样按表达式的边界来：<code>Hello,█(insert name here)!</code> → <code>(insert name here), Hello█!</code>。</p>
 
   <details class="deep"><summary>进阶：Emacs 30 起，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 认语法树</summary>
   <p>Emacs 30 新增变量 <code>transpose-sexps-function</code>，用来决定 <code>transpose-sexps</code> 怎么找边界，并把旧实现挪进了 <code>transpose-sexps-default-function</code>。tree-sitter（Emacs 内置的语法树解析库）会为所有它支持的语言设置这个变量（见 <code>etc/NEWS.30</code>）。也就是说 Emacs 31/32 里，在开启 tree-sitter 的语言中 <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 按真正的语法树转置，不再只认括号。如果你用 <kbd>M</kbd><kbd>t</kbd> 在 C 代码里觉得切分不对路，多半是词法单位的差异，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 才是对的那个。</p>
@@ -5790,7 +5790,7 @@ truth.'
 
   <p>名字里的 <strong>query</strong> 就是「提问」的意思：<code>query-replace</code> 会把每一处匹配高亮出来，然后停下来等一个键。<code>replace-string</code> / <code>replace-regexp</code> 是它们的「闷头干活」版本，一次跑完，<em>不能撤销单次替换，只能整体 <kbd>C</kbd><kbd>-</kbd> 撤销</em>。所以除非你写 Elisp 脚本，日常请一律用 <kbd>M</kbd><kbd>%</kbd> 和 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd>。</p>
 
-  <div class="callout warn"><b>易错</b><p><code>replace-regexp</code> 改坏了整个缓冲区之后想反悔？<kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 能把缓冲区<em>整个</em>恢复到替换前的状态——因为整批替换在 undo 列表里属于<strong>同一个命令的一组记录，中间没有撤销边界</strong>（本机实测：替换 5 处之后 <code>buffer-undo-list</code> 里是 5 条连续的删除记录 <code>("a" 10) ("a" 8) ("a" 6) ("a" 4) ("a" 2)</code>，它们之间没有 <code>nil</code> 边界，所以一次 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 全退）。<strong>但只要你紧接着敲了别的编辑命令，这组记录就整体失效了</strong>。这不是 Emacs 特意为难你，而是「一步撤销一整批修改」和「随时插入别的操作」在数据结构上无法同时成立。养成习惯：先想清楚再敲，敲错了立刻 <kbd>C</kbd><kbd>-</kbd>。</p></div>
+  <div class="callout warn"><b>易错</b><p><code>replace-regexp</code> 改坏了整个缓冲区之后想反悔？<kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 能把缓冲区<em>整个</em>恢复到替换前的状态——因为整批替换在 undo 列表里属于<strong>同一个命令的一组记录，中间没有撤销边界</strong>（本机实测：替换 5 处之后 <code>buffer-undo-list</code> 里是 5 条连续的删除记录 <code>("a" 10) ("a" 8) ("a" 6) ("a" 4) ("a" 2)</code>，它们之间没有 <code>nil</code> 边界，所以一次 <kbd>C</kbd><kbd>x</kbd> <kbd>u</kbd> 全退）。<strong>但只要你紧接着敲了别的编辑命令，这组记录就整体失效了</strong>。这是数据结构上的客观限制：「一步撤销一整批修改」和「随时插入别的操作」无法同时成立。养成习惯：先想清楚再敲，敲错了立刻 <kbd>C</kbd><kbd>-</kbd>。</p></div>
 
   <p>用 <code>query-replace</code> 时，<strong>顺序是：先问搜索串，再问替换串，最后才开始逐条确认</strong>。按 <kbd>C</kbd><kbd>M</kbd><kbd>%</kbd> 时，本机源码 <code>replace.el</code> 给出的第一个提示串是 <code>Query replace regexp</code>（小输入框自动补上 <code>: </code>）；回车后第二个提示由 <code>(format "%s %s with: " prompt (query-replace-descr from))</code> 拼出来，实际长这样：<code>Query replace regexp Hello with: </code>——<strong>你刚搜的内容就夹在中间</strong>，而且会被预填成初值，所以直接按 <kbd>RET</kbd> 等于「用同样的东西替换」（这不是 bug，敲 <kbd>e</kbd> 就能回去改它）。填完替换串才进入 <code>Replace this occurrence?</code> 的循环。两个输入框之间可以用 <kbd>M</kbd><kbd>s</kbd> <kbd>t</kbd> 来回横跳（命令 <code>query-replace-read-transpose-from-to</code>，本机实测确认它绑在 <code>query-replace-read-map</code> 上）。</p>
 
@@ -6000,7 +6000,7 @@ That is, upper and lower case chars must match exactly.</code></pre>
     </table>
   </div>
 
-  <p>「词」和「符号」这两个概念不是 Emacs 自己定的，而是由当前 buffer 的<strong>语法表</strong>（syntax table）决定的，因此<strong>随 major mode 变化</strong>。本机用 <code>(looking-at "\_&lt;…\_&gt;")</code> 和 <code>(looking-at "\\&lt;…\\&gt;")</code> 在四种模式下实测同一个字符串「算不算一个符号 / 一个词」，结果很说明问题：</p>
+  <p>「词」和「符号」这两个概念由当前 buffer 的<strong>语法表</strong>（syntax table）定义，因此<strong>随 major mode 变化</strong>。本机用 <code>(looking-at "\_&lt;…\_&gt;")</code> 和 <code>(looking-at "\\&lt;…\\&gt;")</code> 在四种模式下实测同一个字符串「算不算一个符号 / 一个词」，结果很说明问题：</p>
 
   <div class="keys">
     <h4>实测：同一段文本在不同 major mode 下的符号切分</h4>
@@ -6261,7 +6261,7 @@ print(GREETING_STRING)█
     </table>
   </div>
 
-  <p>这张表抄自 Emacs 32.0.50 源码 <code>rect.el</code> 里的 <code>defvar-keymap rectangle-mark-mode-map</code> 定义。注意后四行在源码里写作 <code>&lt;remap&gt;</code>——<strong>它们不是新增的键位，而是把已有命令「劫持」到矩形逻辑上</strong>。所以你在模式里按 <kbd>M</kbd><kbd>n</kbd>、<kbd>C</kbd><kbd>v</kbd> 还是 <kbd>C</kbd><kbd>n</kbd>，只要这个键平常调用的正是 <code>next-line</code>，此刻就会变成「矩形下扩一行」。（正因为是 remap，它们没法用 <code>lookup-key</code> 直接查出来，我是照源码列表写的。）这些劫持在模式一退出时自动失效——所以不用刻意记，用的时候发现「<kbd>M</kbd><kbd>n</kbd> 行为怪了」就是了。</p>
+  <p>这张表抄自 Emacs 32.0.50 源码 <code>rect.el</code> 里的 <code>defvar-keymap rectangle-mark-mode-map</code> 定义。注意后四行在源码里写作 <code>&lt;remap&gt;</code>——<strong>它们的作用是把已有命令「劫持」到矩形逻辑上，并非新增键位</strong>。所以你在模式里按 <kbd>M</kbd><kbd>n</kbd>、<kbd>C</kbd><kbd>v</kbd> 还是 <kbd>C</kbd><kbd>n</kbd>，只要这个键平常调用的正是 <code>next-line</code>，此刻就会变成「矩形下扩一行」。（正因为是 remap，它们没法用 <code>lookup-key</code> 直接查出来，我是照源码列表写的。）这些劫持在模式一退出时自动失效——所以不用刻意记，用的时候发现「<kbd>M</kbd><kbd>n</kbd> 行为怪了」就是了。</p>
 
   <div class="callout warn"><b>易错</b><p><strong>不要用 <kbd>C</kbd><kbd>SPC</kbd> 代替 <kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd>。</strong>在今天的 Emacs 里 <kbd>C</kbd><kbd>SPC</kbd> 是 <code>set-mark-command</code>（设置标记），<em>不是</em>矩形标记模式——我本机实测 <code>(lookup-key global-map (kbd "C-SPC"))</code> 的结果是 <code>set-mark-command</code>，而 Emacs 源码 <code>bindings.el</code> 里对应的那行上面还留着一句注释：<em>“Many people are used to typing C-SPC and getting C-@.”</em>（很多人习惯敲 <kbd>C</kbd><kbd>SPC</kbd> 却得到 <kbd>C</kbd><kbd>@</kbd>。）这是个有历史包袱的键，<strong>图形界面和终端下它都是设置标记</strong>；只有少数模式会改绑（比如 Calendar、Dired、ERC、Ido），所以更别把它当全局键位依赖。<strong>顺带澄清一个常见误会</strong>：<code>point-to-register</code>（把 point 存进寄存器）绑的是 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>SPC</kbd>，不是裸的 <kbd>C</kbd><kbd>SPC</kbd>。矩形标记模式的键<strong>只有</strong> <kbd>C</kbd><kbd>x</kbd> <kbd>SPC</kbd>。</p></div>
 
@@ -6543,7 +6543,7 @@ All the world's a stage, █
       <li><strong>用两轮替换。</strong>先用一个宽泛的模式改掉全部，再回头修边角。</li>
     </ol>
     <p>Emacs <em>确实</em>有硬编码的特殊断言（原书提到「except specific, hard coded constructs」），数量很有限，而且全都是<strong>零宽</strong>的——它们只看「我此刻站在哪」，从不往前／往后<em>读</em>字符，所以仍然不是 look-ahead：<code>\`</code>（只匹配缓冲区开头）、<code>\'</code>（只匹配缓冲区末尾）、<code>\=</code>（只匹配光标当前位置）、<code>\b</code>（词首或词尾）、<code>\B</code>（词首词尾之外）、以及 <code>\&lt;</code> <code>\&gt;</code> / <code>\_&lt;</code> <code>\_&gt;</code> 这两组词与符号边界。本机实测：缓冲区内容为 <code>foo\nbar</code> 时，<code>re-search-forward</code> 扫 <code>\`</code>、<code>\'</code>、<code>\=</code> 分别命中第 1、8、1 位，而 Perl 习惯的 <code>`</code>、<code>'</code>（不带反斜杠）和 <code>\G</code> <strong>一个都匹配不到</strong>——它们在 Emacs 里只是普通字面字符。<strong>行首行尾的锚点是 <code>^</code> 和 <code>$</code>（不带反斜杠）</strong>，这一点和 PCRE 正好相反，是本章最容易记混的地方之一。</p>
-    <p>另一类 Emacs 特有构造带<strong>双下划线前缀</strong>（<code>\_&lt;</code>、<code>\_&gt;</code>、<code>\s-</code>、<code>\sw</code> …），那不是断言，而是语法类匹配——见 2.3 节。</p>
+    <p>另一类 Emacs 特有构造带<strong>双下划线前缀</strong>（<code>\_&lt;</code>、<code>\_&gt;</code>、<code>\s-</code>、<code>\sw</code> …），那是语法类匹配，不是断言——见 2.3 节。</p>
     <p>反过来说，Emacs 独有的<strong>语法类</strong>（<code>\s-</code>、<code>\sw</code>、<code>\s_</code>、<code>\s"</code>、<code>\s(</code> …）是 PCRE 完全没有的，而且直接绑定到 Emacs 的语法表——<strong>「在当前语言的语境里理解文本」这件事，Emacs 正则比 PCRE 强</strong>。这才是它当年被选中的原因。</p>
   </details>
 
@@ -6909,7 +6909,7 @@ All the world's a stage, █
   </div>
 
   <h3>三、缩进：Emacs 怎么知道该缩进多少</h3>
-  <p>Emacs 的缩进不是「按一个键插入若干空格」，而是<strong>把判断权交给当前 major mode</strong>。每种语言、每个模式有自己的缩进引擎；Emacs 也提供几套通用引擎供新模式继承。</p>
+  <p>Emacs 的缩进<strong>把判断权交给当前 major mode</strong>，不是简单地「按一个键插入若干空格」。每种语言、每个模式有自己的缩进引擎；Emacs 也提供几套通用引擎供新模式继承。</p>
 
   <h4>3.1 <strong>electric indentation</strong>（电缩进）</h4>
   <p>Emacs <strong>24.4 起</strong>，回车就会<strong>自动缩进到与上一行相同的列</strong>，这叫 electric indentation，由 minor mode <code>electric-indent-mode</code> 控制，各语言模式默认开启（我在 <code>emacs-lisp-mode</code> 下读到它是 <code>t</code>）。官方手册的措辞是「This mode is enabled by default」；24.4 的 NEWS 记着「<em>'electric-indent-mode' is now enabled by default</em>」——它不是 Emacs 29 才开的开关，比那早得多，Elisp 24.1 就有了这个模式，24.4 开始默认打开。要按 buffer 单独开关用 <code>M-x electric-indent-local-mode</code>，要全局开关用 <code>M-x electric-indent-mode</code>。</p>
@@ -7354,7 +7354,7 @@ Cell height: 1
 
   <h4><kbd>C</kbd><kbd>h</kbd> 家族：Emacs 的搜索引擎</h4>
 
-  <p><kbd>C</kbd><kbd>h</kbd> 本身不是一个命令，而是一个<strong>前缀键</strong>。按住 <kbd>C</kbd><kbd>h</kbd> 再按一个字母，就会打开不同的「帮助窗口」。这些字母不是随便挑的，记住它们有个诀窍：<strong>字母就是你要查的东西的第一个字母</strong>。</p>
+  <p><kbd>C</kbd><kbd>h</kbd> 本身是一个<strong>前缀键</strong>，而非完整命令。按住 <kbd>C</kbd><kbd>h</kbd> 再按一个字母，就会打开不同的「帮助窗口」。这些字母不是随便挑的，记住它们有个诀窍：<strong>字母就是你要查的东西的第一个字母</strong>。</p>
 
   <ul>
     <li><code>f</code> = <strong>f</strong>unction，查函数。</li>
@@ -7648,7 +7648,7 @@ Cell height: 1
 
   <p>这个设计比原书描述的还要多一层兜底：<strong>万一找不到项目怎么办？</strong>Emacs 32 的 <code>project-current</code> 文档字符串把这里的分寸讲得很清楚：<code>project-current</code> 的第二个参数叫 <code>MAYBE-PROMPT</code>，<strong>它不给（或者给 <code>nil</code>）时找不到项目就返回 <code>nil</code>；给了真值才会去问你要不要用当前目录当项目</strong>（问的方式由 <code>project-prompter</code> 决定），而<strong>你确认了却还是找不到版本控制根，它才返回一个「transient（临时）project」</strong>——一个以当前目录为根、包含该目录下所有文件（除了 <code>vc-directory-exclusion-list</code> 和 <code>grep-find-ignored-files</code> 里匹配的那些）的临时项目。</p>
 
-  <p>换句话说：<strong>只要你在一个目录里，<code>C-x p</code> 就能用。</strong>这一点对初学者很重要——你不需要先「创建一个项目」，不需要写任何配置文件，不需要装任何包。原因就在这里：下面那条 <code>C-x p</code> 命令几乎都是用 <code>(project-current t)</code> 调的（<code>t</code> 就是「找不到就问我」），你答了「就用这儿」，它就给你造一个临时项目继续干。</p>
+  <p>也就是说，<strong>只要你在一个目录里，<code>C-x p</code> 就能用。</strong>这一点对初学者很重要——你不需要先「创建一个项目」，不需要写任何配置文件，不需要装任何包。原因就在这里：下面那条 <code>C-x p</code> 命令几乎都是用 <code>(project-current t)</code> 调的（<code>t</code> 就是「找不到就问我」），你答了「就用这儿」，它就给你造一个临时项目继续干。</p>
 
   <div class="callout note"><b>要点</b><p>Emacs 32 里，「怎么找项目」这套规则挂在<strong>钩子</strong>（hook，一个变量，里面装着一串函数；Emacs 触发某个事件时会挨个调用它们）<code>project-find-functions</code> 上：<code>project-current</code> 内部用 <code>run-hook-with-args-until-success</code> 逐个试，直到某个函数返回项目为止。第三方包可以往这个钩子里加自己的识别规则（比如按 <code>package.json</code>、<code>pyproject.toml</code> 认项目）。</p></div>
 
@@ -7740,7 +7740,7 @@ Cell height: 1
 
   <pre class="term"><code>(elisp-flymake-byte-compile elisp-flymake-checkdoc t)</code></pre>
 
-  <p>也就是说，即便不开 Eglot，<strong>Emacs Lisp 文件也会被自动做字节编译检查和文档字符串检查</strong>。这些默认是从 <code>elisp-mode.el</code> 的 <code>emacs-lisp-mode-hook</code> 注册进去的（见 <code>elisp-mode.el</code> 第 774–776 行两处 <code>add-hook</code>）。<strong>注意一个反直觉的点：Eglot 一旦在这个项目里跑起来，它不是把这个列表<em>追加</em>，而是整个替换成 <code>(eglot-flymake-backend)</code></strong>（<code>eglot.el</code> 第 2450 行）——所以你在用了 Eglot 的会话里查，看到的就只剩语言服务器这一条了。<code>flymake-diagnostic-functions</code> 本身是一个<strong>特殊钩子</strong>（special hook，一个「往里加一个函数，就等于加一条检查规则」的钩子）——它的文档字符串第一句就是 <em>「Special hook of Flymake backends that check a buffer.」</em>。想给别的语言加编译检查，往这个钩子里加函数就行。</p>
+  <p>也就是说，即便不开 Eglot，<strong>Emacs Lisp 文件也会被自动做字节编译检查和文档字符串检查</strong>。这些默认是从 <code>elisp-mode.el</code> 的 <code>emacs-lisp-mode-hook</code> 注册进去的（见 <code>elisp-mode.el</code> 第 774–776 行两处 <code>add-hook</code>）。<strong>注意一个反直觉的点：Eglot 一旦在这个项目里跑起来，它会把这个列表整个替换成 <code>(eglot-flymake-backend)</code>，而非<em>追加</em></strong>（<code>eglot.el</code> 第 2450 行）——所以你在用了 Eglot 的会话里查，看到的就只剩语言服务器这一条了。<code>flymake-diagnostic-functions</code> 本身是一个<strong>特殊钩子</strong>（special hook，一个「往里加一个函数，就等于加一条检查规则」的钩子）——它的文档字符串第一句就是 <em>「Special hook of Flymake backends that check a buffer.」</em>。想给别的语言加编译检查，往这个钩子里加函数就行。</p>
 
   <h4>怎么用</h4>
 
@@ -7771,7 +7771,7 @@ Cell height: 1
   <p>还有一组键不在这个缓冲区里，但和它配套：<strong>next-error</strong> 系列命令用于「在出错列表之间来回走」，包括从别处跳回来。它在 Emacs 32 里绑在 <kbd>C</kbd><kbd>x</kbd> <kbd>`</kbd>（反引号键）、<kbd>M</kbd><kbd>g</kbd> <kbd>n</kbd> 和 <kbd>M</kbd><kbd>g</kbd> <kbd>M</kbd><kbd>n</kbd> 上（<code>where-is-internal</code> 返回的就是这三个键序列）。它的文档字符串里有个细节很实用：<strong>只按 <kbd>C</kbd><kbd>u</kbd>（不带数字）当前缀，会重新解析整个错误缓冲区并跳回第一条错误</strong>。</p>
 
   <details class="deep"><summary>进阶：<code>next-error</code> 的「同一套机制」原理</summary>
-  <p><code>next-error</code> 不是一个功能，而是一套<strong>通用协议</strong>。任何缓冲区只要设置好 <code>next-error-function</code> 这个 buffer-local 变量，告诉 Emacs「我的第 N 条消息对应源文件的哪个位置」，<code>next-error</code> 就能在它里面跳。</p>
+  <p><code>next-error</code> 是一套<strong>通用协议</strong>，而非单一功能。任何缓冲区只要设置好 <code>next-error-function</code> 这个 buffer-local 变量，告诉 Emacs「我的第 N 条消息对应源文件的哪个位置」，<code>next-error</code> 就能在它里面跳。</p>
   <p>今天内建的用户里，除了 <code>compilation-mode</code>，还有：</p>
   <ul>
     <li><strong><code>*Warnings*</code> 缓冲区今天<em>不</em>走这套协议</strong>（这一点原书写的时候还不是这样，别照抄）。我在 Emacs 32 上实测：<code>*Warnings*</code> 只是个 <code>special-mode</code> 缓冲区，<code>next-error-function</code> 是 <code>nil</code>；当年的 <kbd>M</kbd><kbd>x</kbd> <code>list-errors</code> 命令也<strong>已经不存在</strong>——<code>where-is-internal</code>、<code>apropos</code>、整个 <code>lisp</code> 目录、Emacs 32 手册全文，四处都查不到这个符号。警告里带的位置跳转要靠警告自带的按钮，不能靠 <kbd>M</kbd><kbd>n</kbd>。</li>
@@ -7875,7 +7875,7 @@ M-: (list my-hook2 (default-value 'my-hook2))
 
   <p>这一节要更新原书最明确。Emacs 29.1 起，<strong>Eglot</strong>（Emacs 内建的 LSP 客户端）已经随 Emacs 分发。版本关系的证据就写在 <code>eglot.el</code> 里——它把这张对应表挂在 <code>customize-package-emacs-version-alist</code> 上：<code>(Eglot ("1.12" . "29.1") ("1.12" . "29.2") ("1.12" . "29.3") ("1.12.29" . "29.4") ("1.17.30" . "30.1") ("1.24.31" . "31.1"))</code>，即 Eglot 1.12 从 Emacs 29.1 开始随发行版分发，到 Emacs 31.1 是 1.24（我查到的本机 Emacs 32.0.50 里内嵌的正是 1.24）。它一启动，就把 <code>eglot-xref-backend</code> 挂到 <code>xref-backend-functions</code> 钩子上（我读了 <code>eglot.el</code> 第 2442 行确认）。</p>
 
-  <p>所以真实情况是：<strong>你按的还是 <kbd>M</kbd><kbd>.</kbd>，但背后干活的已经不是 xref 自带的后端，而是你的语言服务器。</strong>这才是「统一前端」设计的兑现——<code>xref.el</code> 在这里的角色和 LSP 出现之前完全一样。</p>
+  <p>所以真实情况是：<strong>你按的还是 <kbd>M</kbd><kbd>.</kbd>，但背后干活的已经是你的语言服务器，不再是 xref 自带的后端。</strong>这才是「统一前端」设计的兑现——<code>xref.el</code> 在这里的角色和 LSP 出现之前完全一样。</p>
 
   <p>还有一件值得知道的事：<strong>Eglot 用 <code>project.el</code> 来找项目根目录</strong>。它的源码里直接调用 <code>project-root</code> 来确定 LSP 的工作区。所以上一节那套 <code>C-x p</code> 体系不只是方便你自己浏览文件——它是 Eglot 能不能正常工作的地基。你在一个不是版本控制仓库的裸目录里打开代码，Eglot 就会去找「transient project」，行为可能不如预期。</p>
 
@@ -8436,7 +8436,7 @@ C-x C-f /su::/etc/fstab            RET</code></pre>
 
   <ul>
     <li><strong><kbd>C</kbd><kbd>x</kbd> <kbd>d</kbd>（<code>dired</code>，目录浏览器）</strong>：因为 <code>default-directory</code> 是远程的，列出来的就是远端目录。<strong>甚至可以在两个 Dired 之间复制文件</strong>——一个 <code>dired</code> 缓冲区的 <code>default-directory</code> 是 <code>/ssh:a@h:/x/</code>，另一个是本机 <code>~/y/</code>，在 <code>dired</code> 里按 <kbd>m</kbd> 标记文件、然后在另一个 <code>dired</code> 里按 <kbd>C</kbd>（复制），Tramp 会用 <code>scp</code> 或等价方式把文件搬过去，你完全感觉不到中间有个本地临时文件。</li>
-    <li><strong><kbd>M</kbd><kbd>x</kbd> <code>compile</code>（编译）</strong>：命令会<strong>在远端跑</strong>，输出进本地的 <code>*compilation*</code> 缓冲区。前缀参数在这里有两个<strong>完全不同</strong>的用法，值得当场说清「为什么同一个键敲两次会变成另一件事」。<strong>关键在于：前缀参数不一定是一个数字。</strong>本书作者在 Emacs 32.0.50 的 <code>compile.el</code> 里读到了它的 <code>interactive</code> 声明，是这么写的（变量名照抄源码）：
+    <li><strong><kbd>M</kbd><kbd>x</kbd> <code>compile</code>（编译）</strong>：命令会<strong>在远端跑</strong>，输出进本地的 <code>*compilation*</code> 缓冲区。前缀参数在这里有两个<strong>完全不同</strong>的用法，值得当场说清「为什么同一个键敲两次会变成另一件事」。<strong>关键在于，前缀参数不一定是一个数字。</strong>本书作者在 Emacs 32.0.50 的 <code>compile.el</code> 里读到了它的 <code>interactive</code> 声明，是这么写的（变量名照抄源码）：
 <pre class="el"><code>(interactive
  (list
   (let ((command (eval compile-command)))
@@ -8514,7 +8514,7 @@ M-&amp; tail -f /var/log/syslog.log RET</code></pre>
 
   <h3>七、性能：Tramp 真正会卡的地方，以及今天怎么调</h3>
 
-  <p>这一节是原书完全没有、但你今天一定会遇到的内容。<strong>Tramp 慢不是因为网络，而是因为它在后台做太多事：</strong>缓存文件属性、加锁、写自动保存文件、检查符号链接、跑版本控制、追踪连接过程。原话是 Tramp 手册 FAQ 里那句「TRAMP does many things in the background…During these operations, TRAMP's responsiveness slows down」。下面按「你看到的症状 → 对策」组织。</p>
+  <p>这一节是原书完全没有、但你今天一定会遇到的内容。<strong>Tramp 慢的根源不在网络，在于它在后台做太多事：</strong>缓存文件属性、加锁、写自动保存文件、检查符号链接、跑版本控制、追踪连接过程。原话是 Tramp 手册 FAQ 里那句「TRAMP does many things in the background…During these operations, TRAMP's responsiveness slows down」。下面按「你看到的症状 → 对策」组织。</p>
 
   <h4>症状 1：打开大文件很慢</h4>
 
@@ -8797,7 +8797,7 @@ M-&amp; tail -f /var/log/syslog.log RET</code></pre>
   <p><strong>Emacs 里「交给外部浏览器」这件事该由谁做？</strong>答案是 <code>browse-url</code> 这一套（<strong>Browse-URL</strong>，Emacs 内置的 URL 分发器）。原书说 <kbd>M</kbd><kbd>x</kbd> <code>browse-url</code> 会用 <code>browse-url-default-browser</code> 这个变量来「猜」该用哪个浏览器——<strong>这个说法今天要精确一点</strong>：</p>
 
   <ul>
-    <li><code>browse-url-browser-function</code>（<strong>主浏览器分发函数</strong>）才是控制开关，<strong>它的默认值就是 <code>browse-url-default-browser</code></strong>——也就是原书说的那个「按操作系统和已装浏览器猜一个」的内建函数（我实测确认了这个默认值关系：<code>(symbol-value 'browse-url-browser-function)</code> 就是符号 <code>browse-url-default-browser</code>）。<strong>原书说 <kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> 然后输 <code>browse-url-default-browser</code>，这一步今天做不到了</strong>：它不是一个用户选项，而是一个<strong>普通函数</strong>（源码 <code>lisp/net/browse-url.el</code> 里的 <code>(defun browse-url-default-browser (url &amp;rest args) …)</code>），所以你在 Customize 里根本找不到它。要改的是下面那两个变量。想定制「URL 怎么打开」的<strong>整体策略</strong>（比如按域名分流），该改 <code>browse-url-browser-function</code> 和 <code>browse-url-handlers</code>。</li>
+    <li><code>browse-url-browser-function</code>（<strong>主浏览器分发函数</strong>）才是控制开关，<strong>它的默认值就是 <code>browse-url-default-browser</code></strong>——也就是原书说的那个「按操作系统和已装浏览器猜一个」的内建函数（我实测确认了这个默认值关系：<code>(symbol-value 'browse-url-browser-function)</code> 就是符号 <code>browse-url-default-browser</code>）。<strong>原书说 <kbd>M</kbd><kbd>x</kbd> <code>customize-option</code> 然后输 <code>browse-url-default-browser</code>，这一步今天做不到了</strong>：它是一个<strong>普通函数</strong>，不是用户选项（源码 <code>lisp/net/browse-url.el</code> 里的 <code>(defun browse-url-default-browser (url &amp;rest args) …)</code>），所以你在 Customize 里根本找不到它。要改的是下面那两个变量。想定制「URL 怎么打开」的<strong>整体策略</strong>（比如按域名分流），该改 <code>browse-url-browser-function</code> 和 <code>browse-url-handlers</code>。</li>
     <li><code>browse-url-secondary-browser-function</code>（第二选择）默认值也是 <code>browse-url-default-browser</code>；EWW 里那个 <kbd>&amp;</kbd> 键用的就是它。</li>
     <li><code>browse-url-at-point</code> / <code>browse-url-at-mouse</code>（<strong>打开光标处 / 鼠标处的链接</strong>）——这两个才是你真正常用的，值得绑键。</li>
   </ul>
@@ -8879,7 +8879,7 @@ M-&amp; tail -f /var/log/syslog.log RET</code></pre>
   <div class="drill" data-answer="设成 nil 永不过期（最快）；设成 t 完全不用缓存（最安全但慢）；数字 N 表示缓存值只用 N 秒，默认 10">
     <p class="drill-q"><b>练习 6</b>　<code>remote-file-name-inhibit-cache</code> 这个变量在 Emacs 32.0.50 上的默认值是什么？把它设成 <code>nil</code> 是什么含义（很多人会理解反）？</p>
     <button class="drill-btn" type="button">显示答案</button>
-    <div class="drill-a"><p>实测默认值是 <code>10</code>（数字，单位秒），含义是「缓存的文件属性只用 10 秒，之后重新问远端」。<strong>设成 <code>nil</code> 是「永不过期」</strong>——不是「不用缓存」，而是「一直信缓存」，最快，但远端被 Emacs 之外的东西改了 Emacs 也发现不了。<strong>设成 <code>t</code> 才是「完全不用缓存」</strong>，最安全但最慢。</p></div>
+    <div class="drill-a"><p>实测默认值是 <code>10</code>（数字，单位秒），含义是「缓存的文件属性只用 10 秒，之后重新问远端」。<strong>设成 <code>nil</code> 是「永不过期」</strong>——即「一直信缓存」，最快，但远端被 Emacs 之外的东西改了 Emacs 也发现不了。<strong>设成 <code>t</code> 才是「完全不用缓存」</strong>，最安全但最慢。</p></div>
   </div>
 
   <div class="drill" data-answer="先用 tramp-direct-async-process；开它之后 Magit 还会挂，必须 (setq magit-tramp-pipe-stty-settings 'pty)">
@@ -9178,7 +9178,7 @@ drwxr-xr-x 326 root root    12288 Mar 27 11:43 ..
 
   <h3>六、版本现状：<code>dired-x</code> 在 Emacs 32 里还剩什么</h3>
 
-  <p>原文写于 <code>dired-x</code> 尚不可替代的年代，只说了一句「Emacs 29 把 <code>dired-x</code> 的几个功能搬进了核心 dired，但装 <code>dired-x</code> 太省事了，建议直接加上 <code>(require 'dired-x)</code>」。<strong>这句话今天需要修订：回迁不是「几个功能」，而是早在 Emacs 25 就基本完成了。</strong></p>
+  <p>原文写于 <code>dired-x</code> 尚不可替代的年代，只说了一句「Emacs 29 把 <code>dired-x</code> 的几个功能搬进了核心 dired，但装 <code>dired-x</code> 太省事了，建议直接加上 <code>(require 'dired-x)</code>」。<strong>这句话今天需要修订：回迁早在 Emacs 25 就基本完成，远不止「几个功能」。</strong></p>
 
   <p>我把上游 Emacs 各分支的 <code>dired.el</code>（emacs-mirror 仓库的 <code>emacs-25.1</code> 到 <code>emacs-31.1</code> 标签）逐个抓下来对比过：本章第三节、第四节表格里的绝大多数命令——硬链接 <kbd>H</kbd>、符号链接 <kbd>S</kbd>、相对链接 <kbd>Y</kbd>、<kbd>T</kbd> touch、<kbd>L</kbd> load、<kbd>B</kbd> 字节编译、<kbd>I</kbd> info、<kbd>N</kbd> man、<kbd>P</kbd> print、<kbd>Z</kbd> 压缩、<kbd>W</kbd> 浏览器打开、<kbd>k</kbd> 删行、<kbd>o</kbd> 他窗打开、<kbd>v</kbd> 只读查看、<kbd>w</kbd> 复制文件名、<kbd>y</kbd> 文件类型、<kbd>=</kbd> 比较、<kbd>~</kbd> 备份文件旗标、<kbd>#</kbd> 自动保存文件旗标、<kbd>(</kbd> 隐藏细节模式，以及整个 <kbd>%</kbd> 正则子映射和 <code>dired-guess-shell-*</code> 规则表——<strong>在 Emacs 25.1 的核心 <code>dired.el</code> 里就已经全部存在</strong>，并不是「Emacs 29 才有」，更不是「Emacs 32 才回迁」。今天唯一的版本增量是 <kbd>E</kbd> → <code>dired-do-open</code>，那是 <strong>Emacs 30 新增</strong>的（<code>etc/NEWS.30</code>：「New command <code>dired-do-open</code>. This command is bound to <code>E</code>」），在此之前它属于 <code>dired-x</code>。</p>
 
@@ -9371,7 +9371,7 @@ drwxr-xr-x 326 root root    12288 Mar 27 11:43 ..
 
   <h4>9.4 <code>M-x vterm</code>：今天在 Emacs 里跑真终端的更好选择</h4>
 
-  <p><code>vterm</code> 是第三方包（<strong>在 MELPA 里，仓库是 <code>akermu/emacs-libvterm</code></strong>）。它的关键差异是：<strong>核心不是 Elisp，而是一个 C 动态模块</strong>——它把 Neovim 用的终端模拟库 <code>libvterm</code> 编译成 Emacs 的动态模块加载进来。</p>
+  <p><code>vterm</code> 是第三方包（<strong>在 MELPA 里，仓库是 <code>akermu/emacs-libvterm</code></strong>）。它的关键差异是：<strong>核心是一个 C 动态模块，而非 Elisp</strong>——它把 Neovim 用的终端模拟库 <code>libvterm</code> 编译成 Emacs 的动态模块加载进来。</p>
 
   <p>所以它比 <code>term</code> / <code>ansi-term</code> 强在两点，而且都是压倒性的：<strong>速度</strong>（大段输出不会卡）和<strong>兼容性</strong>（几乎所有终端程序都能跑，因为底层就是标准的 VT100/xterm 模拟器）。代价有三条：</p>
 
@@ -9624,7 +9624,7 @@ drwxr-xr-x 326 root root    12288 Mar 27 11:43 ..
 
 <section class="ch" id="ch-12-elisp" data-stage="精通" data-min="75">
   <h2 class="ch-title">十二、Emacs Lisp 编程入门</h2>
-  <p class="ch-lead">这一章的目标很具体：让你从「能把别人的配置复制进 <code>init.el</code>」升级到「能读懂它、能改它、能自己写十来行」。读完你会知道该在哪里敲代码、<code>*scratch*</code> 为什么是关键工具、配置文件到底在什么时刻被执行，以及列表、符号、闭包、正则、`condition-case`、字节编译、Edebug 这些东西在实践中各解决什么问题。</p>
+  <p class="ch-lead">这一章的目标很明确——让你从「能把别人的配置复制进 <code>init.el</code>」升级到「能读懂它、能改它、能自己写十来行」。读完你会知道该在哪里敲代码、<code>*scratch*</code> 为什么是关键工具、配置文件到底在什么时刻被执行，以及列表、符号、闭包、正则、`condition-case`、字节编译、Edebug 这些东西在实践中各解决什么问题。</p>
 
   <div class="callout note">
     <b>要点</b>
@@ -10246,7 +10246,7 @@ for more information.</code></pre>
   <div class="drill" data-answer="缺少 lexical-binding cookie 警告 elisp-enable-lexical-binding">
     <p class="drill-q"><b>练习 9</b>　你 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 打开一个别人给的 <code>adder.el</code>，里面有个函数用 <code>let</code> 捕获了一个变量、再返回一个 <code>lambda</code>。你按 <kbd>C</kbd><kbd>M</kbd><kbd>x</kbd> 求值之后调用它，得到 <code>void-variable</code>。Emacs 处理这个文件时给过你一句警告吗？具体是什么？根因是什么？</p>
     <button class="drill-btn" type="button">显示答案</button>
-    <div class="drill-a"><p><strong>先把一件被广泛误传的事说清：出错的不是「存盘 / 重开 Emacs」这个动作，而是「这个文件里没有 <code>lexical-binding</code> cookie」这件事本身。</strong><kbd>C</kbd><kbd>M</kbd><kbd>x</kbd> 只是把当前 buffer 里的这个 <code>defun</code> 求值一遍，<strong>它按当前 buffer 的绑定模式执行，跟你存没存盘、Emacs 是不是刚启动的完全无关</strong>。</p>
+    <div class="drill-a"><p><strong>先把一件被广泛误传的事说清：出错的根源是「这个文件里没有 <code>lexical-binding</code> cookie」，而非「存盘 / 重开 Emacs」这个动作。</strong><kbd>C</kbd><kbd>M</kbd><kbd>x</kbd> 只是把当前 buffer 里的这个 <code>defun</code> 求值一遍，<strong>它按当前 buffer 的绑定模式执行，跟你存没存盘、Emacs 是不是刚启动的完全无关</strong>。</p>
       <p>根因是<strong>动态绑定和词法绑定的区别</strong>。没有 cookie 的 buffer，<code>lexical-binding</code> 是 <code>nil</code>（本书作者实测 <code>(buffer-local-value 'lexical-binding (current-buffer))</code> 返回 <code>nil</code>），走的是<strong>动态绑定</strong>：<code>let</code> 里的变量只在<strong>那个函数还在执行的那段时间里</strong>存在。<strong>而 <code>lambda</code> 是要留到函数返回之后才被调用的——那时 <code>let</code> 早就退出了，那个变量根本不存在，于是 <code>void-variable</code>。</strong></p>
       <p><strong>下面是本书作者在本机 Emacs 32.0.50 上真跑出来的对照实验</strong>，两个文件正文一字不差，只差文件头那一行：</p>
       <pre class="term"><code>无 cookie 的版本：
@@ -10305,7 +10305,7 @@ M-: (type-of (symbol-function 'condition-case))  RET   =&gt; subr</code></pre>
     <p><strong>读老配置时看到 <code>when-let</code> / <code>if-let</code>，要知道它们在 Emacs 31.1 已经过时了。</strong>我实测 <code>(macroexpand-1 '(when-let ((a 1)) a))</code> 返回 <code>(if-let* ((a 1)) a)</code>，而 <code>subr.el</code> 里 <code>when-let</code> 和 <code>if-let</code> 的 <code>defmacro</code> 上都挂着 <code>(obsolete "use `when-let*' or `and-let*' instead." "31.1")</code>——<strong>你一求值它，字节编译器就会警告</strong>。现在该写的是加星号的新版：<code>if-let*</code>、<code>when-let*</code>、<code>and-let*</code>（我实测这三个 <code>fbound</code> 都是 <code>t</code>）。<strong>这正好是第 4 节的现实用途：碰到不认识的老宏，先 <code>macroexpand</code> 一次，你不但能看懂它，还能立刻发现它该不该换。</strong></p>
   </div>
 
-  <p>宏的本质是：<strong>它不执行，它生成代码</strong>。调用 <code>(when 条件 体…)</code> 时，Emacs 先把这一串符号变成一棵代码树，交给<strong>解释器或字节编译器</strong>去执行。</p>
+  <p>宏的本质可以一句话说清：<strong>它不执行，它生成代码</strong>。调用 <code>(when 条件 体…)</code> 时，Emacs 先把这一串符号变成一棵代码树，交给<strong>解释器或字节编译器</strong>去执行。</p>
 
   <pre class="el"><code>M-: (macroexpand '(when (&gt; 3 2) "yes"))   RET
 =&gt; (if (&gt; 3 2) (progn "yes"))      ;; 宏被展开成了这个
@@ -10375,7 +10375,7 @@ M-x byte-recompile-directory 并对着可疑目录跑一次即可</code></pre>
 
   <div class="callout note">
     <b>要点</b>
-    <p><strong>什么时候该字节编译？</strong>答案是：<strong>对配置来说，几乎永远不需要。</strong>字节编译的优势主要是启动速度——加载 <code>.elc</code> 比解释 <code>.el</code> 快。代价是<strong>增加了调试难度</strong>（栈回溯里出现 <code>byte-run</code> 的帧，你看不见源码行号）和<strong>开发摩擦</strong>（改了 <code>.el</code> 忘了 <code>recompile</code>，加载的还是旧 <code>.elc</code>，你会debug半天发现「我明明改了」）。</p>
+    <p><strong>什么时候该字节编译？</strong>答案是<strong>「对配置来说，几乎永远不需要」</strong>。字节编译的优势主要是启动速度——加载 <code>.elc</code> 比解释 <code>.el</code> 快。代价是<strong>增加了调试难度</strong>（栈回溯里出现 <code>byte-run</code> 的帧，你看不见源码行号）和<strong>开发摩擦</strong>（改了 <code>.el</code> 忘了 <code>recompile</code>，加载的还是旧 <code>.elc</code>，你会debug半天发现「我明明改了」）。</p>
     <p><strong>实用建议</strong>：开发期不编译，配置稳定后再按需编译。<strong>顺带纠正一个常见说法：<code>use-package</code> 默认【不会】给你的配置字节编译</strong>——我查过 Emacs 32 内置的那份 <code>use-package-core.el</code>，<code>:ensure</code> 的实现只负责装包，不碰 <code>byte-compile</code>（我实测 <code>use-package-always-ensure</code> 默认就是 <code>nil</code>）。如果你真的想要「装包时顺带编译」，得自己在 <code>:ensure</code> 里显式写 <code>(byte-compile-file ...)</code>，或者装完之后手动 <kbd>M</kbd><kbd>x</kbd> <code>byte-recompile-directory</code> 跑一遍。</p>
   </div>
 
@@ -11185,7 +11185,7 @@ $ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc</code></pre>
 
   <div class="callout warn">
     <b>易错</b>
-    <p>源码编译最大的坑不是编译本身，而是<strong>它把 Emacs 和系统库焊死在一起</strong>。你的 Emacs 会链接你自己装的 GTK、自己的 harfbuzz、自己的 libgccjit。半年后你升级系统库，Emacs 突然起不来了，而这类「起不来」通常没有清晰的错误信息。所以：<strong>编译完请立刻记下 <code>./configure</code> 的完整命令</strong>，或者干脆把命令行写成一个 <code>build.sh</code> 提交进你的 dotfiles。</p>
+    <p>源码编译最大的坑在于<strong>它把 Emacs 和系统库焊死在一起</strong>，而非编译过程本身。你的 Emacs 会链接你自己装的 GTK、自己的 harfbuzz、自己的 libgccjit。半年后你升级系统库，Emacs 突然起不来了，而这类「起不来」通常没有清晰的错误信息。所以：<strong>编译完请立刻记下 <code>./configure</code> 的完整命令</strong>，或者干脆把命令行写成一个 <code>build.sh</code> 提交进你的 dotfiles。</p>
   </div>
 
   <p>编译完记得验证这两个开关到底生效没有，这是本节最实用的一条检查：</p>
@@ -11498,7 +11498,7 @@ $ nix profile list            # 看当前 profile 里有什么</code></pre>
     <li><strong><code>default.el</code></strong>。发行版管理员的兜底配置，你可以在自己的 <code>init.el</code> 里用 <code>(setq inhibit-default-init t)</code> 跳过。</li>
   </ol>
 
-  <p><strong>这条顺序是 Emacs 31 之后才这样的，版本差别必须记住。</strong>NEWS.31 有一条：<em>「site-start.el is now loaded before the user's early init file. Previously, the order was early-init.el, site-start.el and then the user's regular init file, but now site-start.el comes first. This allows site administrators to customize things that can normally only be done from early-init.el, such as adding to 'package-directory-list'.」</em>也就是说：<strong>Emacs 29/30 上第 2、3 步是反过来的</strong>（先 <code>early-init.el</code> 再 <code>site-start.el</code>），31 起才对调。对读者个人配置基本没影响，但如果你写过「只在站点环境下生效」的配置，跨版本时会看到不同的结果。</p>
+  <p><strong>这条顺序是 Emacs 31 之后才这样的，版本差别必须记住。</strong>NEWS.31 有一条：<em>「site-start.el is now loaded before the user's early init file. Previously, the order was early-init.el, site-start.el and then the user's regular init file, but now site-start.el comes first. This allows site administrators to customize things that can normally only be done from early-init.el, such as adding to 'package-directory-list'.」</em>也就是说，<strong>Emacs 29/30 上第 2、3 步是反过来的</strong>（先 <code>early-init.el</code> 再 <code>site-start.el</code>），31 起才对调。对读者个人配置基本没影响，但如果你写过「只在站点环境下生效」的配置，跨版本时会看到不同的结果。</p>
 
   <p>前四步的骨架在 <code>lisp/startup.el</code> 的 <code>site-run-file</code> 文档字符串里写得很清楚：<em>「Thus, the run-time load order is: 1. file described in this variable, if non-nil; 2. <code>early-init-file</code>, 3. <code>user-init-file</code>; 4. <code>default.el</code>」</em>。注意它只列了四步——<code>package.el</code> 那一步不在文档字符串里，是 <code>command-line</code> 函数在 <code>site-run-file</code> 与 <code>early-init-file</code> 两次加载之间插进去的一段代码。</p>
 
@@ -11673,7 +11673,7 @@ Instead of invoking this alias for ‘magit-status’ using
 "M-x magit RET", you should bind a key to ‘magit-status’
 and read the info node ‘(magit)Getting Started’, which
 also contains other useful hints.</code></pre>
-  <p><strong>也就是说：<code>magit</code> 就是 <code>magit-status</code> 的别名</strong>，敲 <kbd>M</kbd><kbd>x</kbd> <code>magit</code> <kbd>RET</kbd> 会打开 Git 状态缓冲区，完全能用。<strong>文档里那句「you should bind a key to <code>magit-status</code>」是 Magit 作者的风格建议</strong>（他希望你给它一个固定键，而不是每次敲 <kbd>M</kbd><kbd>x</kbd>），<strong>不是「这个命令不存在」</strong>。看到这句时不要反向推断。</p>
+  <p><strong>也就是说，<code>magit</code> 就是 <code>magit-status</code> 的别名</strong>，敲 <kbd>M</kbd><kbd>x</kbd> <code>magit</code> <kbd>RET</kbd> 会打开 Git 状态缓冲区，完全能用。<strong>文档里那句「you should bind a key to <code>magit-status</code>」是 Magit 作者的风格建议</strong>（他希望你给它一个固定键，而不是每次敲 <kbd>M</kbd><kbd>x</kbd>），<strong>不是「这个命令不存在」</strong>。看到这句时不要反向推断。</p>
   <p><strong>那 <code>magit-mode</code> 呢？</strong>它也存在，<code>(fboundp 'magit-mode)</code> 同样返回 <code>t</code>——但<strong>角色完全不同</strong>。它的文档字符串是 “Parent major mode from which Magit major modes inherit.”，也就是说<strong>它是 Magit 各种 buffer 模式（<code>magit-status-mode</code>、<code>magit-diff-mode</code> 那些）的父模式</strong>，不是「打开状态缓冲区」的入口。<strong>Magit 4 拿掉的是「用 <code>magit-mode</code> 当全局开关」那种老用法，命令本身没有被删。</strong></p>
   <p><strong>于是这一段应该这么记：</strong>入口是 <code>magit-status</code>（等价写法 <code>magit</code>）和 <code>magit-dispatch</code>（速查菜单，「我现在能干什么」问它）；<code>magit-mode</code> 是模式继承关系，跟入口无关；<code>magit-init</code> 是第三个东西——文档字符串是 “Initialize a Git repository, then show its status.”，<strong>只在你需要在一个新目录里 <code>git init</code> 时才用</strong>，不是「装 Magit」或「初始化 Magit」的命令。</p>
 </div>
@@ -11723,7 +11723,7 @@ also contains other useful hints.</code></pre>
 
   <h4>7.3 straight.el：直接从 git 仓库装，可在源码上改</h4>
 
-  <p><strong>straight.el</strong> 是一个第三方包管理器（不是包装 package.el，而是完全绕开它）。它的工作方式：<strong>克隆 git 仓库，把文件符号链接（symlink）到 Emacs 的 <code>load-path</code> 里</strong>。</p>
+  <p><strong>straight.el</strong> 是一个第三方包管理器（完全绕开 package.el，而非包装它）。它的工作方式：<strong>克隆 git 仓库，把文件符号链接（symlink）到 Emacs 的 <code>load-path</code> 里</strong>。</p>
 
   <p>它的仓库现在是 <a href="https://github.com/radian-software/straight.el">radian-software/straight.el</a>（<strong>注意：早期的 <code>github.com/rststraight/straight.el</code> 已经 404 了</strong>）。我写作时该仓库是 3030 星、最近推送 2026-09-14，活跃维护中。它有完整的 README，讲清楚了它的定位是「next-generation, purely functional package manager for the Emacs hacker」。</p>
 
@@ -12324,7 +12324,7 @@ wombat</code></pre>
 
   <h3>十一、dotfiles：怎么让配置活过重装系统</h3>
 
-  <p>配置写到第三个月，你就一定会遇到这种情况：系统崩了，或者换机器了，然后发现「我记得我配过那个功能」但想不起来是怎么配的。<strong>把配置放进 git，是解决这个问题的唯一可靠办法</strong>——不是「记得住」，而是「查得到」。</p>
+  <p>配置写到第三个月，你就一定会遇到这种情况：系统崩了，或者换机器了，然后发现「我记得我配过那个功能」但想不起来是怎么配的。<strong>把配置放进 git，是解决这个问题的唯一可靠办法</strong>——价值不在「记得住」，在「查得到」。</p>
 
   <h4>11.1 三件必须忽略的东西</h4>
 
@@ -12596,7 +12596,7 @@ git bisect reset                       # 测完退出二分</code></pre>
 
   <h3>一、版本控制：Magit 全流程</h3>
 
-  <p><strong>版本控制</strong>（version control，记录你对文件的每一次改动、并且随时可以回退的系统）你已经在 VS Code 里用过 Git 了。Emacs 自带一套叫 <code>vc</code> 的版本控制框架和它的 Git 后端 <code>vc-git</code>，但今天没人用它——不是因为它坏了，而是因为它设计上假设「你已经知道该敲什么命令」，而不是把 Git 的状态摊开给你看。<strong>Magit</strong>（读作「马吉特」）是 Emacs 社区重写的 Git 前端，核心理念只有一句：<em>把所有 Git 状态放进一个可编辑的文本缓冲区，让它像普通文本一样被搜索、跳转、复制。</em></p>
+  <p><strong>版本控制</strong>（version control，记录你对文件的每一次改动、并且随时可以回退的系统）你已经在 VS Code 里用过 Git 了。Emacs 自带一套叫 <code>vc</code> 的版本控制框架和它的 Git 后端 <code>vc-git</code>，但今天很少有人用它——并非因为它坏了，而是它的设计假设「你已经知道该敲什么命令」，不会把 Git 的状态摊开给你看。<strong>Magit</strong>（读作「马吉特」）是 Emacs 社区重写的 Git 前端，核心理念只有一句：<em>把所有 Git 状态放进一个可编辑的文本缓冲区，让它像普通文本一样被搜索、跳转、复制。</em></p>
 
   <h4>1.1 安装：Magit 需要什么</h4>
 
@@ -12826,7 +12826,7 @@ magit RET</code></pre>
 
   <p><strong>语法高亮</strong>的原理是：Emacs 把缓冲区切成一个个 <strong>region</strong>（区域），每个区域打一个 <strong>font-lock</strong>（字体锁定）属性指定用什么 face（字体样式）显示。这个「用什么正则切、每个块算什么」的规则表叫 <strong>syntax table</strong>（<code>lisp/emacs-lisp/syntax.el</code>）。</p>
 
-  <p>假如你天天处理一种 Emacs 不认识的格式（比如公司内部的 <code>.tpl</code> 模板），正确做法<strong>不是</strong>硬塞一个不相关的主模式，而是给它写一张专用语法表，再用变量 <code>syntax-propertize-function</code> 挂到 <code>fundamental-mode</code> 上。Emacs 32 的 Elisp 手册里文档化的就是这条路径（<code>doc/lispref/syntax.texi</code>）。完整例子——给一种 <code>"字符串"</code>、<code>&lt;类型&gt;</code> 的格式加高亮：</p>
+  <p>假如你天天处理一种 Emacs 不认识的格式（比如公司内部的 <code>.tpl</code> 模板），正确做法是给它写一张专用语法表，再用变量 <code>syntax-propertize-function</code> 挂到 <code>fundamental-mode</code> 上，而非硬塞一个不相关的主模式。Emacs 32 的 Elisp 手册里文档化的就是这条路径（<code>doc/lispref/syntax.texi</code>）。完整例子——给一种 <code>"字符串"</code>、<code>&lt;类型&gt;</code> 的格式加高亮：</p>
 
   <pre class="el"><code>(defvar myfmt-syntax-table
   (let ((table (make-syntax-table)))
@@ -12881,7 +12881,7 @@ magit RET</code></pre>
 其它目录:          html-ts-mode  markdown-ts-mode  mhtml-ts-mode
                    toml-ts-mode  yaml-ts-mode</code></pre>
 
-  <p>也就是说：C、C++、Go、Rust、Java、PHP、Ruby、Lua、Elixir、CMake、Dockerfile、JSON、TypeScript、HTML、Markdown、YAML、TOML、MHTML——这 18 种语言<strong>装好 Emacs 就有了</strong>，不用装任何包。<strong>Python 不在内置列表里</strong>（<code>python-ts-mode</code> 还没进 Emacs），JS 的内置模式是 <code>typescript-ts-mode</code>（它同时管 <code>.js</code>）。</p>
+  <p>也就是说，C、C++、Go、Rust、Java、PHP、Ruby、Lua、Elixir、CMake、Dockerfile、JSON、TypeScript、HTML、Markdown、YAML、TOML、MHTML——这 18 种语言<strong>装好 Emacs 就有了</strong>，不用装任何包。<strong>Python 不在内置列表里</strong>（<code>python-ts-mode</code> 还没进 Emacs），JS 的内置模式是 <code>typescript-ts-mode</code>（它同时管 <code>.js</code>）。</p>
 
   <p>要更多语言（Python、OCaml、Haskell、Elisp……）就得装第三方包：</p>
 
@@ -13070,7 +13070,7 @@ magit RET</code></pre>
 
   <h3>三、文件与项目</h3>
 
-  <p>Emacs 里「打开文件」永远只是 <kbd>C-x</kbd> <kbd>C-f</kbd>。但真实工作不是「打开一个文件」，而是「在三千个文件的项目里快速找到并切换到那一个」。这一节讲三套机制：<code>project.el</code> 管住项目的范围，bookmark / recentf / savehist 记住你去过哪里，consult 把所有「选择一个东西」的界面统一成同一个样子。</p>
+  <p>Emacs 里「打开文件」永远只是 <kbd>C-x</kbd> <kbd>C-f</kbd>。但真实工作往往是「在三千个文件的项目里快速找到并切换到那一个」，远不止「打开一个文件」。这一节讲三套机制：<code>project.el</code> 管住项目的范围，bookmark / recentf / savehist 记住你去过哪里，consult 把所有「选择一个东西」的界面统一成同一个样子。</p>
 
   <h4>3.1 <code>project.el</code>：Emacs 内置的项目管理</h4>
 
@@ -13893,7 +13893,7 @@ V              dired-do-run-mail       对标记文件跑 mail 命令</code></pr
     </table>
   </div>
 
-  <p><strong>comint 的真正价值不是「跑 shell」，而是「跑那些有自己提示符格式的交互程序」。</strong>Emacs 为这些程序都写好了适配：ssh、telnet、gdb（<code>gdb</code> 用 <code>gdb-show-many-args</code>）、Python 的 REPL、R、psql、sqlite3、godot……每个都有自己的 <code>*-mode</code>。在这些会话里，输出就是<strong>普通文本</strong>，所以 <kbd>C-s</kbd> <kbd>C-r</kbd> 增量搜索、<kbd>M-x occur</kbd>、<kbd>isearch</kbd> 全部免费可用。</p>
+  <p><strong>comint 的真正价值在于「跑那些有自己提示符格式的交互程序」，而非单纯「跑 shell」。</strong>Emacs 为这些程序都写好了适配：ssh、telnet、gdb（<code>gdb</code> 用 <code>gdb-show-many-args</code>）、Python 的 REPL、R、psql、sqlite3、godot……每个都有自己的 <code>*-mode</code>。在这些会话里，输出就是<strong>普通文本</strong>，所以 <kbd>C-s</kbd> <kbd>C-r</kbd> 增量搜索、<kbd>M-x occur</kbd>、<kbd>isearch</kbd> 全部免费可用。</p>
 
   <pre class="el"><code>(setq comint-prompt-regexp "^[^#%$]*[#$%] ")
 (setq comint-scroll-show-output-on-input t)
@@ -14474,7 +14474,7 @@ cat $PREFIX/var/log/sv/emacsd/current</code></pre>
 
   <div class="callout warn">
     <b>易错</b>
-    <p><strong>不要为了「在 iPad 上装 Emacs」而把 iPad 越狱或做不透明的重签名分发。</strong>理由不是安全洁癖，而是收益为零：你折腾一整天换来的还是 <code>emacs-ipad</code> 那个终端网格界面，外加一个每 7 天就要重签一次、随时可能失效的安装包。<strong>iPadOS 沙箱禁止任何子进程</strong>（上面引用过原文），这条不会因为你越狱就自动消失——真要真正自由，得回到 15.1 的路线 C 那类「自己编译一份带完整后端的 Emacs」的思路，而那在 Linux 和 Windows 上是顺手的事，在 iPad 上不是。</p>
+    <p><strong>不要为了「在 iPad 上装 Emacs」而把 iPad 越狱或做不透明的重签名分发。</strong>理由很直接：收益为零。你折腾一整天换来的还是 <code>emacs-ipad</code> 那个终端网格界面，外加一个每 7 天就要重签一次、随时可能失效的安装包。<strong>iPadOS 沙箱禁止任何子进程</strong>（上面引用过原文），这条不会因为你越狱就自动消失——真要真正自由，得回到 15.1 的路线 C 那类「自己编译一份带完整后端的 Emacs」的思路，而那在 Linux 和 Windows 上是顺手的事，在 iPad 上不是。</p>
     <p>如果你只是想「在 iPad 上读自己写的 Org 笔记」，那根本不需要 Emacs：用一个支持 Markdown/Org 的笔记 App 就够了。为了一个编辑器的图标去改变一台设备的安全模型，是本末倒置。</p>
   </div>
 
@@ -14717,7 +14717,7 @@ M-x emacs-version RET        ; 这个是真命令，回显 GNU Emacs 32.0.50 (bu
   <div class="drill" data-answer="手册里查不到">
     <p class="drill-q"><b>练习 12</b>　有人推荐你在 Cygwin 里装 Emacs，说「这样路径和 Linux 一样，最省心」。这个说法有什么问题？</p>
     <button class="drill-btn" type="button">显示答案</button>
-    <div class="drill-a"><p>问题在于：<strong>Cygwin 不是 Emacs 参考手册覆盖的平台。</strong>我在 Emacs 32 的完整参考手册 <code>emacs.info</code> 里搜 <code>cygwin</code>、<code>msys</code>、<code>mingw</code>，命中数是 <strong>0</strong>；它的平台附录只有 macOS/GNUstep、Haiku、Android、Microsoft Windows/MS-DOS 四个。所以「省心」的前提不成立——遇到问题你查不到官方参考文档，而且 Windows 原生构建那些特有的坑（CRLF 转换、四个可执行文件的区别、同会话不能混用图形与文本窗口）在 Cygwin 上要么不存在要么表现不同，因为 Cygwin 自己提供 POSIX 层。<strong>公平地说，Cygwin 在《GNU Emacs 常见问题》（<code>emacs-faq</code>）里是有专门一节的</strong>，但那是另一本手册、只覆盖安装与常见故障，键位与默认行为这些日常要查的东西仍然无从查证。真正省心的做法是 WSL。</p></div>
+    <div class="drill-a"><p>问题在于，<strong>Cygwin 不是 Emacs 参考手册覆盖的平台。</strong>我在 Emacs 32 的完整参考手册 <code>emacs.info</code> 里搜 <code>cygwin</code>、<code>msys</code>、<code>mingw</code>，命中数是 <strong>0</strong>；它的平台附录只有 macOS/GNUstep、Haiku、Android、Microsoft Windows/MS-DOS 四个。所以「省心」的前提不成立——遇到问题你查不到官方参考文档，而且 Windows 原生构建那些特有的坑（CRLF 转换、四个可执行文件的区别、同会话不能混用图形与文本窗口）在 Cygwin 上要么不存在要么表现不同，因为 Cygwin 自己提供 POSIX 层。<strong>公平地说，Cygwin 在《GNU Emacs 常见问题》（<code>emacs-faq</code>）里是有专门一节的</strong>，但那是另一本手册、只覆盖安装与常见故障，键位与默认行为这些日常要查的东西仍然无从查证。真正省心的做法是 WSL。</p></div>
   </div>
 
   <h3>15.5 无鼠标与可访问性</h3>
@@ -14789,7 +14789,7 @@ M-x emacs-version RET        ; 这个是真命令，回显 GNU Emacs 32.0.50 (bu
 
   <ul>
     <li><strong><kbd>C</kbd><kbd>g</kbd></strong>（<code>keyboard-quit</code>，我实测绑定成立）：按下的瞬间就把 <code>quit-flag</code> 置 <code>t</code>，Elisp 在各个检查点发现它就中止。<strong>它只能掐断「Emacs 自己在跑的东西」，掐不断「Emacs 在等操作系统」的东西。</strong>NFS 挂死就是手册点名的那一类。</li>
-    <li><strong><kbd>C</kbd><kbd>g</kbd> 连按两下</strong>：这是<strong>紧急逃生（emergency escape）</strong>，只在<strong>文本终端</strong>上有效。它不是 Emacs 的命令，而是终端层面的逃生阀：Emacs 卡得来不及处理第一个 <kbd>C</kbd><kbd>g</kbd> 时，第二个直接把你从 Emacs 里拽出来。手册说：恢复之后 Emacs 会问两个问题——「Auto-save?（y or n）」和「Abort (and dump core)?（y or n）」。答 <code>y</code> 就立刻把开了自动保存的缓冲区存盘；答 <code>n</code> 就能带着原状态继续；两个都答 <code>n</code> 的话，若 Emacs 其实只是慢而非卡死，会回到原来的状态。手册还提醒：<strong>这个功能只在文本终端上存在</strong>，图形界面下你可以直接用鼠标切走或者杀进程。MS-DOS 上要用两次 <kbd>C</kbd><kbd>&lt;Break&gt;</kbd> 代替 <kbd>C</kbd><kbd>g</kbd>。</li>
+    <li><strong><kbd>C</kbd><kbd>g</kbd> 连按两下</strong>：这是<strong>紧急逃生（emergency escape）</strong>，只在<strong>文本终端</strong>上有效。它是终端层面的逃生阀，不是 Emacs 的命令：Emacs 卡得来不及处理第一个 <kbd>C</kbd><kbd>g</kbd> 时，第二个直接把你从 Emacs 里拽出来。手册说：恢复之后 Emacs 会问两个问题——「Auto-save?（y or n）」和「Abort (and dump core)?（y or n）」。答 <code>y</code> 就立刻把开了自动保存的缓冲区存盘；答 <code>n</code> 就能带着原状态继续；两个都答 <code>n</code> 的话，若 Emacs 其实只是慢而非卡死，会回到原来的状态。手册还提醒：<strong>这个功能只在文本终端上存在</strong>，图形界面下你可以直接用鼠标切走或者杀进程。MS-DOS 上要用两次 <kbd>C</kbd><kbd>&lt;Break&gt;</kbd> 代替 <kbd>C</kbd><kbd>g</kbd>。</li>
     <li><strong><kbd>C</kbd><kbd>]</kbd></strong>（<code>abort-recursive-edit</code>，实测存在）和 <kbd>M</kbd><kbd>-</kbd> <kbd>x</kbd> <code>top-level</code>（实测存在）：<strong>用来逃出「多层嵌套的提问」</strong>——比如你在搜索里又打开了另一个搜索。<kbd>C</kbd><kbd>]</kbd> 一次退一层，<code>top-level</code> 一次退所有层。它们的区别在手册里说得很清楚：<kbd>C</kbd><kbd>]</kbd> 是普通按键，<strong>只在 Emacs 准备好接受命令时才生效</strong>，所以它<strong>停不了一个正在运行的命令</strong>；而 <kbd>C</kbd><kbd>g</kbd> 是那种「一按就置标志」的东西，能打断运行中的命令。</li>
   </ul>
 
@@ -14825,7 +14825,7 @@ M-x emacs-version RET        ; 这个是真命令，回显 GNU Emacs 32.0.50 (bu
   <ol>
     <li>在随 Emacs 32.0.50 安装的全部 <code>etc/NEWS</code>、<code>etc/NEWS.31</code>、<code>etc/NEWS.30</code> 里搜索 <code>screen reader</code> 与 <code>screen-reader</code>，<strong>命中数是 0</strong>。</li>
     <li>在整棵 <code>lisp/</code> 源码树里不区分大小写地搜索 <code>screen reader</code>，<strong>只有一个文件命中</strong>——<code>lisp/net/shr.el</code>，那是把网页转成 Emacs 能读的文本的工具，跟可访问性无关。</li>
-    <li>（修正）在完整的 32.0.50 手册 <code>emacs.info</code> 里搜索 <code>screen reader</code>，<strong>不是 0，而是 3 处命中</strong>——全部集中在 Windows 附录讲 <code>w32-use-visible-system-caret</code> 的那一段。原文说的是：<em>没有屏幕阅读器软件在用时该变量默认为 <code>nil</code>，Emacs 画自己的光标；设成非 <code>nil</code> 就改用系统光标显示位置，「这方便屏幕阅读器软件使用」，而且 Emacs 检测到这类软件时会自动设成非 <code>nil</code>。</em>这仍然是「让屏幕阅读器能读懂光标位置」，<strong>不是</strong> Emacs 提供了屏幕阅读器接口——但我原来写「手册里命中 0」是错的，这里更正。另外手册里 “Accessibility” 有十来处命中，<strong>全都与残障无关</strong>：那是 Emacs 手册 “Information about Files” 下面的 “Testing Accessibility” 节点（测试一个文件是否可读/可写，Elisp 手册里也有同一个节点）；而 “accessible portion” 指的是<strong>窄化（narrowing）之后缓冲区里可见的那一段</strong>，也是完全不同的概念，不要被搜索结果误导。</li>
+    <li>（修正）在完整的 32.0.50 手册 <code>emacs.info</code> 里搜索 <code>screen reader</code>，<strong>实际是 3 处命中，不是 0</strong>——全部集中在 Windows 附录讲 <code>w32-use-visible-system-caret</code> 的那一段。原文说的是：<em>没有屏幕阅读器软件在用时该变量默认为 <code>nil</code>，Emacs 画自己的光标；设成非 <code>nil</code> 就改用系统光标显示位置，「这方便屏幕阅读器软件使用」，而且 Emacs 检测到这类软件时会自动设成非 <code>nil</code>。</em>这仍然是「让屏幕阅读器能读懂光标位置」，<strong>不是</strong> Emacs 提供了屏幕阅读器接口——但我原来写「手册里命中 0」是错的，这里更正。另外手册里 “Accessibility” 有十来处命中，<strong>全都与残障无关</strong>：那是 Emacs 手册 “Information about Files” 下面的 “Testing Accessibility” 节点（测试一个文件是否可读/可写，Elisp 手册里也有同一个节点）；而 “accessible portion” 指的是<strong>窄化（narrowing）之后缓冲区里可见的那一段</strong>，也是完全不同的概念，不要被搜索结果误导。</li>
   </ol>
 
   <div class="callout note">
@@ -15012,7 +15012,7 @@ M-x emacs-version RET        ; 这个是真命令，回显 GNU Emacs 32.0.50 (bu
     <p>Fontifying very large buffers can take a long time. To avoid large delays when a file is visited, Emacs initially fontifies only the visible portion of a buffer. As you scroll through the buffer, each portion that becomes visible is fontified as soon as it is displayed; this type of Font Lock is called "Just-In-Time" (or "JIT") Lock. You can control how JIT Lock behaves, including telling it to perform fontification while idle, by customizing variables in the customization group <code>jit-lock</code>.</p>
   </blockquote>
 
-  <p>翻译过来：<strong>Emacs 本来就不会给整个文件上色，只给屏幕上看得见的那部分上色，滚到哪儿才给哪儿上。</strong>所以「大文件卡顿」往往不是「打开时卡」，而是「你按住 <kbd>C</kbd><kbd>n</kbd>/<kbd>C</kbd><kbd>p</kbd> 快速滚动时卡」——因为新进入屏幕的那部分要现上色。如果你让它在空闲时预先上色，滚动就顺了，代价是空闲时它在后台干活。相关选项在 <code>jit-lock</code> 这个定制组里，可以用 <kbd>M</kbd><kbd>-</kbd> <kbd>x</kbd> <code>customize-group</code> <kbd>RET</kbd> <code>jit-lock</code> <kbd>RET</kbd> 打开。<strong>本机实测：<code>jit-lock-mode</code> 默认值是 <code>nil</code>。</strong></p>
+  <p>翻译过来：<strong>Emacs 本来就不会给整个文件上色，只给屏幕上看得见的那部分上色，滚到哪儿才给哪儿上。</strong>所以「大文件卡顿」往往发生在「你按住 <kbd>C</kbd><kbd>n</kbd>/<kbd>C</kbd><kbd>p</kbd> 快速滚动时」，而非「打开时」——因为新进入屏幕的那部分要现上色。如果你让它在空闲时预先上色，滚动就顺了，代价是空闲时它在后台干活。相关选项在 <code>jit-lock</code> 这个定制组里，可以用 <kbd>M</kbd><kbd>-</kbd> <kbd>x</kbd> <code>customize-group</code> <kbd>RET</kbd> <code>jit-lock</code> <kbd>RET</kbd> 打开。<strong>本机实测：<code>jit-lock-mode</code> 默认值是 <code>nil</code>。</strong></p>
 
   <h4>远程编辑为什么每一下都慢</h4>
 
@@ -15236,7 +15236,7 @@ emacs -Q -nw</code></pre>
     <li>答 <code>yes</code> 之后，<strong>自动保存的内容会被直接装进这个文件的缓冲区</strong>，不存在「再写到一个临时文件」这一步——老文章里说的那个中间步骤是 Emacs 早期的 <code>recover-file-continue</code>，那个命令在今天的 Emacs 里已经没有了。检查无误之后，按 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>s</kbd> 就把内容写回真正的文件。</li>
   </ol>
 
-  <p><strong>所以正确的心智模型不是「手工合并」，而是「 Emacs 替你把自动保存版本装进缓冲区，你确认或微调后正常保存」。</strong>真要保留旧版本，先把原文件另存一份再动手。</p>
+  <p><strong>所以正确的心智模型是「Emacs 替你把自动保存版本装进缓冲区，你确认或微调后正常保存」，而非「手工合并」。</strong>真要保留旧版本，先把原文件另存一份再动手。</p>
 
   <p>还有一条更省事的路：<kbd>M</kbd><kbd>-</kbd> <kbd>x</kbd> <code>recover-session</code>（我实测存在）能找回被强杀前的整个 Emacs 会话——打开过哪些缓冲区、光标在哪、窗口怎么分的。<strong>但它同样依赖会话文件还在，而且只恢复「会话」不恢复「未保存的文件内容」。</strong></p>
 
@@ -15403,7 +15403,7 @@ emacs -Q -nw</code></pre>
 
 <section class="ch" id="ch-16-conclusion" data-stage="精通" data-min="35">
   <h2 class="ch-title">十六、结语与延伸资源</h2>
-  <p class="ch-lead">这一章是全书的「下一站地图」。你要学会的不是新的按键，而是<strong>向 Emacs 提问的方法</strong>——这是唯一能让你脱离本书继续前进的能力。读完你会知道：原书列的那些第三方包在 2026 年还剩哪些、当代 Emacs 生态的标准答案是什么、你的 Emacs 到底是哪个版本以及这几个版本之间改了什么、官方手册怎么查、社区去哪儿问问题，以及一条四周就能走完的学习路线。</p>
+  <p class="ch-lead">这一章是全书的「下一站地图」，教你的核心能力是<strong>向 Emacs 提问的方法</strong>——这是唯一能让你脱离本书继续前进的能力。读完你会知道：原书列的那些第三方包在 2026 年还剩哪些、当代 Emacs 生态的标准答案是什么、你的 Emacs 到底是哪个版本以及这几个版本之间改了什么、官方手册怎么查、社区去哪儿问问题，以及一条四周就能走完的学习路线。</p>
 
   <div class="callout note">
     <b>要点</b>
@@ -15412,7 +15412,7 @@ emacs -Q -nw</code></pre>
 
   <h3>一、真正的终点：学会向 Emacs 提问</h3>
 
-  <p>原书作者 Eli Spare 在这一章说了一句整本书最要紧的话：掌握 Emacs 这样的编辑器，办法不是背下所有键位，而是<strong>学会向它问正确的问题</strong>。他自己举的例子是：忘了 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>l</kbd> 干什么，这根本不是问题——按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 问一句 Emacs 就告诉你了。</p>
+  <p>原书作者 Eli Spare 在这一章说了一句整本书最要紧的话：掌握 Emacs 这样的编辑器，办法是<strong>学会向它问正确的问题</strong>，而非背下所有键位。他自己举的例子是：忘了 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>l</kbd> 干什么，这根本不是问题——按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 问一句 Emacs 就告诉你了。</p>
 
   <p><strong>自解释编辑器</strong>是一个专有名词，指编辑器能告诉你「我刚才做了什么、这个东西是哪来的」——Emacs 把内置文档、函数说明、变量说明、键位表都做成了运行时可查询的东西，所以它属于这一类。Emacs 用来回答你提问的入口是 <kbd>C</kbd><kbd>h</kbd> 这个前缀键（<kbd>C</kbd> 表示 Control 键，<kbd>M</kbd> 表示 Alt 键或 Escape 键；<strong>前缀键</strong>指按下之后还要再按一个键才能确定具体命令的按键）。按 <kbd>C</kbd><kbd>h</kbd> 之后，Emacs 会在<strong>回显区</strong>（窗口最下面那一行，平时显示文件名和提示信息的地方）列出一长串「<kbd>C</kbd><kbd>h</kbd> 后面跟什么键 = 什么命令」，你可以把这一行当索引随便挑。</p>
 
@@ -15499,7 +15499,7 @@ emacs -Q -nw</code></pre>
 
   <h3>二、原书那份资源清单：今天还剩什么</h3>
 
-  <p>原书在最后给了一张第三方包清单。这张表在 2026 年已经明显过时了——不是「包没了」，而是<strong>生态的重心换了位置</strong>。我们逐条过一遍，把「内置 / 第三方 / 已被取代」标清楚。</p>
+  <p>原书在最后给了一张第三方包清单。这张表在 2026 年已经明显过时了——包本身大多还在，但<strong>生态的重心换了位置</strong>。我们逐条过一遍，把「内置 / 第三方 / 已被取代」标清楚。</p>
 
   <p>先说判断标准。<strong>内置</strong>指 Emacs 自带、不用装、跟着 Emacs 一起升级。<strong>第三方</strong>指要自己从 <strong>包归档</strong>（package archive，一个打包好的在线包仓库）安装的包；Emacs 官方维护的叫 <strong>GNU ELPA</strong>（地址 <a href="https://elpa.gnu.org/packages/">https://elpa.gnu.org/packages/</a>），社区维护的叫 <strong>MELPA</strong> 和 <strong>NonGNU ELPA</strong>（<a href="https://elpa.nongnu.org/nongnu/">https://elpa.nongnu.org/nongnu/</a>）。在 Emacs 32 里，配置归档地址的变量叫 <code>package-archives</code>，它的默认值就是上面这两个 GNU 的地址——这意味着你装包时不用先手工加任何一行配置。</p>
 
@@ -15782,7 +15782,7 @@ emacs -Q -nw</code></pre>
     </tbody>
   </table>
 
-  <p>除了 <code>emacs</code> 这一本，<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 还能读到成套的<strong>ref 系列手册</strong>。这些是以 <code>ref</code> 开头的「参考手册」系列，命名规则是取 Emacs 社区的技术委员会缩写，格式是「REF 是什么」——读法是把缩写当首字母缩写来念。这些手册不是 API 文档，而是<strong>规范与规范解释</strong>，适合解决「Emacs 到底约定什么」的问题：</p>
+  <p>除了 <code>emacs</code> 这一本，<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 还能读到成套的<strong>ref 系列手册</strong>。这些是以 <code>ref</code> 开头的「参考手册」系列，命名规则是取 Emacs 社区的技术委员会缩写，格式是「REF 是什么」——读法是把缩写当首字母缩写来念。这些手册是<strong>规范与规范解释</strong>，不是 API 文档，适合解决「Emacs 到底约定什么」的问题：</p>
 
   <ul>
     <li><code>refcard</code> — 速查卡，一页纸的 Emacs 快捷键总表</li>
@@ -15796,7 +15796,7 @@ emacs -Q -nw</code></pre>
 
   <div class="callout tip">
     <b>技巧</b>
-    <p>读 Info 手册的最好方式不是在手册里从第一页读到最后，而是<strong>把它当字典用</strong>：遇到一个不懂的命令就 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>，或者直接 <kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd>（<code>Info-goto-emacs-command-node</code>）一键跳到手册里讲这个命令的那一节。<kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 是比 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 更省事的一招——它把「查命令」和「跳到手册」合成了一步。</p>
+    <p>读 Info 手册最好的方式是<strong>把它当字典用</strong>，而不是从第一页读到最后：遇到一个不懂的命令就 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>，或者直接 <kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd>（<code>Info-goto-emacs-command-node</code>）一键跳到手册里讲这个命令的那一节。<kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 是比 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 更省事的一招——它把「查命令」和「跳到手册」合成了一步。</p>
   </div>
 
   <div class="drill" data-answer="C-h r">
@@ -16674,7 +16674,7 @@ emacs -Q -nw</code></pre>
     <table>
       <thead><tr><th>按键</th><th>命令</th><th>作用</th></tr></thead>
       <tbody>
-        <tr><td><strong>kill</strong>（杀死）</td><td>—</td><td>把文本移走，同时放进 <strong>kill ring</strong>。Emacs 里「删除」不是真删，而是「杀掉并存起来」</td></tr>
+        <tr><td><strong>kill</strong>（杀死）</td><td>—</td><td>把文本移走，同时放进 <strong>kill ring</strong>。Emacs 里「删除」实际是「杀掉并存起来」</td></tr>
         <tr><td><strong>kill ring</strong>（剪贴板环）</td><td>—</td><td>被杀文本的栈。<kbd>M</kbd><kbd>y</kbd>（<code>yank-pop</code>）可以在里面翻旧账</td></tr>
         <tr><td><strong>yank</strong>（粘贴/抽出）</td><td>—</td><td>把 kill ring 顶端的内容插回来。名字来自 Unix 的 <code>yank</code>（拔出来）</td></tr>
         <tr><td><strong>yank-pop</strong></td><td>—</td><td>轮换 kill ring，粘贴上一条被杀文本</td></tr>
@@ -16959,7 +16959,7 @@ xmodmap -e 'keycode 9 = Escape' &gt;&gt; ~/.Xmodmap</code></pre>
 
   <div class="callout tip">
     <b>技巧</b>
-    <p>最有效的自测方式不是看答案，而是<strong>合上书去 <code>*scratch*</code> 里做</strong>。打开一个空缓冲区（<kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 然后输入 <code>*scratch*</code>），敲几行字，把这一章的键位全部试一遍。<code>*scratch*</code> 的内容不会保存到任何文件，放心折腾。</p>
+    <p>最有效的自测方式是<strong>合上书去 <code>*scratch*</code> 里做</strong>，而不是看答案。打开一个空缓冲区（<kbd>C</kbd><kbd>x</kbd> <kbd>b</kbd> 然后输入 <code>*scratch*</code>），敲几行字，把这一章的键位全部试一遍。<code>*scratch*</code> 的内容不会保存到任何文件，放心折腾。</p>
   </div>
 
   <div class="callout warn">

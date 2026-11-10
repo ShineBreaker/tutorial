@@ -20,14 +20,14 @@ export default {
       tone: 'tip',
       title: '怎样使用本站',
       html: `
-<p>建议开两个窗口：一个看本站，一个打开源码目录 <code>~/Projects/Agent/claude-code</code> 对照着读。每段代码卡片都标了<b>真实文件路径和行号</b>。看到没展开的细节时，点卡片上的<b>「查看真实源码 ↗」</b>按钮会弹出悬浮窗，直接展示那段真实代码：带行号，被引用的行会高亮。不用离开本站。</p>
+<p>建议开两个窗口：一个浏览本站，另一个在本地持有 <code>claude-code</code> 源码时对照精读。每段代码卡片都标明了<b>真实源码的文件路径与行号</b>。看到未展开的实现细节时，点击卡片上的<b>「查看真实源码 ↗」</b>按钮即可展开浮层查看带高亮的真实代码，无需离开当前页面。</p>
 <p>遇到代码卡片底部的小标签（比如 <em>泛型接口</em>、<em>async generator</em>），这是随代码附送的语言知识点，第 8 章会集中复习它们。</p>`,
     },
     { type: 'h2', text: '聊天机器人 ≠ Agent' },
     {
       type: 'prose',
       html: `
-<p>普通聊天机器人和 agent 用的是<b>同一个模型</b>，差别在程序怎么用它：</p>
+<p>普通聊天机器人和 Agent 底层调用的是<b>同一个大语言模型</b>，本质区别在于宿主程序如何与模型协同：</p>
 <table>
   <tr><th></th><th>聊天机器人</th><th>Agent</th></tr>
   <tr><td>模型能输出什么</td><td>文字</td><td>文字，或<b>工具调用请求</b></td></tr>
@@ -35,7 +35,7 @@ export default {
   <tr><td>执行结果去哪</td><td>不存在</td><td>塞回对话历史，<b>让模型再看一眼</b></td></tr>
   <tr><td>何时结束</td><td>答完即止</td><td>模型不再请求工具时</td></tr>
 </table>
-<p>看出关键了吗？agent 程序和模型之间不是「一问一答」，而是一个<b>不断往复的循环</b>。这个循环就是整个 agent 的心跳。</p>`,
+<p>这里的关键在于：Agent 宿主程序与模型之间建立了<b>不断往复的自主执行循环</b>。这个循环正是整个 Agent 的生命力与心跳所在。</p>`,
     },
     { type: 'h2', text: '四要素心智模型' },
     {
@@ -57,7 +57,7 @@ export default {
     {
       type: 'prose',
       html: `
-<p>本站的解剖对象是 <code>~/Projects/Agent/claude-code</code>，也就是 Claude Code CLI 的 TypeScript 源码。它有几十万行，但不用怕：核心机制集中在十来个文件里。</p>
+<p>本站的解剖对象是 Claude Code CLI 的 TypeScript 源码实现（<code>claude-code</code>）。它虽有数十万行代码，但核心机制高度凝练在十来个关键文件之中：</p>
 <table>
   <tr><th>文件</th><th>角色</th><th>对应章节</th></tr>
   <tr><td><code>query.ts</code></td><td><b>agent 主循环</b>（心跳所在）</td><td>第 1、6 章</td></tr>

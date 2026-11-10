@@ -1,6 +1,6 @@
 <section class="ch" id="ch-16-conclusion" data-stage="精通" data-min="35">
   <h2 class="ch-title">十六、结语与延伸资源</h2>
-  <p class="ch-lead">这一章是全书的「下一站地图」。你要学会的不是新的按键，而是<strong>向 Emacs 提问的方法</strong>——这是唯一能让你脱离本书继续前进的能力。读完你会知道：原书列的那些第三方包在 2026 年还剩哪些、当代 Emacs 生态的标准答案是什么、你的 Emacs 到底是哪个版本以及这几个版本之间改了什么、官方手册怎么查、社区去哪儿问问题，以及一条四周就能走完的学习路线。</p>
+  <p class="ch-lead">这一章是全书的「下一站地图」，教你的核心能力是<strong>向 Emacs 提问的方法</strong>——这是唯一能让你脱离本书继续前进的能力。读完你会知道：原书列的那些第三方包在 2026 年还剩哪些、当代 Emacs 生态的标准答案是什么、你的 Emacs 到底是哪个版本以及这几个版本之间改了什么、官方手册怎么查、社区去哪儿问问题，以及一条四周就能走完的学习路线。</p>
 
   <div class="callout note">
     <b>要点</b>
@@ -9,7 +9,7 @@
 
   <h3>一、真正的终点：学会向 Emacs 提问</h3>
 
-  <p>原书作者 Eli Spare 在这一章说了一句整本书最要紧的话：掌握 Emacs 这样的编辑器，办法不是背下所有键位，而是<strong>学会向它问正确的问题</strong>。他自己举的例子是：忘了 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>l</kbd> 干什么，这根本不是问题——按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 问一句 Emacs 就告诉你了。</p>
+  <p>原书作者 Eli Spare 在这一章说了一句整本书最要紧的话：掌握 Emacs 这样的编辑器，办法是<strong>学会向它问正确的问题</strong>，而非背下所有键位。他自己举的例子是：忘了 <kbd>C</kbd><kbd>x</kbd> <kbd>r</kbd> <kbd>l</kbd> 干什么，这根本不是问题——按 <kbd>C</kbd><kbd>h</kbd> <kbd>k</kbd> 问一句 Emacs 就告诉你了。</p>
 
   <p><strong>自解释编辑器</strong>是一个专有名词，指编辑器能告诉你「我刚才做了什么、这个东西是哪来的」——Emacs 把内置文档、函数说明、变量说明、键位表都做成了运行时可查询的东西，所以它属于这一类。Emacs 用来回答你提问的入口是 <kbd>C</kbd><kbd>h</kbd> 这个前缀键（<kbd>C</kbd> 表示 Control 键，<kbd>M</kbd> 表示 Alt 键或 Escape 键；<strong>前缀键</strong>指按下之后还要再按一个键才能确定具体命令的按键）。按 <kbd>C</kbd><kbd>h</kbd> 之后，Emacs 会在<strong>回显区</strong>（窗口最下面那一行，平时显示文件名和提示信息的地方）列出一长串「<kbd>C</kbd><kbd>h</kbd> 后面跟什么键 = 什么命令」，你可以把这一行当索引随便挑。</p>
 
@@ -96,7 +96,7 @@
 
   <h3>二、原书那份资源清单：今天还剩什么</h3>
 
-  <p>原书在最后给了一张第三方包清单。这张表在 2026 年已经明显过时了——不是「包没了」，而是<strong>生态的重心换了位置</strong>。我们逐条过一遍，把「内置 / 第三方 / 已被取代」标清楚。</p>
+  <p>原书在最后给了一张第三方包清单。这张表在 2026 年已经明显过时了——包本身大多还在，但<strong>生态的重心换了位置</strong>。我们逐条过一遍，把「内置 / 第三方 / 已被取代」标清楚。</p>
 
   <p>先说判断标准。<strong>内置</strong>指 Emacs 自带、不用装、跟着 Emacs 一起升级。<strong>第三方</strong>指要自己从 <strong>包归档</strong>（package archive，一个打包好的在线包仓库）安装的包；Emacs 官方维护的叫 <strong>GNU ELPA</strong>（地址 <a href="https://elpa.gnu.org/packages/">https://elpa.gnu.org/packages/</a>），社区维护的叫 <strong>MELPA</strong> 和 <strong>NonGNU ELPA</strong>（<a href="https://elpa.nongnu.org/nongnu/">https://elpa.nongnu.org/nongnu/</a>）。在 Emacs 32 里，配置归档地址的变量叫 <code>package-archives</code>，它的默认值就是上面这两个 GNU 的地址——这意味着你装包时不用先手工加任何一行配置。</p>
 
@@ -379,7 +379,7 @@
     </tbody>
   </table>
 
-  <p>除了 <code>emacs</code> 这一本，<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 还能读到成套的<strong>ref 系列手册</strong>。这些是以 <code>ref</code> 开头的「参考手册」系列，命名规则是取 Emacs 社区的技术委员会缩写，格式是「REF 是什么」——读法是把缩写当首字母缩写来念。这些手册不是 API 文档，而是<strong>规范与规范解释</strong>，适合解决「Emacs 到底约定什么」的问题：</p>
+  <p>除了 <code>emacs</code> 这一本，<kbd>C</kbd><kbd>h</kbd> <kbd>i</kbd> 还能读到成套的<strong>ref 系列手册</strong>。这些是以 <code>ref</code> 开头的「参考手册」系列，命名规则是取 Emacs 社区的技术委员会缩写，格式是「REF 是什么」——读法是把缩写当首字母缩写来念。这些手册是<strong>规范与规范解释</strong>，不是 API 文档，适合解决「Emacs 到底约定什么」的问题：</p>
 
   <ul>
     <li><code>refcard</code> — 速查卡，一页纸的 Emacs 快捷键总表</li>
@@ -393,7 +393,7 @@
 
   <div class="callout tip">
     <b>技巧</b>
-    <p>读 Info 手册的最好方式不是在手册里从第一页读到最后，而是<strong>把它当字典用</strong>：遇到一个不懂的命令就 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>，或者直接 <kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd>（<code>Info-goto-emacs-command-node</code>）一键跳到手册里讲这个命令的那一节。<kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 是比 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 更省事的一招——它把「查命令」和「跳到手册」合成了一步。</p>
+    <p>读 Info 手册最好的方式是<strong>把它当字典用</strong>，而不是从第一页读到最后：遇到一个不懂的命令就 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd>，或者直接 <kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd>（<code>Info-goto-emacs-command-node</code>）一键跳到手册里讲这个命令的那一节。<kbd>C</kbd><kbd>h</kbd> <kbd>F</kbd> 是比 <kbd>C</kbd><kbd>h</kbd> <kbd>f</kbd> 更省事的一招——它把「查命令」和「跳到手册」合成了一步。</p>
   </div>
 
   <div class="drill" data-answer="C-h r">

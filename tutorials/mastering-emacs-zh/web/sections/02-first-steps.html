@@ -313,7 +313,7 @@ $ systemctl --user start emacs</code></pre>
   <details class="deep">
     <summary>进阶：把 Caps Lock 改成 Control，以及自定义键盘</summary>
     <p>你已经知道 <kbd>C</kbd><kbd>-</kbd> 在 Emacs 里有多常用。但对大多数人来说，键盘左下角那个 <kbd>Ctrl</kbd> 是个<strong>很不舒服的位置</strong>——要用无名小指去够，还得把手掌撑开。Emacs 用户的「左小指痛」（作者戏称 Emacs pinky）就是这么来的。</p>
-    <p><strong>原书给出的头号建议是：把 Caps Lock 这个键重新映射成 Control，然后完全不用左下角那个原始的 Ctrl。</strong>大写锁定键离手指更近、发力更顺，改造之后 <kbd>C</kbd><kbd>-</kbd> 组合会舒服得多。</p>
+    <p><strong>原书给出的头号建议，是把 Caps Lock 这个键重新映射成 Control，然后完全不用左下角那个原始的 Ctrl。</strong>大写锁定键离手指更近、发力更顺，改造之后 <kbd>C</kbd><kbd>-</kbd> 组合会舒服得多。</p>
     <p>这么建议是有历史原因的：当年的 <strong>Space Cadet</strong> 键盘（大名鼎鼎的 MIT 人工智能实验室键盘）上，<strong>Control 键占据的正是今天 Caps Lock 的位置</strong>。也就是说 Emacs 最早的键位设计里，Ctrl 本来就在那儿，是后来的 PC 键盘把 Ctrl 挪到了左下角。把它映射回去，等于把 Emacs 还原回它设计时最顺手的布局。这个习惯在 Emacs 之外也有用，所以值得养成。</p>
     <h4>怎么改</h4>
     <ul>
@@ -389,7 +389,7 @@ $ systemctl --user start emacs</code></pre>
 
   <h4>尖括号写法</h4>
 
-  <p>有些键没有对应的字母，文档里写成尖括号包着的样子：<code>&lt;tab&gt;</code>、<code>&lt;f1&gt;</code>、<code>&lt;return&gt;</code>、<code>&lt;escape&gt;</code>、<code>&lt;left&gt;</code>、<code>&lt;f12&gt;</code>。它们指的不是字符本身，而是键盘上那个有名字的键。</p>
+  <p>有些键没有对应的字母，文档里写成尖括号包着的样子：<code>&lt;tab&gt;</code>、<code>&lt;f1&gt;</code>、<code>&lt;return&gt;</code>、<code>&lt;escape&gt;</code>、<code>&lt;left&gt;</code>、<code>&lt;f12&gt;</code>。它们指键盘上那个有名字的按键，而非字符本身。</p>
 
   <p>唯一的坑是：<strong>不要把 <code>&lt;tab&gt;</code> 跟字母 T、A、B 搞混</strong>。文档里写 <code>C-q</code> 才是「先按 Ctrl 再按 q」；写 <code>&lt;tab&gt;</code> 是指键盘上那个 Tab 键——虽然它在某些键盘上确实挨着 Q。</p>
 
@@ -577,7 +577,7 @@ $ systemctl --user start emacs</code></pre>
 
   <ul>
     <li><strong><kbd>M</kbd><kbd>x</kbd> <code>help-command</code></strong>——<strong>这个永远管用</strong>，因为 <kbd>M</kbd><kbd>x</kbd> 只依赖 Meta 键。本节表格里 <kbd>C</kbd><kbd>h</kbd> <kbd>m</kbd> 的功能，写成 <kbd>M</kbd><kbd>x</kbd> <code>describe-mode</code> <kbd>RET</kbd> 效果完全一样（本章后面所有表格你都可以这样替换）。</li>
-    <li><strong><kbd>F1</kbd></strong>——Emacs 的帮助键表里确实把 <kbd>F1</kbd> 也绑成了帮助菜单，但<strong>它是否在你的终端里真的绑上了，取决于终端的 terminfo 和你的 Emacs 构建</strong>。本书作者在 32.0.50 上实测，<kbd>C</kbd><kbd>h</kbd> 绑的是 <code>help-command</code>，而 <kbd>F1</kbd> 在裸 Emacs 里<strong>没有全局绑定</strong>。<strong>结论：别把 <kbd>F1</kbd> 当成保底方案</strong>，先试一下，敲了没反应就用上面那条。</li>
+    <li><strong><kbd>F1</kbd></strong>——Emacs 的帮助键表里确实把 <kbd>F1</kbd> 也绑成了帮助菜单，但<strong>它是否在你的终端里真的绑上了，取决于终端的 terminfo 和你的 Emacs 构建</strong>。本书作者在 32.0.50 上实测，<kbd>C</kbd><kbd>h</kbd> 绑的是 <code>help-command</code>，而 <kbd>F1</kbd> 在裸 Emacs 里<strong>没有全局绑定</strong>。<strong>所以别把 <kbd>F1</kbd> 当成保底方案</strong>，先试一下，敲了没反应就用上面那条。</li>
     <li><strong><kbd>C</kbd><kbd>h</kbd> <kbd>C</kbd><kbd>h</kbd></strong>——如果 <kbd>C</kbd><kbd>h</kbd> 能发出来但你不想每次都记具体字母，按两下 <kbd>C</kbd><kbd>h</kbd>（<code>help-for-help</code>）会弹出一个<strong>列出全部帮助子命令的菜单</strong>，用方向键选、回车执行。</li>
   </ul>
 

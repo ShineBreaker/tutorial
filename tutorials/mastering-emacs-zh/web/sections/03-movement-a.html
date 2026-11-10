@@ -30,7 +30,7 @@
 
   <ul>
     <li><strong>buffer</strong>（缓冲区）：一段正在编辑的文本。它<strong>不等于文件</strong>。文件只是 buffer 的一种「落脚点」；Emacs 自己生成的临时文本（帮助、编译日志、shell 输出、抓取网页）也是 buffer，只不过没有对应文件。你在 VS Code 里关掉一个标签页，那个 tab 就是一个 buffer。</li>
-    <li><strong>window</strong>（窗口）：frame 里面的一块显示区域，负责显示<strong>某一个 buffer</strong>。这是初学者误解最深的一个词——它不是操作系统的窗口，而是 frame 内部的「一块格子」。</li>
+    <li><strong>window</strong>（窗口）：frame 里面的一块显示区域，负责显示<strong>某一个 buffer</strong>。这是初学者误解最深的一个词——它指 frame 内部的「一块格子」，而非操作系统的窗口。</li>
     <li><strong>frame</strong>（框架）：你在操作系统任务栏里看到、可以拖动、可以最小化的那个<strong>窗口</strong>。别人说的「打开一个新窗口」，在 Emacs 里必须说成「打开一个新 frame」。</li>
   </ul>
 
@@ -388,7 +388,7 @@ End:</code></pre>
 
   <div class="callout tip">
     <b>技巧</b>
-    <p>把 <kbd>M</kbd><kbd>x</kbd> <code>ibuffer</code> 绑成默认的 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd>，是回报率最高的一处配置。原书给的写法是 <code>(global-set-key [remap list-buffers] 'ibuffer)</code>——这里的 <code>remap</code> 意思是「不是新增按键，而是把 <code>list-buffers</code> 这个命令本身换成 <code>ibuffer</code>」，所以 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 依然按，但弹出来的界面可以边打字边过滤、实时排序。</p>
+    <p>把 <kbd>M</kbd><kbd>x</kbd> <code>ibuffer</code> 绑成默认的 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd>，是回报率最高的一处配置。原书给的写法是 <code>(global-set-key [remap list-buffers] 'ibuffer)</code>——这里的 <code>remap</code> 意思是「不新增按键，直接把 <code>list-buffers</code> 这个命令本身换成 <code>ibuffer</code>」，所以 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>b</kbd> 依然按，但弹出来的界面可以边打字边过滤、实时排序。</p>
   </div>
 
   <div class="drill" data-answer="C-x C-b 换成 ibuffer：写 (global-set-key [remap list-buffers] 'ibuffer)；Emacs 32 的 fido-mode 已并入 icomplete，不用装包">
@@ -543,7 +543,7 @@ End:</code></pre>
 
   <h3>八、窗口管理：五个键就能用，会用之后再谈技巧</h3>
 
-  <p>原书在这里放了一句很实在的话：窗口管理其实不复杂，复杂的不是按键，而是<strong>接受「window 随用随建」这个前提</strong>。下面这五个键就是全部的日常需求：</p>
+  <p>原书在这里放了一句很实在的话：窗口管理其实不复杂，难点不在按键，在于<strong>接受「window 随用随建」这个前提</strong>。下面这五个键就是全部的日常需求：</p>
 
   <div class="keys">
     <h4>窗口管理五键（本机 Emacs 32.0.50 实测绑定）</h4>
@@ -690,7 +690,7 @@ End:</code></pre>
 
   <h4>今天的实际情况：frame 体系比原书写的时候更不好用</h4>
 
-  <p>原书写这段时对 frame 的评价就已经偏保守了：所有 frame 共享同一个 Emacs 会话，管理起来「有点别扭」，作者建议「试试看合不合手」。<strong>这个评价在今天的 Wayland 和 macOS 上更成立了</strong>，原因不是 Emacs 的代码退化了，而是桌面环境变了。下面是我在本机能核实的部分——引用全部来自本机安装的 Emacs 32.0.50 手册和 <code>etc/NEWS.*</code> 原文。</p>
+  <p>原书写这段时对 frame 的评价就已经偏保守了：所有 frame 共享同一个 Emacs 会话，管理起来「有点别扭」，作者建议「试试看合不合手」。<strong>这个评价在今天的 Wayland 和 macOS 上更成立了</strong>，原因在于桌面环境变了，Emacs 的代码并没有退化。下面是我在本机能核实的部分——引用全部来自本机安装的 Emacs 32.0.50 手册和 <code>etc/NEWS.*</code> 原文。</p>
 
   <div class="callout warn">
     <b>易错</b>

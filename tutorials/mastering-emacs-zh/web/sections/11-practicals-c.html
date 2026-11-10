@@ -256,7 +256,7 @@ drwxr-xr-x 326 root root    12288 Mar 27 11:43 ..
 
   <h3>六、版本现状：<code>dired-x</code> 在 Emacs 32 里还剩什么</h3>
 
-  <p>原文写于 <code>dired-x</code> 尚不可替代的年代，只说了一句「Emacs 29 把 <code>dired-x</code> 的几个功能搬进了核心 dired，但装 <code>dired-x</code> 太省事了，建议直接加上 <code>(require 'dired-x)</code>」。<strong>这句话今天需要修订：回迁不是「几个功能」，而是早在 Emacs 25 就基本完成了。</strong></p>
+  <p>原文写于 <code>dired-x</code> 尚不可替代的年代，只说了一句「Emacs 29 把 <code>dired-x</code> 的几个功能搬进了核心 dired，但装 <code>dired-x</code> 太省事了，建议直接加上 <code>(require 'dired-x)</code>」。<strong>这句话今天需要修订：回迁早在 Emacs 25 就基本完成，远不止「几个功能」。</strong></p>
 
   <p>我把上游 Emacs 各分支的 <code>dired.el</code>（emacs-mirror 仓库的 <code>emacs-25.1</code> 到 <code>emacs-31.1</code> 标签）逐个抓下来对比过：本章第三节、第四节表格里的绝大多数命令——硬链接 <kbd>H</kbd>、符号链接 <kbd>S</kbd>、相对链接 <kbd>Y</kbd>、<kbd>T</kbd> touch、<kbd>L</kbd> load、<kbd>B</kbd> 字节编译、<kbd>I</kbd> info、<kbd>N</kbd> man、<kbd>P</kbd> print、<kbd>Z</kbd> 压缩、<kbd>W</kbd> 浏览器打开、<kbd>k</kbd> 删行、<kbd>o</kbd> 他窗打开、<kbd>v</kbd> 只读查看、<kbd>w</kbd> 复制文件名、<kbd>y</kbd> 文件类型、<kbd>=</kbd> 比较、<kbd>~</kbd> 备份文件旗标、<kbd>#</kbd> 自动保存文件旗标、<kbd>(</kbd> 隐藏细节模式，以及整个 <kbd>%</kbd> 正则子映射和 <code>dired-guess-shell-*</code> 规则表——<strong>在 Emacs 25.1 的核心 <code>dired.el</code> 里就已经全部存在</strong>，并不是「Emacs 29 才有」，更不是「Emacs 32 才回迁」。今天唯一的版本增量是 <kbd>E</kbd> → <code>dired-do-open</code>，那是 <strong>Emacs 30 新增</strong>的（<code>etc/NEWS.30</code>：「New command <code>dired-do-open</code>. This command is bound to <code>E</code>」），在此之前它属于 <code>dired-x</code>。</p>
 
@@ -449,7 +449,7 @@ drwxr-xr-x 326 root root    12288 Mar 27 11:43 ..
 
   <h4>9.4 <code>M-x vterm</code>：今天在 Emacs 里跑真终端的更好选择</h4>
 
-  <p><code>vterm</code> 是第三方包（<strong>在 MELPA 里，仓库是 <code>akermu/emacs-libvterm</code></strong>）。它的关键差异是：<strong>核心不是 Elisp，而是一个 C 动态模块</strong>——它把 Neovim 用的终端模拟库 <code>libvterm</code> 编译成 Emacs 的动态模块加载进来。</p>
+  <p><code>vterm</code> 是第三方包（<strong>在 MELPA 里，仓库是 <code>akermu/emacs-libvterm</code></strong>）。它的关键差异是：<strong>核心是一个 C 动态模块，而非 Elisp</strong>——它把 Neovim 用的终端模拟库 <code>libvterm</code> 编译成 Emacs 的动态模块加载进来。</p>
 
   <p>所以它比 <code>term</code> / <code>ansi-term</code> 强在两点，而且都是压倒性的：<strong>速度</strong>（大段输出不会卡）和<strong>兼容性</strong>（几乎所有终端程序都能跑，因为底层就是标准的 VT100/xterm 模拟器）。代价有三条：</p>
 

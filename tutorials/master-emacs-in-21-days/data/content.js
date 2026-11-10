@@ -26,18 +26,18 @@ window.DAYS = [
     id: 1, title: "准备开始（安装与改键）", theme: "入门 · 环境准备",
     sections: [
       { type: "intro" },
-      { type: "p", html: "<p>欢迎来到 <span class=\"g-term\" data-term=\"emacs\">Emacs</span> 的世界！如果你是第一次听说它，可以先去 <a href=\"http://emacs.sexy/\" target=\"_blank\">Emacs is Sexy</a> 看看 —— 相信我，你会被它的强大所吸引。</p>\n<p>本教程假设你已经安装好了 Emacs。如果没有：</p>" },
+      { type: "p", html: "<p>欢迎来到 <span class=\"g-term\" data-term=\"emacs\">Emacs</span> 的世界！如果你是第一次接触它，可以浏览 <a href=\"http://emacs.sexy/\" target=\"_blank\">Emacs is Sexy</a>，感受其高度自洽与可扩展的魅力。</p>\n<p>本教程假设你已经安装好了 Emacs。如果尚未安装：</p>" },
       { type: "steps", items: [
         { title: "下载 Emacs", desc: "推荐 Doom Emacs 的安装文档，按你的操作系统下载对应版本。新手不要从源码编译。" },
         { title: "首次启动", desc: "打开 Emacs，看到一个「Welcome」界面就算成功。可以先按 q 关掉它。" },
         { title: "完成官方教程", desc: "在 Emacs 里按 <kbd>C-h t</kbd>（Ctrl + h 然后 t）打开官方教程，约 30 分钟。这是最值得投入的半小时。" }
       ] },
       { type: "fold", summary: "为什么要做改键？",
-        body: `<p>Emacs 默认的 <span class="g-term" data-term="meta-key">Meta</span> 键是 Alt —— 你的小拇指能会很难受（想象每天按 Alt 几千次）。改键后：</p>
+        body: `<p>Emacs 默认的 <span class="g-term" data-term="meta-key">Meta</span> 键映射在 Alt 上，频繁点按容易让手指疲劳。建议进行键位优化：</p>
         <ul>
-          <li><strong>Caps Lock → Ctrl</strong> —— 拯救你的小拇指；</li>
-          <li><strong>Win / Option → Meta</strong> —— 让你的大拇指代替小拇指；</li>
-          <li><strong>Alt / ⌘ → Super</strong> —— 留给自定义命令。</li>
+          <li><strong>Caps Lock → Ctrl</strong>：处于键盘主键区黄金位置，大幅减轻小拇指移动负担；</li>
+          <li><strong>Win / Option → Meta</strong>：交由灵活有力的大拇指掌控；</li>
+          <li><strong>Alt / ⌘ → Super</strong>：作为专属修饰键留给自定义扩展命令。</li>
         </ul>
         <p>记住「学可迁移的技能」：这套按键在 Shell、浏览器、IDE 里也能用，终身受用。</p>` },
 
@@ -55,17 +55,17 @@ window.DAYS = [
 
       { type: "component", id: "key-vis" },
 
-      { type: "h2", text: "光标移动 —— 你的第一组命令" },
+      { type: "h2", text: "光标移动：你的第一组核心命令" },
       { type: "p", html: "这 6 个命令是最常用的，也是「Emacs 之心」。把它们练到不用思考。" },
       { type: "component", id: "cursor-demo" },
 
       { type: "h2", text: "把 Mac 习惯搬进 Emacs" },
-      { type: "p", html: "下面这一段让你的 <kbd>⌘</kbd>（或 <kbd>s</kbd> Super 键）像 Mac 一样工作 —— 全选、复制、粘贴、撤销、剪切、保存。" },
+      { type: "p", html: "下面这段配置能让 <kbd>⌘</kbd>（或 <kbd>s</kbd> Super 键）直接复用现代编辑器的熟悉键位，支持全选、复制、粘贴、撤销、剪切与保存：" },
       { type: "code", lang: "elisp", code:
 "(global-set-key (kbd \"s-a\") 'mark-whole-buffer) ;; 全选\n(global-set-key (kbd \"s-c\") 'kill-ring-save)    ;; 复制\n(global-set-key (kbd \"s-s\") 'save-buffer)       ;; 保存\n(global-set-key (kbd \"s-v\") 'yank)              ;; 粘贴\n(global-set-key (kbd \"s-z\") 'undo)              ;; 撤销\n(global-set-key (kbd \"s-x\") 'kill-region)       ;; 剪切" },
 
       { type: "tip", title: "动手时间",
-        body: "把上面这段保存到你的 init 文件里（位置见 Day 3），重启 Emacs。打开任意一个文件，试试 ⌘S、⌘C、⌘V —— 你会发现它们真的工作了！" },
+        body: "将上述代码保存到 init 配置文件中（详见 Day 3），重启 Emacs 并打开任意文件，即可直接使用 ⌘S、⌘C、⌘V 等快捷键。" },
 
       { type: "h2", text: "视频与外部资料" },
       { type: "link-grid", items: [
@@ -83,7 +83,7 @@ window.DAYS = [
   {
     id: 2, title: "打造属于你的记事本", theme: "基础 · 界面与帮助",
     sections: [
-      { type: "p", html: "<p>Emacs 的默认界面有点朴素 —— <span class=\"g-term\" data-term=\"tool-bar\">工具栏</span>、<span class=\"g-term\" data-term=\"scroll-bar\">滚动条</span>、<span class=\"g-term\" data-term=\"menu-bar\">菜单栏</span> 都开着，会抢占屏幕空间。我们来一一关掉它们。</p>" },
+      { type: "p", html: "<p>Emacs 的默认界面较为简洁：功能型的 <span class=\"g-term\" data-term=\"tool-bar\">工具栏</span>、<span class=\"g-term\" data-term=\"scroll-bar\">滚动条</span> 与 <span class=\"g-term\" data-term=\"menu-bar\">菜单栏</span> 默认开启，占用较多屏幕空间。下面按需求逐项关闭它们。</p>" },
 
       { type: "h2", text: "内置功能：行号" },
       { type: "p", html: "显示行号用 <code>M-x linum-mode</code>。但每次手动开太麻烦，所以我们会在 <span class=\"g-term\" data-term=\"init-file\">init 文件</span> 里加上 <code>(global-linum-mode 1)</code>，这样每个 buffer 都自动显示行号。" },
@@ -93,11 +93,11 @@ window.DAYS = [
       { type: "card", variant: "good", title: "🔍 三件套",
         body: `
           <ul>
-            <li><kbd>C-h k</kbd> —— 想知道某个快捷键是干什么的？按它；</li>
-            <li><kbd>C-h f</kbd> —— 想知道某个函数怎么用？输入函数名；</li>
-            <li><kbd>C-h v</kbd> —— 想知道某个变量的含义和当前值？输入变量名。</li>
+            <li><kbd>C-h k</kbd>：按下后跟随任意按键，直接跳转显示该按键绑定的命令与完整文档；</li>
+            <li><kbd>C-h f</kbd>：输入函数名，查阅其说明文档、参数签名与源码链接；</li>
+            <li><kbd>C-h v</kbd>：输入变量名，查看其含义说明、当前取值及可选项。</li>
           </ul>
-          <p>这三个命令就是 Emacs 的「查文档」方式，无需离开编辑器。</p>` },
+          <p>这三个命令构成了 Emacs 的「随查随用」文档入口，全程无需离开编辑器。</p>` },
 
       { type: "h2", text: "把 Emacs 加入右键菜单（Windows）" },
       { type: "p", html: "把下面这段保存为 <code>add-emacs.reg</code>，双击导入注册表，就能右键「用 Emacs 编辑」：" },
@@ -117,7 +117,7 @@ window.DAYS = [
       { type: "p", html: "今天开始真正「<span class=\"g-term\" data-term=\"hacking\">Hacking</span>」！我们写第一段 Elisp，配置第一个插件，写第一个 Org 文件。" },
 
       { type: "h2", text: "5 分钟过 Elisp" },
-      { type: "p", html: "请先打开 <a href=\"https://learnxinyminutes.com/docs/zh-cn/elisp-cn/\" target=\"_blank\">Learn X in Y Minutes · Elisp 中文版</a> 通读一遍（约 15 分钟）。读完你只需要掌握：<span class=\"g-term\" data-term=\"s-expression\">S 表达式</span>、<span class=\"g-term\" data-term=\"function\">函数</span>调用、变量、<span class=\"g-term\" data-term=\"quote\">引用</span>。" },
+      { type: "p", html: "请先打开 <a href=\"https://learnxinyminutes.com/docs/zh-cn/elisp-cn/\" target=\"_blank\">Learn X in Y Minutes · Elisp 中文版</a> 通读一遍（约 15 分钟）。读完后只需掌握四个概念：<span class=\"g-term\" data-term=\"s-expression\">S 表达式</span>、<span class=\"g-term\" data-term=\"function\">函数</span>调用、变量、<span class=\"g-term\" data-term=\"quote\">引用</span>。" },
 
       { type: "h3", text: "几个最小的例子" },
       { type: "code", lang: "elisp", code:
@@ -141,7 +141,7 @@ window.DAYS = [
 ";; 关闭工具栏 / 滚动条 —— 屏幕空间寸土寸金\n(tool-bar-mode -1)\n(scroll-bar-mode -1)\n\n;; 全局显示行号\n(global-linum-mode 1)\n\n;; 改光标样式（更醒目）\n(setq cursor-type 'bar)\n\n;; 启用 minibuffer 增强补全\n(icomplete-mode 1)\n\n;; F2 一键打开配置文件\n(defun open-init-file ()\n  (interactive)\n  (find-file \"~/.emacs.d/init.el\"))\n(global-set-key (kbd \"<f2>\") 'open-init-file)" },
 
       { type: "h3", text: "修改后如何生效？" },
-      { type: "card", variant: "tip", title: "三种方法",
+      { type: "card", variant: "tip", title: "四种方法",
         body: `<ul>
           <li><strong>重启 Emacs</strong>（最稳）；</li>
           <li><strong>M-x load-file</strong> 然后两次回车（重新加载整个 init）；</li>
@@ -169,7 +169,7 @@ window.DAYS = [
   {
     id: 4, title: "增强补全，让 Hacking 更有趣", theme: "进阶 · 现代补全栈",
     sections: [
-      { type: "p", html: "<p>今天的任务是搭建一套「现代 Emacs 补全栈」—— 装完之后你会觉得 Emacs 突然变得和 IDE 一样好用。</p>" },
+      { type: "p", html: "<p>今天的任务是搭建一套「现代 Emacs 补全栈」。装好之后，找文件、查命令、跳转代码都会获得接近 IDE 的流畅体验。</p>" },
 
       { type: "h2", text: "0. 关于 lexical-binding" },
       { type: "p", html: "在你的 init.el <strong>最顶端</strong>加上：<code>;; -*- lexical-binding: t -*-</code>。这会让变量作用域像现代语言一样清晰。" },
@@ -195,7 +195,7 @@ window.DAYS = [
 "(package-install 'consult)\n;; 用 consult-line 替代内置 isearch\n(global-set-key (kbd \"C-s\") 'consult-line)" },
 
       { type: "card", variant: "tip", title: "推荐的安装顺序",
-        body: `把上面四段代码块合并到 init.el 里，然后 <code>M-x eval-buffer</code>。之后 <kbd>M-x</kbd> 试试：<code>find-file</code>、<code>switch-to-buffer</code>、<code>consult-line</code> —— 你会立刻感受到区别。` }
+        body: `把上面四段代码块合并到 init.el 里，然后 <code>M-x eval-buffer</code>。之后用 <kbd>M-x</kbd> 依次尝试 <code>find-file</code>、<code>switch-to-buffer</code> 和 <code>consult-line</code>，候选实时过滤的体验会立刻显现差异。` }
     ]
   },
 
@@ -226,7 +226,7 @@ window.DAYS = [
       { type: "code", lang: "elisp", code:
 "(progn\n  (defvar emax-root (concat (expand-file-name \"~\") \"/emax\"))\n  (setq exec-path (cons (concat emax-root \"/bin\")   exec-path))\n  (setq exec-path (cons (concat emax-root \"/bin64\") exec-path))\n  (setenv \"PATH\" (concat emax-root \"/bin;\" emax-root \"/bin64;\" (getenv \"PATH\")))\n\n  ;; 如果你用 msys2\n  (setenv \"PATH\" (concat \"C:\\\\msys64\\\\usr\\\\bin;\"\n                         \"C:\\\\msys64\\\\mingw64\\\\bin;\"\n                         (getenv \"PATH\"))))" },
       { type: "card", variant: "tip", title: "测试一下",
-        body: `<code>M-x shell</code> 打开内置 shell，敲 <code>ls</code> —— 如果不是「command not found」就说明配置成功。` }
+        body: `<code>M-x shell</code> 打开内置 shell，输入 <code>ls</code> 执行。能正常列出目录内容（而不是提示「command not found」）就说明配置成功。` }
     ]
   },
 
@@ -262,7 +262,7 @@ window.DAYS = [
   {
     id: 7, title: "模块化配置文件管理", theme: "进阶 · 配置架构",
     sections: [
-      { type: "p", html: "<p>当配置越来越多，<code>init.el</code> 会变得臃肿。把不同职责的配置拆到不同文件里 —— 这就是「模块化」。</p>" },
+      { type: "p", html: "<p>随着配置不断增加，<code>init.el</code> 会逐渐臃肿。按职责把配置拆分到不同文件中，就是「模块化」。</p>" },
 
       { type: "h2", text: "目标目录结构" },
       { type: "code", lang: "text", code:
@@ -303,7 +303,7 @@ window.DAYS = [
       { type: "code", lang: "elisp", code:
 "(defmacro inc (var)\n  (list 'setq var (list '1+ var)))\n\n(macroexpand '(inc my-var))     ; 宏展开：会显示 (setq my-var (1+ my-var))\n(inc my-var)                    ; 实际运行：my-var 自增 1" },
 
-      { type: "h3", text: "Backquote —— 写宏的利器" },
+      { type: "h3", text: "Backquote：写宏的利器" },
       { type: "code", lang: "elisp", code:
 ";; ` 是 backquote：引用列表，但允许 , 和 ,@ 选择性求值\n(setq some-list '(2 3))\n`(1 ,@some-list 4 ,@some-list)   ; => (1 2 3 4 2 3)" },
       { type: "component", id: "macro-demo" },
@@ -322,9 +322,9 @@ window.DAYS = [
       { type: "h2", text: "为什么大家都用 use-package" },
       { type: "card", variant: "good", title: "三个理由",
         body: `<ol>
-          <li><strong>配置集中</strong> —— 一个包的所有相关代码都在一个 use-package 块里；</li>
-          <li><strong>错误处理</strong> —— 包不存在也不会让 Emacs 启动失败；</li>
-          <li><strong>延迟加载</strong> —— 启动更快。</li>
+          <li><strong>配置集中</strong>：一个包的所有相关代码聚合在同一个 use-package 块中；</li>
+          <li><strong>错误处理</strong>：即使包不存在，也不会导致 Emacs 启动失败；</li>
+          <li><strong>延迟加载</strong>：按需加载让启动速度更快。</li>
         </ol>` }
     ]
   },
@@ -386,10 +386,10 @@ window.DAYS = [
 
       { type: "card", variant: "info", title: "agenda 视图快捷键",
         body: `<ul>
-          <li><kbd>e</kbd> —— 设置 effort（预估耗时）；</li>
-          <li><kbd>_</kbd> —— 按 effort 过滤；</li>
-          <li><kbd>:</kbd> —— 按 tag 过滤；</li>
-          <li><kbd>t</kbd> —— 切换 TODO 状态。</li>
+          <li><kbd>e</kbd>：设置 effort（预估耗时）；</li>
+          <li><kbd>_</kbd>：按 effort 过滤条目；</li>
+          <li><kbd>:</kbd>：按 tag 过滤条目；</li>
+          <li><kbd>t</kbd>：切换 TODO 状态。</li>
         </ul>` }
     ]
   },
@@ -449,9 +449,9 @@ window.DAYS = [
    * Day 13: Evil
    * =========================================================== */
   {
-    id: 13, title: "Evil —— Vim 按键模拟", theme: "进阶 · 编辑哲学",
+    id: 13, title: "Evil：Vim 按键模拟", theme: "进阶 · 编辑哲学",
     sections: [
-      { type: "p", html: "<p><span class=\"g-term\" data-term=\"evil\">Evil</span> 让 Emacs 拥有了 Vim 的按键。Vim 的「模式」思想让纯键盘编辑效率大幅提升 —— 但你需要适应它。</p>" },
+      { type: "p", html: "<p><span class=\"g-term\" data-term=\"evil\">Evil</span> 为 Emacs 引入了 Vim 的按键体系。Vim 的「模态编辑」思想能大幅提升纯键盘操作效率，但需要一段时间的适应。</p>" },
       { type: "component", id: "evil-stage" },
 
       { type: "h2", text: "Evil 的 6 个状态" },
@@ -481,7 +481,7 @@ window.DAYS = [
     id: 14, title: "精选 packages，大幅提升编辑效率", theme: "进阶 · 编辑增强",
     sections: [
       { type: "h2", text: "多光标：iedit & evil-multiedit" },
-      { type: "p", html: "想在多处同时编辑？看 iedit —— 按一次快捷键，buffer 中所有同名符号都被选中，直接改一处 = 改所有处。" },
+      { type: "p", html: "想在多处同时编辑？试试 iedit：按一次快捷键即可选中 buffer 中所有同名符号，编辑其中一处，其余各处同步修改。" },
       { type: "code", lang: "elisp", code:
 "(use-package iedit\n  :ensure t\n  :config\n  (define-key iedit-mode-keymap (kbd \"M-h\") 'iedit-restrict-function)\n  (define-key iedit-mode-keymap (kbd \"M-i\") 'iedit-restrict-current-line))\n\n(use-package evil-multiedit\n  :ensure t\n  :commands (evil-multiedit-default-keybinds)\n  :init (evil-multiedit-default-keybinds))" },
 
@@ -568,16 +568,16 @@ window.DAYS = [
 "(use-package tab-bar\n  :ensure nil\n  :init\n  (tab-bar-mode 1)\n  (setq tab-bar-new-tab-choice \"*scratch*\"\n        tab-bar-show 1))" },
 
       { type: "h2", text: "tabspaces：项目级工作区" },
-      { type: "p", html: "<span class=\"g-term\" data-term=\"tabspaces\">tabspaces</span> 把 tab 扩展为「工作区」概念 —— 每个工作区有自己的 buffer 列表、自己的主题色，适合在不同项目间切换。" },
+      { type: "p", html: "<span class=\"g-term\" data-term=\"tabspaces\">tabspaces</span> 将 tab 提升为「工作区」概念：每个工作区拥有独立的 buffer 列表和主题色，便于在多个项目之间快速切换。" },
       { type: "code", lang: "elisp", code:
 "(use-package tabspaces\n  :hook (after-init . tabspaces-mode)\n  :custom\n  (tabspaces-use-filtered-buffers-as-default t)\n  (tabspaces-session t)\n  (tabspaces-session-auto-restore t))" },
 
       { type: "card", variant: "good", title: "工作流",
         body: `<ul>
-          <li><kbd>SPC l p</kbd> —— 创建项目工作区；</li>
-          <li><kbd>SPC l l</kbd> —— 切换工作区；</li>
-          <li><kbd>SPC l s</kbd> —— 保存当前工作区；</li>
-          <li><kbd>SPC l L</kbd> —— 恢复上次保存的工作区。</li>
+          <li><kbd>SPC l p</kbd>：创建项目工作区；</li>
+          <li><kbd>SPC l l</kbd>：切换工作区；</li>
+          <li><kbd>SPC l s</kbd>：保存当前工作区；</li>
+          <li><kbd>SPC l L</kbd>：恢复上次保存的工作区。</li>
         </ul>` }
     ]
   },
@@ -610,7 +610,7 @@ window.DAYS = [
    * Day 19: Org Roam
    * =========================================================== */
   {
-    id: 19, title: "Org Roam —— 你的第二大脑", theme: "生产力 · 知识管理",
+    id: 19, title: "Org Roam：你的第二大脑", theme: "生产力 · 知识管理",
     sections: [
       { type: "p", html: "<p><span class=\"g-term\" data-term=\"roam\">Org Roam</span> 是 Org Mode 的「双链笔记」扩展。每个笔记是一个节点，可以互相引用，组成一张网。可视化效果类似 Roam Research。</p>" },
 
@@ -646,10 +646,10 @@ window.DAYS = [
       { type: "h2", text: "Git 冲突、编码问题等" },
       { type: "card", variant: "info", title: "通用排查清单",
         body: `<ol>
-          <li><strong>看 *Messages* buffer</strong> —— 启动时的报错都在里面；</li>
-          <li><strong>二分定位</strong> —— 注释掉一半配置，看错误是否消失；</li>
-          <li><strong>google "Emacs xxx error"</strong> —— 大多数坑都有人踩过；</li>
-          <li><strong>上 Emacs China 论坛</strong> —— 中文社区响应很快。</li>
+          <li><strong>看 *Messages* buffer</strong>：启动时的报错信息都记录在这里；</li>
+          <li><strong>二分定位</strong>：注释掉一半配置，观察错误是否消失，逐步缩小范围；</li>
+          <li><strong>搜索 "Emacs xxx error"</strong>：大多数问题别人都遇到过；</li>
+          <li><strong>上 Emacs China 论坛</strong>：中文社区响应速度快。</li>
         </ol>` }
     ]
   },
@@ -663,7 +663,7 @@ window.DAYS = [
       { type: "h2", text: "度量启动性能" },
       { type: "code", lang: "elisp", code:
 "(use-package benchmark-init\n  :ensure t\n  :demand t\n  :config\n  (add-hook 'after-init-hook #'benchmark-init/deactivate))" },
-      { type: "p", html: "重启后看 <code>*benchmark-init/tree*</code> buffer —— 它会展示每个包加载耗时。" },
+      { type: "p", html: "重启 Emacs 后打开 <code>*benchmark-init/tree*</code> buffer，即可查看每个包的加载耗时。" },
 
       { type: "h2", text: "性能优化技巧" },
       { type: "steps", items: [
@@ -676,7 +676,7 @@ window.DAYS = [
       { type: "h2", text: "结语" },
       { type: "card", variant: "good", title: "🎉 恭喜你！",
         body: `21 天过去了，你已经掌握了 Emacs 的主要功能。<br>
-          但 Emacs 的学习曲线没有终点 —— <strong>每天解决一个小问题，每周学一个新快捷键</strong>，一年之后你会发现自己和别人不一样。<br><br>
+          Emacs 的学习没有终点：<strong>每天解决一个小问题，每周学一个新快捷键</strong>，一年之后你会发现自己已经与众不同。<br><br>
           推荐继续阅读：<a href="https://www.gnu.org/software/emacs/manual/elisp" target="_blank">Elisp Manual</a>、<a href="https://protesilaos.com/" target="_blank">Protesilaos Stavrou 的博客</a>、<a href="https://emacs-china.org" target="_blank">Emacs China 论坛</a>。<br><br>
           <em>Happy hacking!</em>` }
     ]

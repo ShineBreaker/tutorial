@@ -1,6 +1,6 @@
 <section class="ch" id="ch-12-elisp" data-stage="精通" data-min="75">
   <h2 class="ch-title">十二、Emacs Lisp 编程入门</h2>
-  <p class="ch-lead">这一章的目标很具体：让你从「能把别人的配置复制进 <code>init.el</code>」升级到「能读懂它、能改它、能自己写十来行」。读完你会知道该在哪里敲代码、<code>*scratch*</code> 为什么是关键工具、配置文件到底在什么时刻被执行，以及列表、符号、闭包、正则、`condition-case`、字节编译、Edebug 这些东西在实践中各解决什么问题。</p>
+  <p class="ch-lead">这一章的目标很明确——让你从「能把别人的配置复制进 <code>init.el</code>」升级到「能读懂它、能改它、能自己写十来行」。读完你会知道该在哪里敲代码、<code>*scratch*</code> 为什么是关键工具、配置文件到底在什么时刻被执行，以及列表、符号、闭包、正则、`condition-case`、字节编译、Edebug 这些东西在实践中各解决什么问题。</p>
 
   <div class="callout note">
     <b>要点</b>
@@ -622,7 +622,7 @@ for more information.</code></pre>
   <div class="drill" data-answer="缺少 lexical-binding cookie 警告 elisp-enable-lexical-binding">
     <p class="drill-q"><b>练习 9</b>　你 <kbd>C</kbd><kbd>x</kbd> <kbd>C</kbd><kbd>f</kbd> 打开一个别人给的 <code>adder.el</code>，里面有个函数用 <code>let</code> 捕获了一个变量、再返回一个 <code>lambda</code>。你按 <kbd>C</kbd><kbd>M</kbd><kbd>x</kbd> 求值之后调用它，得到 <code>void-variable</code>。Emacs 处理这个文件时给过你一句警告吗？具体是什么？根因是什么？</p>
     <button class="drill-btn" type="button">显示答案</button>
-    <div class="drill-a"><p><strong>先把一件被广泛误传的事说清：出错的不是「存盘 / 重开 Emacs」这个动作，而是「这个文件里没有 <code>lexical-binding</code> cookie」这件事本身。</strong><kbd>C</kbd><kbd>M</kbd><kbd>x</kbd> 只是把当前 buffer 里的这个 <code>defun</code> 求值一遍，<strong>它按当前 buffer 的绑定模式执行，跟你存没存盘、Emacs 是不是刚启动的完全无关</strong>。</p>
+    <div class="drill-a"><p><strong>先把一件被广泛误传的事说清：出错的根源是「这个文件里没有 <code>lexical-binding</code> cookie」，而非「存盘 / 重开 Emacs」这个动作。</strong><kbd>C</kbd><kbd>M</kbd><kbd>x</kbd> 只是把当前 buffer 里的这个 <code>defun</code> 求值一遍，<strong>它按当前 buffer 的绑定模式执行，跟你存没存盘、Emacs 是不是刚启动的完全无关</strong>。</p>
       <p>根因是<strong>动态绑定和词法绑定的区别</strong>。没有 cookie 的 buffer，<code>lexical-binding</code> 是 <code>nil</code>（本书作者实测 <code>(buffer-local-value 'lexical-binding (current-buffer))</code> 返回 <code>nil</code>），走的是<strong>动态绑定</strong>：<code>let</code> 里的变量只在<strong>那个函数还在执行的那段时间里</strong>存在。<strong>而 <code>lambda</code> 是要留到函数返回之后才被调用的——那时 <code>let</code> 早就退出了，那个变量根本不存在，于是 <code>void-variable</code>。</strong></p>
       <p><strong>下面是本书作者在本机 Emacs 32.0.50 上真跑出来的对照实验</strong>，两个文件正文一字不差，只差文件头那一行：</p>
       <pre class="term"><code>无 cookie 的版本：
@@ -681,7 +681,7 @@ M-: (type-of (symbol-function 'condition-case))  RET   =&gt; subr</code></pre>
     <p><strong>读老配置时看到 <code>when-let</code> / <code>if-let</code>，要知道它们在 Emacs 31.1 已经过时了。</strong>我实测 <code>(macroexpand-1 '(when-let ((a 1)) a))</code> 返回 <code>(if-let* ((a 1)) a)</code>，而 <code>subr.el</code> 里 <code>when-let</code> 和 <code>if-let</code> 的 <code>defmacro</code> 上都挂着 <code>(obsolete "use `when-let*' or `and-let*' instead." "31.1")</code>——<strong>你一求值它，字节编译器就会警告</strong>。现在该写的是加星号的新版：<code>if-let*</code>、<code>when-let*</code>、<code>and-let*</code>（我实测这三个 <code>fbound</code> 都是 <code>t</code>）。<strong>这正好是第 4 节的现实用途：碰到不认识的老宏，先 <code>macroexpand</code> 一次，你不但能看懂它，还能立刻发现它该不该换。</strong></p>
   </div>
 
-  <p>宏的本质是：<strong>它不执行，它生成代码</strong>。调用 <code>(when 条件 体…)</code> 时，Emacs 先把这一串符号变成一棵代码树，交给<strong>解释器或字节编译器</strong>去执行。</p>
+  <p>宏的本质可以一句话说清：<strong>它不执行，它生成代码</strong>。调用 <code>(when 条件 体…)</code> 时，Emacs 先把这一串符号变成一棵代码树，交给<strong>解释器或字节编译器</strong>去执行。</p>
 
   <pre class="el"><code>M-: (macroexpand '(when (&gt; 3 2) "yes"))   RET
 =&gt; (if (&gt; 3 2) (progn "yes"))      ;; 宏被展开成了这个
@@ -751,7 +751,7 @@ M-x byte-recompile-directory 并对着可疑目录跑一次即可</code></pre>
 
   <div class="callout note">
     <b>要点</b>
-    <p><strong>什么时候该字节编译？</strong>答案是：<strong>对配置来说，几乎永远不需要。</strong>字节编译的优势主要是启动速度——加载 <code>.elc</code> 比解释 <code>.el</code> 快。代价是<strong>增加了调试难度</strong>（栈回溯里出现 <code>byte-run</code> 的帧，你看不见源码行号）和<strong>开发摩擦</strong>（改了 <code>.el</code> 忘了 <code>recompile</code>，加载的还是旧 <code>.elc</code>，你会debug半天发现「我明明改了」）。</p>
+    <p><strong>什么时候该字节编译？</strong>答案是<strong>「对配置来说，几乎永远不需要」</strong>。字节编译的优势主要是启动速度——加载 <code>.elc</code> 比解释 <code>.el</code> 快。代价是<strong>增加了调试难度</strong>（栈回溯里出现 <code>byte-run</code> 的帧，你看不见源码行号）和<strong>开发摩擦</strong>（改了 <code>.el</code> 忘了 <code>recompile</code>，加载的还是旧 <code>.elc</code>，你会debug半天发现「我明明改了」）。</p>
     <p><strong>实用建议</strong>：开发期不编译，配置稳定后再按需编译。<strong>顺带纠正一个常见说法：<code>use-package</code> 默认【不会】给你的配置字节编译</strong>——我查过 Emacs 32 内置的那份 <code>use-package-core.el</code>，<code>:ensure</code> 的实现只负责装包，不碰 <code>byte-compile</code>（我实测 <code>use-package-always-ensure</code> 默认就是 <code>nil</code>）。如果你真的想要「装包时顺带编译」，得自己在 <code>:ensure</code> 里显式写 <code>(byte-compile-file ...)</code>，或者装完之后手动 <kbd>M</kbd><kbd>x</kbd> <code>byte-recompile-directory</code> 跑一遍。</p>
   </div>
 

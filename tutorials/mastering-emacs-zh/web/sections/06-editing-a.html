@@ -82,12 +82,12 @@ s = make_upper_case(█)
 
   <p>原因在源码里写得很清楚。<code>delete-char</code> 的交互规格是 <code>(interactive "p\nP")</code>：第一个 <code>p</code> 读「数字前缀」当删除个数，第二个 <code>P</code> 读「原始前缀参数」。它的文档字符串写着：<em>“If called interactively, a numeric prefix argument specifies N, and KILLFLAG is also set if a prefix argument is used.”</em>（交互调用时数字前缀决定删几个；<strong>只要你给了任何前缀参数，KILLFLAG 就为真，命令就变成 kill</strong>。）</p>
 
-  <div class="callout warn"><b>易错</b><p>这意味着 <kbd>M</kbd> <kbd>5</kbd> <kbd>C</kbd><kbd>d</kbd> 不是「删 5 个字符」，而是「<strong>kill</strong> 5 个字符进 kill ring」。Emacs 32 的手册在「Deletion」一节只写了「带数字参数时删除指定数量的字符」，没提这个 kill 副作用，但源码文档字符串和实际行为都是 kill。习惯上你几乎不会用数字 <kbd>C</kbd><kbd>d</kbd>，所以平时碰不到；一旦要，就当它是 kill 用。同一条规则适用于 <code>delete-forward-char</code> 和 <code>delete-backward-char</code>（键盘上的 <kbd>Delete</kbd> 键和 <kbd>Backspace</kbd>），它们还多了两项能力：有激活的选区时删的是整个选区（由变量 <code>delete-active-region</code> 控制，默认 <code>t</code>），以及尊重 <code>overwrite-mode</code>（覆写模式）。Emacs 32 的 <code>delete-char</code> 文档字符串也正因如此才说「交互使用请优先选 <code>delete-forward-char</code>」。</p></div>
+  <div class="callout warn"><b>易错</b><p>这意味着 <kbd>M</kbd> <kbd>5</kbd> <kbd>C</kbd><kbd>d</kbd> 的实际效果是「<strong>kill</strong> 5 个字符进 kill ring」，而非单纯的「删 5 个字符」。Emacs 32 的手册在「Deletion」一节只写了「带数字参数时删除指定数量的字符」，没提这个 kill 副作用，但源码文档字符串和实际行为都是 kill。习惯上你几乎不会用数字 <kbd>C</kbd><kbd>d</kbd>，所以平时碰不到；一旦要，就当它是 kill 用。同一条规则适用于 <code>delete-forward-char</code> 和 <code>delete-backward-char</code>（键盘上的 <kbd>Delete</kbd> 键和 <kbd>Backspace</kbd>），它们还多了两项能力：有激活的选区时删的是整个选区（由变量 <code>delete-active-region</code> 控制，默认 <code>t</code>），以及尊重 <code>overwrite-mode</code>（覆写模式）。Emacs 32 的 <code>delete-char</code> 文档字符串也正因如此才说「交互使用请优先选 <code>delete-forward-char</code>」。</p></div>
 
   <h4>1.5 五条规则：把 kill ring 用对</h4>
 
   <ol>
-    <li><strong>连续 kill 会追加成一块。</strong>只有当上一个命令也是 kill 命令时，新的 kill 才接到顶部那块上。敲三次 <kbd>M</kbd><kbd>d</kbd> 连续杀三个词，kill ring 里是<strong>一整块</strong> <code>"one two three"</code>，下一次 <kbd>C</kbd><kbd>y</kbd> 一次全贴出来。</li>
+    <li><strong>连续 kill 会追加成一块。</strong>只有上一个命令也是 kill 命令时，新的 kill 才接到顶部那块上。敲三次 <kbd>M</kbd><kbd>d</kbd> 连续杀三个词，kill ring 里是<strong>一整块</strong> <code>"one two three"</code>，下一次 <kbd>C</kbd><kbd>y</kbd> 一次全贴出来。</li>
     <li><strong>中间插了别的命令，就另起一块。</strong>同样是 <kbd>M</kbd><kbd>d</kbd> 三次，中间按一个 <kbd>C</kbd><kbd>n</kbd> 换行，再三次，kill ring 里是新的一块，上一块还在下面——随时 <kbd>M</kbd><kbd>y</kbd> 退回去拿。</li>
     <li><strong>容量有限但很大，而且是全局的。</strong>由 <code>kill-ring-max</code> 决定（默认 120），满了才挤掉最旧的，跨文件都能取。想看里面堆了什么，按 <kbd>C</kbd><kbd>h</kbd> <kbd>v</kbd> 然后输入 <code>kill-ring</code>。</li>
     <li><strong>kill 就是删除，所以别把 kill ring 当宝贝。</strong>你杀掉的垃圾文本、试错的片段全在里面。它是临时仓库，不是保险箱。</li>
@@ -214,7 +214,7 @@ names = {
 
   <h4>3.3 <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd>：交换两个表达式</h4>
 
-  <p>原理和 <kbd>M</kbd><kbd>t</kbd> 完全平行，只是边界由 <kbd>C</kbd><kbd>M</kbd><kbd>f</kbd>（<code>forward-sexp</code>）来定。Lisp 代码里最直观（实测确认）：<code>(/ (+ 2 n)█(* 4 n))</code> → <code>(/ (* 4 n) (+ 2 n)█)</code>。如果当前位置没有平衡表达式，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 会退化成按词转置（<code>Hello,█World!</code> → <code>World, Hello█!</code>）；而当一个词和一个表达式混在一起时，它照样按表达式的边界来：<code>Hello,█(insert name here)!</code> → <code>(insert name here), Hello█!</code>。</p>
+  <p>原理和 <kbd>M</kbd><kbd>t</kbd> 完全平行，只是边界由 <kbd>C</kbd><kbd>M</kbd><kbd>f</kbd>（<code>forward-sexp</code>）来定。Lisp 代码里最直观（实测确认）：<code>(/ (+ 2 n)█(* 4 n))</code> → <code>(/ (* 4 n) (+ 2 n)█)</code>。如果当前位置没有平衡表达式，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 会退化成按词转置（<code>Hello,█World!</code> → <code>World, Hello█!</code>）；一个词和一个表达式混在一起时，它照样按表达式的边界来：<code>Hello,█(insert name here)!</code> → <code>(insert name here), Hello█!</code>。</p>
 
   <details class="deep"><summary>进阶：Emacs 30 起，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 认语法树</summary>
   <p>Emacs 30 新增变量 <code>transpose-sexps-function</code>，用来决定 <code>transpose-sexps</code> 怎么找边界，并把旧实现挪进了 <code>transpose-sexps-default-function</code>。tree-sitter（Emacs 内置的语法树解析库）会为所有它支持的语言设置这个变量（见 <code>etc/NEWS.30</code>）。也就是说 Emacs 31/32 里，在开启 tree-sitter 的语言中 <kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 按真正的语法树转置，不再只认括号。如果你用 <kbd>M</kbd><kbd>t</kbd> 在 C 代码里觉得切分不对路，多半是词法单位的差异，<kbd>C</kbd><kbd>M</kbd><kbd>t</kbd> 才是对的那个。</p>

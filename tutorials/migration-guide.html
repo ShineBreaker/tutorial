@@ -374,10 +374,10 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
   <span class="eyebrow">EDITOR MIGRATION GUIDE</span>
   <h1>从 Zed / VSCode 到 <span class="grad">Emacs</span></h1>
   <p class="sub">
-    你在其他编辑器里的常用操作，这里几乎都有一一对应的键位——而且本配置已经把
-    <b>C-s 保存、C-p 找文件、C-S-f 查找、C-d 多光标</b>这些现代习惯直接搬了进来。
-    迁移不是「从头学一套按键」，而是先用手上的肌肉记忆平滑落地，再逐步解锁
-    Emacs 真正的过人之处。
+    你在现代编辑器里的常用操作，这里几乎都有一一对应的按键；这份配置更把
+    <b>C-s 保存、C-p 打开文件、C-S-f 查找、C-d 多光标</b>等高频习惯直接纳为默认键位。
+    迁移的核心在于依托既有肌肉记忆平滑落地，再循序渐进地解锁
+    Emacs 的深度定制与键盘工作流优势。
   </p>
   <div class="meta">
     <span>适用于本机 <code>emacs.org</code> 配置</span><span class="dot">·</span>
@@ -419,13 +419,13 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
   </div>
   <aside class="idea">
     <span class="t">这一节的意义</span>
-    <p>很多人对 Emacs 的恐惧来自「键位全要重学」。这份配置的哲学恰恰相反：
-    高频操作保留你现在的肌肉记忆，把学习成本留给那些<b>别的编辑器给不了</b>的能力。
-    上面任何一条不确定时，按 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>k</kbd></span>
-    再按那个键，Emacs 会告诉你它是什么。</p>
-    <p>注：本配置已把 <span class="kbd-seq"><kbd>C-h</kbd></span> 挪作「左移光标」
-    （对齐现代编辑器 Home 排的手位），帮助前缀整体住在 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd></span>
-    上——功能与教科书里的 C-h 一模一样，只是换了门牌。</p>
+    <p>初学 Emacs 常让人担心“所有键位都要重新背”。这份配置的设计恰恰相反：
+    高频编辑操作直接延续你既有的肌肉记忆，让你把精力留给那些<b>现代编辑器难以匹敌</b>的深度能力。
+    任何键位若不确定，随时按下 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>k</kbd></span>
+    再按该键，Emacs 会就地展示其完整文档。</p>
+    <p>注：本配置已将 <span class="kbd-seq"><kbd>C-h</kbd></span> 设为“光标左移”
+    （贴合现代键盘 Home 排手位），全局帮助前缀统一设为 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd></span>
+    ——功能与各类教材中提及的 C-h 完全一致，只是入口按键更加直观自然。</p>
   </aside>
 </section>
 
@@ -433,8 +433,8 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
 <section id="mind">
   <h2><span class="no">§1</span>三个心智转变：从「记键位」到「会探索」</h2>
   <p class="lead">
-    迁移 Emacs 真正的坎不是键位数量，而是它对「编辑器应该长什么样」的三个不同假设。
-    理解它们之后，你不再需要背任何速查表——因为编辑器本身会告诉你答案。
+    初涉 Emacs，最关键的转变不在于记下多少按键，而在于理解它对“编辑器形态与交互”的三个核心假设。
+    厘清这三点后，你无需死记任何速查表，编辑器自身就能为你提供清晰的探索线索。
   </p>
 
   <div class="mindgrid">
@@ -449,24 +449,23 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
     </div>
     <div class="mind">
       <span class="num">2</span>
-      <h4>万物皆命令，帮助永远在手边</h4>
-      <p>界面上每个按钮背后都是一条具名命令，都可以用
-      <span class="kbd-seq"><kbd>M-x</kbd></span> 按名字调用、可以问、可以改。</p>
-      <p>自助体系：<span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>k</kbd></span> 按了某键会怎样、
-      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>f</kbd></span> 函数是干嘛的、
-      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>v</kbd></span> 变量含义、
-      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>b</kbd></span> 列出当前所有键、
-      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>?</kbd></span> 本配置的全局中文速查表。
-      本配置把 <span class="kbd-seq"><kbd>C-h</kbd></span> 挪作左移光标，帮助前缀住在
-      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd></span>——与各教程里的 C-h 同义。</p>
+      <h4>万物皆命令，帮助触手可及</h4>
+      <p>编辑器内的每一项操作背后都是一条具名命令，均可通过
+      <span class="kbd-seq"><kbd>M-x</kbd></span> 按名检索、调用、查询文档或重新绑定。</p>
+      <p>核心探索按键：<span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>k</kbd></span> 查看指定按键绑定、
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>f</kbd></span> 查看函数功能与源码、
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>v</kbd></span> 查询变量取值与说明、
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>b</kbd></span> 列出当前缓冲区全部有效键位、
+      <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd> <kbd>?</kbd></span> 查看本配置内建的全局速查表。
+      （本配置将帮助前缀统一设为 <span class="kbd-seq"><kbd>&lt;f1&gt;</kbd></span>，与外部教程中的 C-h 作用相同。）</p>
     </div>
     <div class="mind">
       <span class="num">3</span>
-      <h4>很多功能是「会话」而不是「面板」</h4>
-      <p>isearch、minibuffer 补全、矩形编辑都是临时接管键盘的<b>模式</b>：进去后同一批键有了新含义，
-      用 <span class="kbd-seq"><kbd>C-g</kbd></span> 或 <span class="kbd-seq"><kbd>ESC</kbd></span>
-      随时退出。</p>
-      <p><span class="kbd-seq"><kbd>C-g</kbd></span> 是万能取消：卡住了、按错了、想反悔了，先按它。</p>
+      <h4>功能以“交互会话”呈现，而非独立侧板</h4>
+      <p>增量搜索（isearch）、命令补全（minibuffer）、矩形编辑都是临时接管键盘的专注模式：进入会话后，按键拥有专属上下文行为，
+      按下 <span class="kbd-seq"><kbd>C-g</kbd></span> 或 <span class="kbd-seq"><kbd>ESC</kbd></span>
+      即可随时安全退出。</p>
+      <p><span class="kbd-seq"><kbd>C-g</kbd></span> 是全局通用取消键：无论误触、卡住或中途撤销，先按它即可回到稳定状态。</p>
     </div>
   </div>
 
@@ -608,14 +607,13 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
     </table>
     </div>
     <aside class="idea">
-      <span class="t">Emacs 的思路：DWIM——「按我指的做」</span>
-      <p>同一个键在有选区和无选区时做「你显然想要的」那件事：
-      <span class="kbd-seq"><kbd>C-S-c</kbd></span> 有选区复制选区、无选区复制整行；
-      <span class="kbd-seq"><kbd>C-w</kbd></span> 无选区时删除整行。
-      VSCode 里「先 Home 再 Shift+End 再 Ctrl+C」的三步，这里是一步。</p>
-      <p>剪贴板不是一块，是一个<b>环</b>：每次复制都入环，过去的一切随时用
-      <span class="kbd-seq"><kbd>M-y</kbd></span> 找回来。写作或改配置时「刚才复制的那段还在吗」
-      从此是伪问题。</p>
+      <span class="t">Emacs 的思路：DWIM——依上下文推断意图</span>
+      <p>同一按键会根据是否存在选区自动执行最合理的操作：
+      <span class="kbd-seq"><kbd>C-S-c</kbd></span> 有选区时复制选区，无选区时自动复制当前整行；
+      <span class="kbd-seq"><kbd>C-w</kbd></span> 无选区时直接剪切整行。
+      在传统编辑器中需要“Home → Shift+End → Ctrl+C”的三步组合，在这里一击即可完成。</p>
+      <p>剪贴板并非单一覆盖的暂存区，而是一个有序的<b>剪贴环（kill-ring）</b>：历次复制内容均完整保留，粘贴后随时按
+      <span class="kbd-seq"><kbd>M-y</kbd></span> 即可向前回溯历史记录，彻底避免误覆盖带来的麻烦。</p>
     </aside>
   </article>
 
@@ -638,11 +636,11 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
     </table>
     </div>
     <aside class="idea">
-      <span class="t">Emacs 的思路：多光标只是手段之一，正则替换往往更快</span>
-      <p>多光标适合「看得见才放心」的十几处小改；当代码里散落几十处同构修改时，
-      先用 <span class="kbd-seq"><kbd>C-S-f</kbd></span> 搜到、
-      <span class="kbd-seq"><kbd>M-%</kbd></span> 转 replace，
-      一个 <code>!</code> 全部完成——这不是劝退多光标，而是两条路都在，选省力的。</p>
+      <span class="t">Emacs 的思路：多光标直观局部，正则替换全局高效</span>
+      <p>多光标非常适合十余处肉眼可见的局部编辑；如果代码中散落着数十处结构一致的改动，
+      先用 <span class="kbd-seq"><kbd>C-S-f</kbd></span> 定位、再按
+      <span class="kbd-seq"><kbd>M-%</kbd></span> 转入交互替换，输入 <code>!</code> 即可全量替换。
+      两者各有所长，依场景灵活选择往往更省心省力。</p>
     </aside>
   </article>
 
@@ -711,13 +709,13 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
     </table>
     </div>
     <aside class="idea">
-      <span class="t">Emacs 的思路：窗口是纯键盘可管理的树，鼠标是加分项</span>
-      <p>Zed / VSCode 的窗格靠拖；Emacs 的窗口是<b>树结构</b>，旋转、镜像、转置都是 O(1)
-      的结构变换——键盘比拖拽更快，而且 <span class="kbd-seq"><kbd>C-c w u</kbd></span>
-      让任何布局变化都可撤销，可以放心乱试。</p>
-      <p>右键菜单被刻意保留为「功能发现入口」：菜单栏工具栏都已隐藏，
-      右键（或 <span class="kbd-seq"><kbd>S-&lt;f10&gt;</kbd></span>）里集中了查找替换与调窗入口，
-      <b>每个菜单项右侧还印着对应的快捷键</b>——用鼠标的过程就是在背键位。</p>
+      <span class="t">Emacs 的思路：窗口是以树结构组织的纯键盘空间</span>
+      <p>现代编辑器的窗格多依赖鼠标拖拽调整；Emacs 的多窗口是纯粹的<b>二叉树结构</b>，旋转、镜像、转置均为即时结构变换。
+      键盘操作不仅干脆利落，而且配合 <span class="kbd-seq"><kbd>C-c w u</kbd></span>（winner-mode），
+      任何分屏调整都能随时撤销，可放手尝试各种布局。</p>
+      <p>右键菜单被专门设计为平滑过渡的“功能发现通道”：在极简界面下，
+      鼠标右键（或键盘 <span class="kbd-seq"><kbd>S-&lt;f10&gt;</kbd></span>）汇集了常用查找与调窗功能，
+      且<b>每个菜单条目旁均标注了对应快捷键</b>，让你在使用鼠标的同时自然建立键盘映射。</p>
     </aside>
   </article>
 
@@ -795,16 +793,14 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
     </table>
     </div>
     <aside class="idea">
-      <span class="t">Emacs 的思路：Magit 把 Git 的「状态机」变成「清单」</span>
-      <p>Git 命令行难在你要<b>记得下一步是什么</b>；Magit 状态页把整个仓库状态摊开成
-      分组清单，操作围绕「光标在哪一行」展开——光标在未暂存文件上按
-      <span class="kbd-seq"><kbd>s</kbd></span> 暂存、在已暂存上按
-      <span class="kbd-seq"><kbd>u</kbd></span> 取消、在 hunk 上按
-      <span class="kbd-seq"><kbd>k</kbd></span> 丢弃。上下文即参数，几乎没有要背的东西。</p>
-      <p>唯一易混点：<span class="kbd-seq"><kbd>TAB</kbd></span> 只是折叠分组；
-      状态页内 <span class="kbd-seq"><kbd>s</kbd></span> 的补全候选只列单个文件——
-      <b>整目录暂存</b>请用 <span class="kbd-seq"><kbd>C-c g a</kbd></span>（目录感知）
-      或文件面板里的 <span class="kbd-seq"><kbd>C-c s</kbd></span>。</p>
+      <span class="t">Emacs 的思路：Magit 将抽象状态机转化为可视清单</span>
+      <p>Git 命令行的认知负担往往来自“时刻回忆下一步该打什么参数”；Magit 状态页则将整个仓库状态直观展开为分组清单，所有操作均围绕光标所在条目展开——光标停在未暂存项上按
+      <span class="kbd-seq"><kbd>s</kbd></span> 暂存，在已暂存项上按
+      <span class="kbd-seq"><kbd>u</kbd></span> 取消暂存，在单个改动块（hunk）上按
+      <span class="kbd-seq"><kbd>k</kbd></span> 丢弃。当前上下文即操作对象，无需死记复杂子命令。</p>
+      <p>操作提示：<span class="kbd-seq"><kbd>TAB</kbd></span> 负责折叠或展开分组；
+      如需<b>暂存整个目录</b>，可在文件面板或当前文件内直接按下 <span class="kbd-seq"><kbd>C-c g a</kbd></span>（目录感知），
+      或在文件面板中使用 <span class="kbd-seq"><kbd>C-c s</kbd></span>。</p>
     </aside>
     <pre class="code"><code><span class="cmt">;; 一次完整的提交循环（全程不碰鼠标）</span>
 <span class="pfx">C-S-g</span>            <span class="cmt">; 打开底部 Magit 状态页：改动按分组铺开</span>
@@ -830,11 +826,11 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
     </table>
     </div>
     <aside class="idea">
-      <span class="t">Emacs 的思路：缓冲区比标签页更「多」也更轻</span>
-      <p>打开一个文件就有一个缓冲区，但<b>不是每个缓冲区都值得占一个标签位</b>——
-      本配置把终端、Magit、文件面板这类工具缓冲区自动排除在标签栏外，
-      标签栏里永远是「你正在编辑的内容」。缓冲区多了不用关：
-      <span class="kbd-seq"><kbd>C-x p k</kbd></span> 一键清掉整个项目的。</p>
+      <span class="t">Emacs 的思路：缓冲区比标签页更轻量且容量充裕</span>
+      <p>每打开一个文件都会创建一个对应的缓冲区，但<b>并非所有缓冲区都需要常驻标签栏</b>。
+      本配置自动将终端、Magit 状态页、文件面板等辅助缓冲区移出标签栏，
+      使标签区始终保持清晰可读，只展示核心编辑内容。缓冲区变多也无需逐一关闭，
+      通过 <span class="kbd-seq"><kbd>C-x p k</kbd></span> 即可一键安全清理当前项目的全部缓冲区。</p>
     </aside>
   </article>
 
@@ -856,12 +852,11 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
     </table>
     </div>
     <aside class="idea">
-      <span class="t">Emacs 的思路：这份配置本身就是一本可执行的书</span>
-      <p><span class="kbd-seq"><kbd>C-,</kbd></span> 打开的 <code>emacs.org</code> 里，
-      每段代码上方都写着「为什么这样设计」。想知道某个行为的来龙去脉，
-      先在这份文档里搜——改它、重启 daemon，配置即时生效。
-      想改某个具体行为又不知从何下手？
-      <span class="kbd-seq"><kbd>M-x</kbd></span> 输入 <code>customize-group</code> 回车浏览。</p>
+      <span class="t">Emacs 的思路：配置本身即是一本可执行的活手册</span>
+      <p>按下 <span class="kbd-seq"><kbd>C-,</kbd></span> 即可打开 <code>emacs.org</code>。
+      在文学编程风格下，每段配置代码上方均附有清晰的设计考量与动机说明。
+      若想调整某项特定行为，可直接在文档中搜索修改，或通过
+      <span class="kbd-seq"><kbd>M-x</kbd></span> 执行 <code>customize-group</code> 进行交互式配置浏览与修改。</p>
     </aside>
   </article>
 </section>
@@ -870,7 +865,7 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
 <section id="power">
   <h2><span class="no">§3</span>Emacs 独有的提效武器</h2>
   <p class="lead">
-    这些能力在其他编辑器里要么没有、要么残缺。它们才是迁移的「回报」——每一个都值得专门练一周。
+    这些能力在其他编辑器中往往难以觅得或实现受限，构成了迁移 Emacs 的核心复利，值得在日常编辑中有意识地体会运用。
   </p>
 
   <article class="card">
@@ -934,9 +929,9 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
     <h3>守护进程模型：Emacs 永远「已经开着」</h3>
     <p>
       Emacs 以 daemon 常驻后台：图形窗口（<code>emacsclient -c</code>）和终端界面
-      （<code>emacsclient -t</code>）是同一个会话的两个脸——终端里开着的文件，
-      回到桌面图形窗口还在原处；启动「新窗口」接近零耗时。这在 Zed / VSCode 里
-      没有对应物，是 daemon 化 Emacs 的核心红利。
+      （<code>emacsclient -t</code>）是同一个运行会话的两个视图——终端里打开的文件，
+      切回桌面图形窗口时一切均保持原状，开启新窗口几乎瞬时完成。这种全会话一体化体验，
+      正是 daemon 常驻架构的核心优势。
     </p>
   </article>
 </section>
@@ -990,14 +985,14 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
       <h4>第四周：Magit 接管全部 Git 操作</h4>
       <p>一周内禁止自己敲 <code>git add</code>：状态页 <span class="kbd-seq"><kbd>C-S-g</kbd></span>、
       目录暂存 <span class="kbd-seq"><kbd>C-c g a</kbd></span>、提交 <span class="kbd-seq"><kbd>c c</kbd></span>、
-      推送 <span class="kbd-seq"><kbd>P u</kbd></span>。第四天开始你会感觉到「清单式操作」比命令行快。</p>
+      推送 <span class="kbd-seq"><kbd>P u</kbd></span>。不出数日，你便能体会到可视化清单相较纯命令行在效率与掌控感上的明显提升。</p>
     </li>
     <li>
       <h4>之后：读配置，改配置</h4>
       <p><span class="kbd-seq"><kbd>C-,</kbd></span> 打开 <code>emacs.org</code>，
       从你最在意的功能域读起（每个域开头都有设计说明）。改完
       <code>herd restart emacs-daemon</code> 即生效——把自己的工作流长进编辑器里，
-      才是这次迁移的终点，也是 Emacs 的意义。</p>
+      正是本次迁移的终极目标，也是 Emacs 作为终身工具的真正价值。</p>
     </li>
   </ol>
 

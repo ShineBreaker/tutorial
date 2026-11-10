@@ -11,7 +11,7 @@ window.Glossary = {
   },
   "buffer": {
     name: "Buffer（缓冲区）",
-    body: "你正在编辑的内容的内存表示。每打开一个文件，Emacs 就把它读进一个 buffer；scratch 缓冲区则是临时草稿。buffer 不等于文件 —— 编辑中它只存在内存里，<code>C-x C-s</code> 才会写回磁盘。"
+    body: "你正在编辑的内容的内存表示。每打开一个文件，Emacs 就把它读进一个 buffer；scratch 缓冲区则是临时草稿。buffer 不等于文件：编辑过程中它只存在于内存中，按 <code>C-x C-s</code> 才会写回磁盘。"
   },
   "window": {
     name: "Window（窗口）",
@@ -97,19 +97,19 @@ window.Glossary = {
   },
   "setq": {
     name: "setq",
-    body: "「set quoted」—— 给变量赋值。<code>(setq x 5)</code> 把变量 x 的值设为 5。它的「q」表示参数不被求值（除非再加一层引号 / 用 setq-default）。"
+    body: "「set quoted」的缩写，用于给变量赋值。<code>(setq x 5)</code> 把变量 x 的值设为 5。其中「q」表示第一个参数（变量名）按字面引用、不再求值。"
   },
   "setq-default": {
     name: "setq-default",
-    body: "设置变量的「默认值」。与 setq 的区别：setq 只影响当前 buffer，setq-default 影响所有未在 buffer 局部覆盖的 buffer。"
+    body: "设置变量的「默认值」。与 setq 的区别：setq 只影响当前 buffer；setq-default 修改默认值，对所有没有局部覆盖该变量的 buffer 生效。"
   },
   "quote": {
     name: "quote / '",
-    body: "「引用」—— 阻止表达式被求值。Elisp 中 <code>'foo</code> 是 <code>(quote foo)</code> 的简写。例如 <code>'(1 2 3)</code> 是「字面意义上的列表 1 2 3」，而 <code>(list 1 2 3)</code> 是「运行时构造的列表」（结果巧合相同，但语义不同）。"
+    body: "「引用」—— 阻止表达式被求值。Elisp 中 <code>'foo</code> 是 <code>(quote foo)</code> 的简写。例如 <code>'(1 2 3)</code> 是「字面意义上的列表 1 2 3」，而 <code>(list 1 2 3)</code> 是「运行时构造的列表」（结果恰好相同，但语义不同）。"
   },
   "macro": {
     name: "Macro（宏）",
-    body: "一种「生成代码的代码」。用 <code>(defmacro name (args) body)</code> 定义。调用宏时，body 不是直接运行，而是产生一段新的 Elisp 代码，再被求值。宏是 Lisp 最强大的特性之一。"
+    body: "一种「生成代码的代码」。用 <code>(defmacro name (args) body)</code> 定义。调用宏时，body 先展开成一段新的 Elisp 代码，再由求值器执行。宏是 Lisp 最强大的特性之一。"
   },
   "backquote": {
     name: "Backquote / `",
@@ -117,7 +117,7 @@ window.Glossary = {
   },
   "lexical-binding": {
     name: "lexical-binding",
-    body: "一种变量绑定规则 —— 变量的作用域由「书写位置」决定（像 JavaScript / Python），而不是由「运行时栈」决定（动态绑定）。现代 Elisp 推荐在文件开头加 <code>;; -*- lexical-binding: t -*-</code>。"
+    body: "一种变量绑定规则：变量的作用域由代码的书写位置决定（类似 JavaScript / Python 的词法作用域），与之相对的是由运行时调用栈决定的动态绑定。现代 Elisp 推荐在文件开头加 <code>;; -*- lexical-binding: t -*-</code>。"
   },
   "cons": {
     name: "cons / cons cell",
@@ -165,7 +165,7 @@ window.Glossary = {
   /* ---------- 补全 / 搜索 ---------- */
   "company": {
     name: "Company",
-    body: "Complete Anything 的递归缩写。一个流行的代码补全框架 —— 你敲几个字母，它会弹出一个候选列表。可与 LSP 后端配合实现语义级补全。"
+    body: "「Complete Anything」的缩写。一个流行的代码补全框架：你敲几个字母，它会弹出候选列表。可与 LSP 后端配合实现语义级补全。"
   },
   "vertico": {
     name: "Vertico",
@@ -173,7 +173,7 @@ window.Glossary = {
   },
   "consult": {
     name: "Consult",
-    body: "一搜即用的命令合集 —— consult-line（搜索）、consult-buffer（切 buffer）、consult-ripgrep（全文搜索）、consult-imenu（跳转函数）等。是现代 Emacs 的瑞士军刀。"
+    body: "一组即查即用的实用命令合集：consult-line（搜索）、consult-buffer（切 buffer）、consult-ripgrep（全文搜索）、consult-imenu（跳转函数）等，堪称现代 Emacs 的瑞士军刀。"
   },
   "orderless": {
     name: "Orderless",
@@ -239,7 +239,7 @@ window.Glossary = {
   },
   "magit": {
     name: "Magit",
-    body: "Emacs 里的 Git 界面 —— 文字描述它是「最快的 Git 客户端」。所有 Git 操作（提交、分支、rebase、diff）都能在 Emacs 里可视化完成，被誉为「杀手级应用」。"
+    body: "Emacs 中的 Git 界面，被许多人称为「最好用的 Git 客户端」。所有 Git 操作（提交、分支、rebase、diff）都能在 Emacs 里可视化完成，是公认的「杀手级应用」。"
   },
   "treesit": {
     name: "Tree-sitter",
@@ -287,7 +287,7 @@ window.Glossary = {
   },
   "yank": {
     name: "Yank",
-    body: "Emacs 的「粘贴」。从 kill ring 中取出一条文本插入到当前位置。区别于大多数编辑器的「粘贴」概念 —— Emacs 的 kill ring 历史更长、更可循环。"
+    body: "Emacs 的「粘贴」。从 kill ring 中取出一条文本插入到当前位置。与大多数编辑器只有一条剪贴板历史不同，Emacs 的 kill ring 保留多条历史，可以循环取用。"
   },
   "region": {
     name: "Region（区域）",
