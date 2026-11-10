@@ -15,10 +15,10 @@ export default {
 <p>先用一段预告说明它的结构：真实 agent 的四要素一样不少，只是每一样都换成了最小实现。</p>
 <table>
   <tr><th>四要素</th><th>真实 claude-code</th><th>迷你版</th></tr>
-  <tr><td>🧠 大脑</td><td>API 流式调用（claude.ts）</td><td><code>mockLLM()</code>：按剧本回答</td></tr>
-  <tr><td>🔧 工具</td><td>zod schema + 六道关卡</td><td><code>TOOLS</code>：3 个工具，带 validate</td></tr>
-  <tr><td>📚 上下文</td><td>四级瘦身</td><td>不瘦身（历史直接增长）</td></tr>
-  <tr><td>🔁 循环</td><td>query.ts 的 while (true)</td><td><code>buildSteps()</code> 的 while (true)</td></tr>
+  <tr><td>大脑</td><td>API 流式调用（claude.ts）</td><td><code>mockLLM()</code>：按剧本回答</td></tr>
+  <tr><td>工具</td><td>zod schema + 六道关卡</td><td><code>TOOLS</code>：3 个工具，带 validate</td></tr>
+  <tr><td>上下文</td><td>四级瘦身</td><td>不瘦身（历史直接增长）</td></tr>
+  <tr><td>循环</td><td>query.ts 的 while (true)</td><td><code>buildSteps()</code> 的 while (true)</td></tr>
 </table>`,
     },
     { type: 'h2', text: '第一段：工具集' },

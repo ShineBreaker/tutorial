@@ -90,7 +90,7 @@ window.DAYS = [
 
       { type: "h2", text: "富文档：Emacs 是 Self-document 的" },
       { type: "p", html: "Emacs 的自我描述能力极强，三个快捷键会让你爱不释手：" },
-      { type: "card", variant: "good", title: "🔍 三件套",
+      { type: "card", variant: "good", title: "三件套",
         body: `
           <ul>
             <li><kbd>C-h k</kbd>：按下后跟随任意按键，直接跳转显示该按键绑定的命令与完整文档；</li>
@@ -674,7 +674,7 @@ window.DAYS = [
       ] },
 
       { type: "h2", text: "结语" },
-      { type: "card", variant: "good", title: "🎉 恭喜你！",
+      { type: "card", variant: "good", title: "恭喜你！",
         body: `21 天过去了，你已经掌握了 Emacs 的主要功能。<br>
           Emacs 的学习没有终点：<strong>每天解决一个小问题，每周学一个新快捷键</strong>，一年之后你会发现自己已经与众不同。<br><br>
           推荐继续阅读：<a href="https://www.gnu.org/software/emacs/manual/elisp" target="_blank">Elisp Manual</a>、<a href="https://protesilaos.com/" target="_blank">Protesilaos Stavrou 的博客</a>、<a href="https://emacs-china.org" target="_blank">Emacs China 论坛</a>。<br><br>

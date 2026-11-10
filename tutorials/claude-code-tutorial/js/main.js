@@ -78,7 +78,7 @@ function renderCode(section) {
     head.append(file, title, btn)
   }
   if (section.note) {
-    head.append(el('div', 'code-note', `💡 ${escapeHtml(section.note)}`))
+    head.append(el('div', 'code-note', escapeHtml(section.note)))
   }
 
   const pre = el('pre', 'code-body')

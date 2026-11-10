@@ -41,7 +41,7 @@ function renderDays() {
       b.classList.toggle('completed');
       window.App.refreshProgress();
       window.App.refreshNav();
-      window.Components.toast(window.Storage.completed.has(id) ? '🎉 已完成 Day ' + id : '已取消完成 Day ' + id);
+      window.Components.toast(window.Storage.completed.has(id) ? '已完成 Day ' + id : '已取消完成 Day ' + id);
     });
   });
 }
@@ -51,17 +51,17 @@ function renderSection(s) {
   switch (s.type) {
     case 'intro': return `
       <div class="card card--info">
-        <div class="card__title">📚 本日目标</div>
+        <div class="card__title">本日目标</div>
         <p style="margin:0">今天我们会涉及：<br>
           <span class="kbd">${(s.theme||'').replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</span> · 预计耗时 30-45 分钟</p>
       </div>`;
     case 'p': return `<div class="prose">${s.html}</div>`;
     case 'h2': return `<h2>${s.text}</h2>`;
     case 'h3': return `<h3>${s.text}</h3>`;
-    case 'tip': return `<div class="card card--tip"><div class="card__title">💡 ${s.title}</div><div>${s.body}</div></div>`;
-    case 'warn': return `<div class="card card--warn"><div class="card__title">⚠ ${s.title}</div><div>${s.body}</div></div>`;
-    case 'good': return `<div class="card card--good"><div class="card__title">✅ ${s.title}</div><div>${s.body}</div></div>`;
-    case 'info': return `<div class="card card--info"><div class="card__title">ℹ ${s.title}</div><div>${s.body}</div></div>`;
+    case 'tip': return `<div class="card card--tip"><div class="card__title">${s.title}</div><div>${s.body}</div></div>`;
+    case 'warn': return `<div class="card card--warn"><div class="card__title">${s.title}</div><div>${s.body}</div></div>`;
+    case 'good': return `<div class="card card--good"><div class="card__title">${s.title}</div><div>${s.body}</div></div>`;
+    case 'info': return `<div class="card card--info"><div class="card__title">${s.title}</div><div>${s.body}</div></div>`;
     case 'card': return `<div class="card card--${s.variant||'info'}"><div class="card__title">${s.title}</div><div>${s.body}</div></div>`;
     case 'code': {
       // data/content.js 里的字符串用 "\n" 字面量表达换行（单字符反斜杠+n）

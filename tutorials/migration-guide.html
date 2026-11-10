@@ -96,7 +96,8 @@ nav.topbar .brand {
 nav.topbar .brand .logo { color: var(--accent); margin-right: 6px; }
 nav.topbar a.navlink {
   color: var(--fg-muted); text-decoration: none; font-size: 14px;
-  padding: 4px 10px; border-radius: 8px; transition: all .15s;
+  padding: 4px 10px; border-radius: 8px;
+  transition: color .15s, background-color .15s;
   white-space: nowrap;
 }
 nav.topbar a.navlink:hover { color: var(--fg); background: var(--bg-sunk); }
@@ -110,16 +111,13 @@ header.hero .eyebrow {
   display: inline-block; font-size: 13px; font-weight: 600;
   color: var(--accent); background: var(--accent-soft);
   padding: 3px 14px; border-radius: 999px; margin-bottom: 18px;
-  letter-spacing: .12em;
+  letter-spacing: .03em;
 }
 header.hero h1 {
   font-size: clamp(30px, 5vw, 46px); line-height: 1.25;
   margin: 0 0 16px; font-weight: 800; letter-spacing: .01em;
 }
-header.hero h1 .grad {
-  background: linear-gradient(120deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
+header.hero h1 .grad { color: var(--accent); }
 header.hero p.sub {
   font-size: 17px; color: var(--fg-muted); max-width: 46em; margin: 0 0 26px;
 }
@@ -349,6 +347,11 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
 /* 响应式：窄屏表格横向滚动 */
 .scrollwrap { overflow-x: auto; }
 @media (max-width: 720px) {
+  nav.topbar .inner {
+    flex-wrap: nowrap; overflow-x: auto;
+    gap: 12px; padding: 8px 16px;
+  }
+  nav.topbar .inner > * { flex: 0 0 auto; }
   header.hero { padding-top: 44px; }
   table.vs { font-size: 13.5px; }
   table.vs td.you { width: 36%; }
@@ -371,7 +374,7 @@ button#toTop:hover { color: var(--accent); border-color: var(--accent); }
 </nav>
 
 <header class="hero" id="top">
-  <span class="eyebrow">EDITOR MIGRATION GUIDE</span>
+  <span class="eyebrow">Editor Migration Guide</span>
   <h1>从 Zed / VSCode 到 <span class="grad">Emacs</span></h1>
   <p class="sub">
     你在现代编辑器里的常用操作，这里几乎都有一一对应的按键；这份配置更把

@@ -605,7 +605,7 @@ pre.code-body {
   font-size: 13px;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s;
 }
 .sim-btn:hover { border-color: var(--accent); color: var(--accent); }
 .sim-btn:disabled { opacity: 0.45; cursor: not-allowed; }
