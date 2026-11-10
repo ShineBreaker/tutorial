@@ -77,6 +77,12 @@ def main() -> None:
             frozenset(),
             "scheme-primer-zh.html（单文件成品）",
         ),
+        (
+            ROOT / "tutorials/x-collection",
+            SITE / "x-collection",
+            frozenset({"README.md"}),
+            "x-collection/（排除 README.md）",
+        ),
     ]
 
     # 先校验全部源存在，再动 _site：防止教程目录被误移后静默组装出空站

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C2C：让大模型用 KV-Cache 直接通信</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<main class="wrap">
+<nav class="crumb"><a href="../../index.html">中文教程合集</a> / <a href="../index.html">X 收藏教程</a> / C2C：让大模型用 KV-Cache 直接通信</nav>
+<h1>C2C：让大模型用 KV-Cache 直接通信</h1>
+<div class="meta">
+<p>作者：AYi（<a href="https://x.com/AYi_AInotes">@AYi_AInotes</a>）</p>
+<p>整理来源：X 收藏</p>
+<p>原帖：<a href="https://x.com/AYi_AInotes/status/2100925284539076924">https://x.com/AYi_AInotes/status/2100925284539076924</a></p>
+<p>发布：2026-09-18 09:29（America/Fortaleza）</p>
+<p>类型：论文解读（长帖）</p>
+</div>
+<div class="note">下面是收藏帖全文。文末链接和官方数字是后来按论文名查到的，用于对照阅读。</div>
+
+<div class="article">
+<p>清华大学和无问芯穹等团队刚刚开源了一篇注定载入史册的重磅论文（已收录于 ICLR 2026，代码已开源）：<br>
+他们彻底打破了所有多智能体（Multi-Agent）系统的底层范式——<br>
+大型语言模型之间，从今天起可以彻底不通过人类文字进行直接交流了！</p>
+<p>这项被称为 C2C（Cache-to-Cache，缓存到缓存）的技术，<br>
+开篇就指出了全网 Agent 协同里最愚蠢、也最昂贵的一个死穴：<br>
+为什么两个跑在同一台服务器里的超级 AI，交流时非要像人类一样，<br>
+把脑子里极其丰富的高维思考，硬生生压缩成一个个英文或中文单词打给对方看？</p>
+<p>现有多 Agent 协同的痛苦，做过工程的人都懂：<br>
+模型 A 思考完，必须经历极其漫长、吃显存带宽的逐字解码（Decode），慢吞吞吐出一大堆文字；<br>
+模型 B 拿到这堆文字，再重新过一遍分词和前缀计算。<br>
+这一来一回，不仅丢失了海量微观的语义细节，更造成了毁灭级的延迟和 Token 账单！</p>
+<p>清华团队这次做了一件极其惊艳的体系化反叛——C2C 脑电波直连：</p>
+<p>1️⃣ 彻底消灭中间文本，直接做“思维投影”：<br>
+模型 A 算完后，根本不生成任何文字，<br>
+系统直接用一个轻量级神经网络（Neural Fuser），把模型 A 的注意力记忆（KV-Cache）通过高维空间旋转和对齐，直接嫁接、融进模型 B 的 KV-Cache 脑内！<br>
+这相当于人类交流跳过了声带和耳朵，直接把我的记忆切片瞬间印进你的大脑；<br>
+2️⃣ 可学习的智能门控（Gate 机制）：<br>
+不同模型的网络层数和结构各不相同，直接硬灌肯定会神经错乱。<br>
+论文设计了一套精妙的可学习门控：<br>
+大模型会自己动态感知，精确挑选哪些关键层吸收外部缓存的增益最高，哪一层该保持独立思考，毫秒级自适应配平；<br>
+3️⃣ 极其残暴的工业基准成绩：<br>
+• 彻底消灭中间所有的文本解码等待，推理速度直接飙升 2.0 到 2.5 倍；<br>
+• 综合问答准确率比单模型最高暴涨 14.2%；<br>
+• 最狠的是：它的表现比传统用文字互相聊天的 Agent 团队，还要高出整整 5%！<br>
+因为在直接的语义融合下，原本会被文字丢弃的逻辑细微特征，全部被完整保真保留了。</p>
+<p>这篇论文最刺痛人的一层哲学启示在于：<br>
+人类一直自豪地以为，自然语言是这个星球上传递智慧最完美的介质；<br>
+但在机器与机器的交互世界里，人类语言不过是一道充满歧义、极其拥挤的低速单行道。</p>
+<p>当两个模型不再需要通过文字向对方妥协，<br>
+它们正在绕过人类的喉咙，<br>
+在冰冷的显存带宽之间，编织出一座全人类根本听不见、却快得不可思议的超高速无声神经网络。</p>
+<p>## 补充链接（根据论文名检索，原帖未直接给出）</p>
+<p>- 论文：<a href="https://arxiv.org/abs/2510.03215">https://arxiv.org/abs/2510.03215</a><br>
+- ICLR 2026 版本：<a href="https://proceedings.iclr.cc/paper_files/paper/2026/file/474ada926b331d78f06d95e8913111cc-Paper-Conference.pdf">https://proceedings.iclr.cc/paper_files/paper/2026/file/474ada926b331d78f06d95e8913111cc-Paper-Conference.pdf</a><br>
+- 官方代码：<a href="https://github.com/thu-nics/C2C">https://github.com/thu-nics/C2C</a><br>
+- 项目页：<a href="https://fuvty.github.io/thinking_yard_project_page/projects/c2c/">https://fuvty.github.io/thinking_yard_project_page/projects/c2c/</a></p>
+<p>官方仓库对方法的简述：C2C 让模型通过 KV-Cache 的投影与融合直接传递语义，而不再生成中间文本。录用版摘要中的总体数字是：相对单模型平均准确率提高 6.4%–14.2%，相对文本通信提高约 3.1%–5.4%，平均延迟加速约 2.5 倍。阅读时请以论文为准，不必完全依赖转述帖中的修辞。</p>
+</div>
+<footer>整理自 X 收藏 / 点赞，正文保持原文，未作改写。</footer>
+</main>
+</body>
+</html>
